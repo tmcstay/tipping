@@ -70,7 +70,7 @@ Codemagic setup needed in the UI:
 - Connect the GitHub repository.
 - Ensure Codemagic detects `codemagic.yaml` at the repo root.
 - Create the `supabase_cloud` environment variable group.
-- Create or connect the App Store Connect API key integration. The workflow currently references the integration as `codemagic`; rename that value in `codemagic.yaml` if your Codemagic integration has a different name.
+- Create or connect the App Store Connect API key integration. The workflow currently references the integration as `codemagic_tipping_api_key`; rename that value in `codemagic.yaml` if your Codemagic integration has a different name.
 - Create an environment variable group named `app_store_connect`.
 - Set `APP_STORE_APPLE_ID` in the `app_store_connect` group to the numeric Apple ID from App Store Connect before publishing.
 - Configure iOS automatic signing for bundle ID `app.tipping`.
@@ -87,7 +87,7 @@ Required Codemagic variables/integrations:
 - `EXPO_PUBLIC_SUPABASE_URL` in group `supabase_cloud`.
 - `EXPO_PUBLIC_SUPABASE_ANON_KEY` in group `supabase_cloud`.
 - `APP_STORE_APPLE_ID` in group `app_store_connect`.
-- App Store Connect API integration named `codemagic`, or update `codemagic.yaml` to match your integration name.
+- App Store Connect API integration named `codemagic_tipping_api_key`, or update `codemagic.yaml` to match your integration name.
 - iOS signing assets for `app.tipping` configured in Codemagic.
 
 ## Local Commands
