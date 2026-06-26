@@ -1,0 +1,87 @@
+workflows:
+  ios-testflight:
+    name: iOS TestFlight (Codemagic)
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: codemagic
+    environment:
+      node: lts
+      xcode: latest
+      cocoapods: default
+      groups:
+        - supabase_cloud
+        - app_store_connect
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.tippingsuite.f1tips
+      vars:
+        BUNDLE_ID: "com.tippingsuite.f1tips"
+        XCODE_WORKSPACE: "F1Tips.xcworkspace"
+        XCODE_SCHEME: "F1Tips"
+    cache:
+      cache_paths:
+        - $CM_BUILD_DIR/node_modules
+        - $CM_BUILD_DIR/apps/mobile/node_modules
+        - $HOME/Library/Caches/CocoaPods
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm install
+      - name: Verify required Expo public environment variables
+        script: |
+          test -n "$EXPO_PUBLIC_SUPABASE_URL" || (echo "EXPO_PUBLIC_SUPABASE_URL is required" && exit 1)
+          test -n "$EXPO_PUBLIC_SUPABASE_ANON_KEY" || (echo "EXPO_PUBLIC_SUPABASE_ANON_KEY is required" && exit 1)
+      - name: Typecheck mobile app
+        script: |
+          npm run typecheck --workspace apps/mobile
+      - name: Run tipping-core tests
+        script: |
+          npm run test --workspace packages/tipping-core
+      - name: Generate iOS native project
+        script: |
+          cd apps/mobile
+          npx expo prebuild --platform ios --clean
+      - name: Set iOS export compliance flag
+        script: |
+          PLIST="$CM_BUILD_DIR/apps/mobile/ios/$XCODE_SCHEME/Info.plist"
+          PLIST_BUDDY=/usr/libexec/PlistBuddy
+          $PLIST_BUDDY -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" || \
+          $PLIST_BUDDY -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST"
+      - name: Install CocoaPods dependencies
+        script: |
+          cd apps/mobile/ios
+          pod install
+      - name: Set up provisioning profiles
+        script: |
+          cd apps/mobile
+          xcode-project use-profiles
+      - name: Increment iOS build number
+        script: |
+          cd apps/mobile/ios
+          test -n "$APP_STORE_APPLE_ID" || (echo "APP_STORE_APPLE_ID is required" && exit 1)
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" || echo 0)
+          agvtool new-version -all $(($LATEST_BUILD_NUMBER + 1))
+      - name: Build iOS IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "$CM_BUILD_DIR/apps/mobile/ios/$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
