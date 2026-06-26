@@ -1,0 +1,15 @@
+{
+  "name": "@tipping-suite/tipping-core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@tipping-suite/shared-types": "0.1.0"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "strict": true,
+    "baseUrl": ".",
+    "types": [
+      "react",
+      "react-native"
+    ],
+    "paths": {
+      "@tipping-suite/shared-types": [
+        "../../packages/shared-types/src"
+      ],
+      "@tipping-suite/tipping-core": [
+        "../../packages/tipping-core/src"
+      ],
+      "@tipping-suite/ui": [
+        "../../packages/ui/src"
+      ],
+      "@tipping-suite/supabase-client": [
+        "../../packages/supabase-client/src"
+      ]
+    }
+  },
+  "include": [
+    "app",
+    "components",
+    "config",
+    "hooks",
+    "lib",
+    "navigation",
+    "screens"
+  ]
+}

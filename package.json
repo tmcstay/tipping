@@ -1,0 +1,19 @@
+{
+  "name": "tipping-suite",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "supabase": "^2.107.0",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "@babel/runtime": "^8.0.0"
+  }
+}

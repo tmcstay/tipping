@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "F1Tips",
+    "slug": "f1tips",
+    "scheme": "f1tips",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.tippingsuite.f1tips",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.tippingsuite.f1tips"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}
