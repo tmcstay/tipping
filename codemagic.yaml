@@ -14,9 +14,9 @@ workflows:
         - app_store_connect
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.tippingsuite.f1tips
+        bundle_identifier: app.tipping
       vars:
-        BUNDLE_ID: "com.tippingsuite.f1tips"
+        BUNDLE_ID: "app.tipping"
         XCODE_WORKSPACE: "F1Tips.xcworkspace"
         XCODE_SCHEME: "F1Tips"
     cache:

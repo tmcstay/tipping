@@ -16,6 +16,9 @@ apps/*/.env
 apps/*/.env.local
 apps/*/.env.*.local
 
+# Apple/App Store Connect private keys
+AuthKey_*.p8
+
 # Build output
 dist/
 build/

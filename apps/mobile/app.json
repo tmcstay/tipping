@@ -12,7 +12,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.tippingsuite.f1tips",
+      "bundleIdentifier": "app.tipping",
       "supportsTablet": true
     },
     "android": {

@@ -73,12 +73,12 @@ Codemagic setup needed in the UI:
 - Create or connect the App Store Connect API key integration. The workflow currently references the integration as `codemagic`; rename that value in `codemagic.yaml` if your Codemagic integration has a different name.
 - Create an environment variable group named `app_store_connect`.
 - Set `APP_STORE_APPLE_ID` in the `app_store_connect` group to the numeric Apple ID from App Store Connect before publishing.
-- Configure iOS automatic signing for bundle ID `com.tippingsuite.f1tips`.
+- Configure iOS automatic signing for bundle ID `app.tipping`.
 
 Apple/App Store Connect requirements:
 
 - Apple Developer Program membership.
-- App Store Connect app record for bundle ID `com.tippingsuite.f1tips`.
+- App Store Connect app record for bundle ID `app.tipping`.
 - App Store Connect API key with sufficient permissions, commonly App Manager.
 - Apple Distribution certificate and App Store provisioning profile, either generated/fetched by Codemagic or uploaded in Codemagic signing identities.
 
@@ -88,7 +88,7 @@ Required Codemagic variables/integrations:
 - `EXPO_PUBLIC_SUPABASE_ANON_KEY` in group `supabase_cloud`.
 - `APP_STORE_APPLE_ID` in group `app_store_connect`.
 - App Store Connect API integration named `codemagic`, or update `codemagic.yaml` to match your integration name.
-- iOS signing assets for `com.tippingsuite.f1tips` configured in Codemagic.
+- iOS signing assets for `app.tipping` configured in Codemagic.
 
 ## Local Commands
 
