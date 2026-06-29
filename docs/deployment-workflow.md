@@ -2,13 +2,13 @@
 
 ## Chosen Workflow
 
-The deployment path is:
+The native deployment path is:
 
 ```text
 GitHub -> Codemagic -> TestFlight
 ```
 
-Supabase Cloud is the backend for database, auth, and future edge services. Vercel is not part of the current mobile build flow and should only be added later when `apps/admin-web`, `apps/marketing-web`, or another web app exists.
+Supabase Cloud is the backend for database, auth, and future edge services. Vercel now deploys only the Expo web export from `apps/mobile`; it does not replace or modify the Codemagic native workflow. See [`docs/deployment.md`](./deployment.md) for the web deployment settings.
 
 ## Repository
 
@@ -106,4 +106,4 @@ npm.cmd run test --workspace packages/tipping-core
 
 ## Vercel
 
-There is currently no web/admin/marketing app to deploy. Vercel should be introduced only after an app such as `apps/admin-web` or `apps/marketing-web` exists.
+Vercel deploys the Expo web version from `apps/mobile` only. Codemagic remains responsible for native builds. See [`docs/deployment.md`](./deployment.md) for the required Vercel monorepo settings, environment variables, export command, and SPA rewrite troubleshooting.

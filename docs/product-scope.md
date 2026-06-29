@@ -1,36 +1,72 @@
-# F1Tips MVP Product Scope
+# GrandTour MVP Product Scope
 
-F1Tips is the first branded app in the Tipping Suite platform. The MVP should prove the shared platform model for a Formula 1 tipping experience without hard-coding F1-specific behaviour into the core tipping engine.
+GrandTour is a cycling tipping app for grand tour stage racing fans. It is an independent product and must not use official Tour de France branding or imply official affiliation.
 
-## MVP Goals
+The canonical detailed scope is [`GRANDTOUR_APP_SCOPE.md`](../GRANDTOUR_APP_SCOPE.md).
 
-- Support one configurable app variant: F1Tips.
-- Let users sign up, log in, manage a display name, view the active F1 season, browse races, submit tips before lock time, view their tips, see results, and follow a leaderboard.
-- Provide a basic fan chat zone with moderation-ready data structures.
-- Give admins the foundations to manage competitions, seasons, events, markets, competitors, results, dummy data, chat, and leaderboard recalculation.
-- Include placeholders for ads, subscriptions, and the RevenueCat `no_ads` entitlement.
+## MVP Goal
+
+Deliver a simple Expo/React Native game backed by Supabase where authenticated users predict each stage's ordered top five and the yellow, green, KOM/polka-dot, and white jersey holders after the stage.
+
+Users may play:
+
+- **Preselection:** complete every stage before the tour-level lock preceding Stage 1.
+- **Daily:** complete each stage before that stage's lock.
+- **Overall:** a derived leaderboard equal to Daily plus Preselection; it is not a third tip mode.
+
+Daily and Preselection use the same form, validation, results, and scoring implementation. Only lock resolution differs.
+
+## Scoring
+
+For each predicted top-five rider:
+
+- Exact position: 10 points
+- Actual top five, wrong position: 5 points
+- Outside the actual top five: 0 points
+
+Cumulative bonuses:
+
+- Correct stage winner: 5 points
+- All five riders in the actual top five, any order: 10 points
+- Perfect exact-order top five: 25 points
+
+Each correct post-stage jersey holder is worth 10 points. A perfect stage scores 90 top-five points plus 40 jersey points, for a maximum of 130.
 
 ## In Scope
 
-- Expo React Native mobile app shell for iOS, Android, and web.
-- Shared TypeScript packages for app configuration, tipping types, core tipping logic, UI components, and Supabase access.
-- F1Tips configuration driven by app metadata, feature flags, theme values, and market types.
-- Supabase-backed data model and RLS in later implementation work.
-- Initial market types: race winner, podium, fastest lap, and qualifying winner.
-- Dummy users and dummy tips for testing and demos, always clearly marked as dummy data.
+- Supabase/Postgres data model, constraints, RLS, and typed access
+- Basic tour, stage, team, rider, market, tip, result, and score data
+- Authentication and profile foundation
+- Shared stage tipping form for Daily and Preselection
+- Tour-level Preselection locking and stage-level Daily locking
+- Pure shared scoring logic with a score breakdown
+- Daily, Preselection, and derived Overall leaderboards
+- Simple mobile/web screens through Expo
+- Protected tour setup and result-entry capability
+- Tests for scoring, validation, locking, RLS, and leaderboard aggregation
 
 ## Out of Scope
 
-- Full production UI.
-- Real prizes, paid competitions, gambling, or real-money rewards.
-- Complex live timing integrations.
-- Multi-language support.
-- External spam or deceptive growth automation.
+- Ads and subscriptions
+- Chat
+- Prizes or paid competitions
+- Push notifications
+- Dummy activity in the MVP UI
+- Live timing integrations
+- Official cycling-event branding or licensed data feeds
+- Full public marketing site
+
+Feature flags for ads, subscriptions, chat, prizes, and dummy activity must remain disabled.
 
 ## Architecture Principles
 
-- Build one shared platform, not separate codebases per sport.
-- Keep sport-specific behaviour in configuration and market definitions.
-- Keep reusable scoring, locking, validation, and leaderboard logic in `packages/tipping-core`.
-- Keep Supabase client code isolated in `packages/supabase-client`.
-- Never expose service role keys in client code.
+- Keep the platform reusable and configuration-driven.
+- Treat stages as generic events and riders as typed competitors where practical.
+- Represent ordered top-five selections explicitly; the current one-tip-per-market shape is insufficient.
+- Store user-entered modes as `daily` or `preselection` only.
+- Derive Overall from the two score sets.
+- Enforce ownership and lock timing in Supabase, not only in the client.
+- Use RLS on every exposed table and never expose service-role credentials to the app.
+- Keep scoring, validation, locking, and leaderboard rules in `packages/tipping-core`.
+- Keep Supabase access isolated in `packages/supabase-client`.
+- Do not rewrite an applied migration until migration history and data state are known.
