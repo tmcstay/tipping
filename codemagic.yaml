@@ -51,7 +51,6 @@ workflows:
       - name: Set up code signing identities
         script: |
           keychain initialize
-          keychain add-certificates
 
       - name: Install npm dependencies
         script: |
@@ -113,6 +112,7 @@ workflows:
             --type IOS_APP_STORE \
             --create
 
+          keychain add-certificates
           xcode-project use-profiles
 
       - name: Increment iOS build number
