@@ -1,29 +1,26 @@
 workflows:
   ios-testflight:
-    name: iOS TestFlight (Codemagic)
-    max_build_duration: 120
+    name: iOS TestFlight
+
     instance_type: mac_mini_m2
-    integrations:
-      app_store_connect: codemagic_tipping_api_key
+    max_build_duration: 60
+
     environment:
-      node: lts
+      node: 20
       xcode: latest
       cocoapods: default
+
       groups:
-        - supabase_cloud
         - app_store_connect
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: app.tipping
+        - ios_signing
+        - expo_public_env
+
       vars:
-        BUNDLE_ID: "app.tipping"
-        XCODE_WORKSPACE: "F1Tips.xcworkspace"
-        XCODE_SCHEME: "F1Tips"
-    cache:
-      cache_paths:
-        - $CM_BUILD_DIR/node_modules
-        - $CM_BUILD_DIR/apps/mobile/node_modules
-        - $HOME/Library/Caches/CocoaPods
+        APP_NAME: F1Tips
+        XCODE_WORKSPACE: F1Tips.xcworkspace
+        XCODE_SCHEME: F1Tips
+        BUNDLE_ID: app.tipping
+
     triggering:
       events:
         - push
@@ -31,57 +28,217 @@ workflows:
         - pattern: main
           include: true
           source: true
-      cancel_previous_builds: true
+
     scripts:
+      - name: Confirm new YAML is being used
+        script: |
+          echo "=============================================="
+          echo "USING NEW BUILD NUMBER SCRIPT - DO NOT USE APP STORE LOOKUP"
+          echo "=============================================="
+          echo "Commit:"
+          git rev-parse --short HEAD
+          echo "Branch:"
+          git branch --show-current || true
+          echo "CM_BUILD_NUMBER=$CM_BUILD_NUMBER"
+          echo "CM_BUILD_DIR=$CM_BUILD_DIR"
+          echo "BUNDLE_ID=$BUNDLE_ID"
+
+          echo "Checking for forbidden old App Store build lookup command..."
+          FORBIDDEN_COMMAND="get-latest-app-store-build""-number"
+          if grep -R "$FORBIDDEN_COMMAND" "$CM_BUILD_DIR" --exclude-dir=node_modules --exclude-dir=.git; then
+            echo "ERROR: Old App Store build lookup command still exists in repository."
+            exit 1
+          fi
+
       - name: Install npm dependencies
         script: |
-          npm install
+          cd "$CM_BUILD_DIR"
+          npm ci
+
       - name: Verify required Expo public environment variables
         script: |
-          test -n "$EXPO_PUBLIC_SUPABASE_URL" || (echo "EXPO_PUBLIC_SUPABASE_URL is required" && exit 1)
-          test -n "$EXPO_PUBLIC_SUPABASE_ANON_KEY" || (echo "EXPO_PUBLIC_SUPABASE_ANON_KEY is required" && exit 1)
+          cd "$CM_BUILD_DIR"
+
+          test -n "$EXPO_PUBLIC_SUPABASE_URL" || \
+            (echo "EXPO_PUBLIC_SUPABASE_URL is required" && exit 1)
+
+          test -n "$EXPO_PUBLIC_SUPABASE_ANON_KEY" || \
+            (echo "EXPO_PUBLIC_SUPABASE_ANON_KEY is required" && exit 1)
+
+          echo "Expo public environment variables found."
+
       - name: Typecheck mobile app
         script: |
-          npm run typecheck --workspace apps/mobile
+          cd "$CM_BUILD_DIR/apps/mobile"
+          npm run typecheck
+
       - name: Run tipping-core tests
         script: |
+          cd "$CM_BUILD_DIR"
           npm run test --workspace packages/tipping-core
+
+      - name: Set iOS build number
+        script: |
+          echo "=============================================="
+          echo "SETTING IOS BUILD NUMBER WITHOUT APP STORE LOOKUP"
+          echo "=============================================="
+
+          IOS_BUILD_NUMBER="$CM_BUILD_NUMBER"
+
+          if [ -z "$IOS_BUILD_NUMBER" ]; then
+            IOS_BUILD_NUMBER=2
+          fi
+
+          if [ "$IOS_BUILD_NUMBER" -lt 2 ]; then
+            IOS_BUILD_NUMBER=2
+          fi
+
+          echo "IOS_BUILD_NUMBER=$IOS_BUILD_NUMBER" >> "$CM_ENV"
+          echo "Using IOS_BUILD_NUMBER=$IOS_BUILD_NUMBER"
+
+      - name: Patch Expo config
+        script: |
+          cd "$CM_BUILD_DIR/apps/mobile"
+
+          echo "Patching Expo config..."
+          echo "BUNDLE_ID=$BUNDLE_ID"
+          echo "IOS_BUILD_NUMBER=$IOS_BUILD_NUMBER"
+
+          if [ -f app.json ]; then
+            node - <<'NODE'
+            const fs = require("fs");
+
+            const file = "app.json";
+            const bundleId = process.env.BUNDLE_ID;
+            const buildNumber = process.env.IOS_BUILD_NUMBER;
+
+            const json = JSON.parse(fs.readFileSync(file, "utf8"));
+
+            json.expo = json.expo || {};
+            json.expo.ios = json.expo.ios || {};
+            json.expo.ios.bundleIdentifier = bundleId;
+            json.expo.ios.buildNumber = String(buildNumber);
+
+            fs.writeFileSync(file, JSON.stringify(json, null, 2) + "\n");
+
+            console.log("expo.ios.bundleIdentifier =", bundleId);
+            console.log("expo.ios.buildNumber =", buildNumber);
+            NODE
+          elif [ -f app.config.js ]; then
+            echo "app.config.js found. It must read BUNDLE_ID and IOS_BUILD_NUMBER."
+          elif [ -f app.config.ts ]; then
+            echo "app.config.ts found. It must read BUNDLE_ID and IOS_BUILD_NUMBER."
+          else
+            echo "ERROR: No app.json, app.config.js or app.config.ts found in apps/mobile."
+            exit 1
+          fi
+
       - name: Generate iOS native project
         script: |
-          cd apps/mobile
+          cd "$CM_BUILD_DIR/apps/mobile"
           npx expo prebuild --platform ios --clean
-      - name: Set iOS export compliance flag
-        script: |
-          PLIST="$CM_BUILD_DIR/apps/mobile/ios/$XCODE_SCHEME/Info.plist"
-          PLIST_BUDDY=/usr/libexec/PlistBuddy
-          $PLIST_BUDDY -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" || \
-          $PLIST_BUDDY -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST"
+
       - name: Install CocoaPods dependencies
         script: |
-          cd apps/mobile/ios
+          cd "$CM_BUILD_DIR/apps/mobile/ios"
           pod install
-      - name: Set up provisioning profiles
+
+      - name: Set up code signing identities
         script: |
-          cd apps/mobile
+          keychain initialize
+
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+
+          keychain add-certificates
           xcode-project use-profiles
-      - name: Increment iOS build number
+
+      - name: Force native iOS build number
         script: |
-          cd apps/mobile/ios
-          test -n "$APP_STORE_APPLE_ID" || (echo "APP_STORE_APPLE_ID is required" && exit 1)
-          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" || echo 0)
-          agvtool new-version -all $(($LATEST_BUILD_NUMBER + 1))
+          cd "$CM_BUILD_DIR/apps/mobile/ios"
+
+          echo "=============================================="
+          echo "FORCING NATIVE IOS BUILD NUMBER"
+          echo "=============================================="
+          echo "IOS_BUILD_NUMBER=$IOS_BUILD_NUMBER"
+          echo "BUNDLE_ID=$BUNDLE_ID"
+
+          agvtool new-version -all "$IOS_BUILD_NUMBER" || true
+
+          find . -name "Info.plist" -print0 | while IFS= read -r -d '' plist; do
+            if /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$plist" >/dev/null 2>&1; then
+              /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $IOS_BUILD_NUMBER" "$plist" 2>/dev/null || \
+              /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $IOS_BUILD_NUMBER" "$plist"
+
+              /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$plist" 2>/dev/null || \
+              /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$plist"
+
+              echo "Updated $plist to CFBundleVersion $IOS_BUILD_NUMBER"
+            fi
+          done
+
+          echo "Final Info.plist values:"
+          find . -name "Info.plist" -print0 | while IFS= read -r -d '' plist; do
+            if /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$plist" >/dev/null 2>&1; then
+              echo "---- $plist"
+              /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$plist" || true
+              /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$plist" || true
+            fi
+          done
+
       - name: Build iOS IPA
         script: |
+          cd "$CM_BUILD_DIR"
+
           xcode-project build-ipa \
             --workspace "$CM_BUILD_DIR/apps/mobile/ios/$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME"
+
+      - name: Verify IPA before publishing
+        script: |
+          cd "$CM_BUILD_DIR"
+
+          IPA_PATH=$(find "$CM_BUILD_DIR" -name "*.ipa" | head -n 1)
+          test -n "$IPA_PATH" || (echo "No IPA found" && exit 1)
+
+          echo "Found IPA: $IPA_PATH"
+
+          rm -rf /tmp/ipa-check
+          mkdir -p /tmp/ipa-check
+          unzip -q "$IPA_PATH" -d /tmp/ipa-check
+
+          APP_PLIST=$(find /tmp/ipa-check/Payload -name "Info.plist" | head -n 1)
+          test -n "$APP_PLIST" || (echo "No app Info.plist found inside IPA" && exit 1)
+
+          FINAL_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PLIST")
+          FINAL_BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP_PLIST")
+          FINAL_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP_PLIST")
+
+          echo "IPA CFBundleIdentifier: $FINAL_BUNDLE_ID"
+          echo "IPA CFBundleShortVersionString: $FINAL_VERSION"
+          echo "IPA CFBundleVersion: $FINAL_BUILD_NUMBER"
+          echo "Expected CFBundleVersion: $IOS_BUILD_NUMBER"
+
+          if [ "$FINAL_BUILD_NUMBER" != "$IOS_BUILD_NUMBER" ]; then
+            echo "ERROR: IPA build number does not match expected build number."
+            exit 1
+          fi
+
+          if [ "$FINAL_BUILD_NUMBER" -lt 2 ]; then
+            echo "ERROR: IPA build number must be greater than 1."
+            exit 1
+          fi
+
+          echo "IPA verified successfully."
+
     artifacts:
-      - build/ios/ipa/*.ipa
+      - apps/mobile/ios/build/ios/ipa/*.ipa
+      - apps/mobile/ios/build/ios/xcarchive/*.xcarchive
+      - apps/mobile/ios/build/ios/ipa/*.dSYM.zip
       - /tmp/xcodebuild_logs/*.log
-      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
-      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
     publishing:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
-        submit_to_app_store: false

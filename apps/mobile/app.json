@@ -13,6 +13,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "app.tipping",
+      "buildNumber": "2",
       "supportsTablet": true
     },
     "android": {
