@@ -1,4 +1,4 @@
-import { Link, usePathname } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import type { PropsWithChildren } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -11,13 +11,14 @@ type AppShellProps = PropsWithChildren<{
 
 const navItems = [
   { href: "/", label: "Home" },
-  { href: "/races", label: "Races" },
+  { href: "/stages", label: "Stages" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/profile", label: "Profile" }
 ] as const;
 
 export function AppShell({ children, subtitle, title }: AppShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const theme = activeAppConfig.theme;
 
   return (
@@ -36,18 +37,18 @@ export function AppShell({ children, subtitle, title }: AppShellProps) {
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 
           return (
-            <Link href={item.href} asChild key={item.href}>
-              <Pressable
-                style={[
-                  styles.navItem,
-                  active && { backgroundColor: theme.primaryColor }
-                ]}
-              >
-                <Text style={[styles.navText, active && styles.navTextActive]}>
-                  {item.label}
-                </Text>
-              </Pressable>
-            </Link>
+            <Pressable
+              key={item.href}
+              onPress={() => router.push(item.href)}
+              style={[
+                styles.navItem,
+                active && { backgroundColor: theme.primaryColor }
+              ]}
+            >
+              <Text style={[styles.navText, active && styles.navTextActive]}>
+                {item.label}
+              </Text>
+            </Pressable>
           );
         })}
       </View>
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
     textAlign: "center"
   },
   navTextActive: {
-    color: "#FFFFFF"
+    color: "#111111"
   },
   page: {
     flex: 1

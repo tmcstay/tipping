@@ -7,13 +7,19 @@
     "packages/*"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "npm --workspace packages/tipping-core test",
+    "import:tdf:2026": "node scripts/import-tdf-2026.mjs",
+    "import:tdf:2026:dry-run": "node scripts/import-tdf-2026.mjs --dry-run",
+    "seed:tdf:dummy": "node scripts/generate-tdf-dummy-tips.mjs",
+    "seed:tdf:dummy:dry-run": "node scripts/generate-tdf-dummy-tips.mjs --dry-run"
   },
   "devDependencies": {
     "supabase": "^2.107.0",
     "typescript": "^5.5.4"
   },
   "dependencies": {
-    "@babel/runtime": "^8.0.0"
+    "@babel/runtime": "^8.0.0",
+    "@supabase/supabase-js": "^2.108.2"
   }
 }

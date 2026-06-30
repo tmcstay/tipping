@@ -10,7 +10,7 @@ export function LoadingState() {
   return (
     <View style={styles.panel}>
       <Text style={styles.title}>Loading</Text>
-      <Text style={styles.copy}>Fetching the latest sample data.</Text>
+      <Text style={styles.copy}>Fetching the latest cycling data.</Text>
     </View>
   );
 }

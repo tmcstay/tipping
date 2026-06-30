@@ -1,0 +1,21 @@
+{
+  "id": "a0cfee7f-5789-5a71-9e03-a9cfe59d5c27",
+  "name": "Tour de France",
+  "year": 2026,
+  "start_date": "2026-07-04",
+  "end_date": "2026-07-26",
+  "countries": [
+    "Spain",
+    "France"
+  ],
+  "category": "UCI WorldTour (2.UWT)",
+  "organiser": "Amaury Sport Organisation (A.S.O.)",
+  "source_url": "https://www.letour.fr/en/overall-route",
+  "additional_source_urls": [
+    "https://www.letour.fr/en/news/2026/tour-de-france-2026-the-teams-at-the-start/1333029",
+    "https://www.procyclingstats.com/race/tour-de-france/2026"
+  ],
+  "data_confidence": "high",
+  "created_at": "2026-06-30T00:00:00Z",
+  "updated_at": "2026-06-30T00:00:00Z"
+}

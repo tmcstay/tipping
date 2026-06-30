@@ -13,14 +13,14 @@ export default function ProfileScreen() {
   const { data: user, error, loading, reload } = useAsyncData(loadUser);
 
   return (
-    <AppShell title="Profile" subtitle="Authentication screens come next.">
+    <AppShell title="Profile" subtitle="Your GrandTour Tips account.">
       {loading ? <LoadingState /> : null}
       {error ? <ErrorState error={error} onRetry={reload} /> : null}
       {!loading && !error ? (
         <InfoCard title={user?.email ?? "Not signed in"} meta={activeAppConfig.appName}>
           <Text style={styles.copy}>
-            Profile editing and authentication will be added after the read-only
-            race browsing flow.
+            Sign in to save stage-winner tips. Display-name editing and richer
+            account controls remain an MVP follow-up.
           </Text>
         </InfoCard>
       ) : null}

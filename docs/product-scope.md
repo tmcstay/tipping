@@ -4,6 +4,10 @@ GrandTour is a cycling tipping app for grand tour stage racing fans. It is an in
 
 The canonical detailed scope is [`GRANDTOUR_APP_SCOPE.md`](../GRANDTOUR_APP_SCOPE.md).
 
+The audited 2026 cycling dataset, import workflow, provisional-startlist rules,
+and refresh procedure are documented in
+[`docs/tdf-2026-data.md`](./tdf-2026-data.md).
+
 ## MVP Goal
 
 Deliver a simple Expo/React Native game backed by Supabase where authenticated users predict each stage's ordered top five and the yellow, green, KOM/polka-dot, and white jersey holders after the stage.

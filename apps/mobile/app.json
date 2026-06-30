@@ -14,6 +14,9 @@
     "ios": {
       "bundleIdentifier": "app.tipping",
       "buildNumber": "2",
+      "infoPlist": {
+        "CFBundleDisplayName": "GrandTour Tips"
+      },
       "supportsTablet": true
     },
     "android": {

@@ -1,3 +1,3 @@
-import { f1TipsConfig } from "../config/f1tips";
+import { grandTourConfig } from "../config/grandtour";
 
-export const activeAppConfig = f1TipsConfig;
+export const activeAppConfig = grandTourConfig;
