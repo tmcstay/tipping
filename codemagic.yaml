@@ -38,8 +38,17 @@ workflows:
           npm install
       - name: Verify required Expo public environment variables
         script: |
-          test -n "$EXPO_PUBLIC_SUPABASE_URL" || (echo "EXPO_PUBLIC_SUPABASE_URL is required" && exit 1)
-          test -n "$EXPO_PUBLIC_SUPABASE_ANON_KEY" || (echo "EXPO_PUBLIC_SUPABASE_ANON_KEY is required" && exit 1)
+          cd "$CM_BUILD_DIR"
+
+          test -n "$EXPO_PUBLIC_SUPABASE_URL" || \
+            (echo "EXPO_PUBLIC_SUPABASE_URL is required" && exit 1)
+
+          test -n "$EXPO_PUBLIC_SUPABASE_ANON_KEY" || \
+            (echo "EXPO_PUBLIC_SUPABASE_ANON_KEY is required" && exit 1)
+
+          echo "Expo public environment variables found."
+          echo "Supabase URL present: yes"
+          echo "Supabase anon key length: ${#EXPO_PUBLIC_SUPABASE_ANON_KEY}"
       - name: Typecheck mobile app
         script: |
           npm run typecheck --workspace apps/mobile
