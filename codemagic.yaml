@@ -15,7 +15,6 @@ workflows:
 
       groups:
         - app_store_connect
-        - ios_signing
         - supabase_cloud
 
       vars:
