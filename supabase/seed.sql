@@ -80,9 +80,19 @@ insert into public.grandtour_riders (
   display_name,
   country,
   rider_type,
-  is_active
+  is_active,
+  normalized_name
 )
-values
+select
+  id::uuid,
+  grand_tour_id::uuid,
+  team_id::uuid,
+  display_name,
+  country,
+  rider_type,
+  is_active,
+  lower(regexp_replace(trim(display_name), '\s+', ' ', 'g'))
+from (values
   ('40000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'Luc Moreau', 'France', 'gc', true),
   ('40000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'Étienne Caron', 'France', 'sprinter', true),
   ('40000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'Mathieu Delorme', 'France', 'climber', true),
@@ -130,11 +140,21 @@ values
   ('40000000-0000-4000-8000-000000000038', '10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000008', 'Theo Girard', 'France', 'sprinter', true),
   ('40000000-0000-4000-8000-000000000039', '10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000008', 'Bastien Roche', 'France', 'puncheur', true),
   ('40000000-0000-4000-8000-000000000040', '10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000008', 'Antonin Perrin', 'France', 'domestique', true)
+) as seeded_riders (
+  id,
+  grand_tour_id,
+  team_id,
+  display_name,
+  country,
+  rider_type,
+  is_active
+)
 on conflict (id) do update
 set
   grand_tour_id = excluded.grand_tour_id,
   team_id = excluded.team_id,
   display_name = excluded.display_name,
+  normalized_name = excluded.normalized_name,
   country = excluded.country,
   rider_type = excluded.rider_type,
   is_active = excluded.is_active;
