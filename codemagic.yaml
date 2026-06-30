@@ -48,10 +48,6 @@ workflows:
 
           echo "Old App Store latest-build lookup is intentionally not used by this workflow."
 
-      - name: Set up code signing identities
-        script: |
-          keychain initialize
-
       - name: Install npm dependencies
         script: |
           cd "$CM_BUILD_DIR"
@@ -104,16 +100,34 @@ workflows:
           cd "$CM_BUILD_DIR/apps/mobile/ios"
           pod install
 
-      - name: Set up provisioning profiles
+      - name: Set up iOS signing and provisioning
         script: |
           cd "$CM_BUILD_DIR/apps/mobile/ios"
+
+          echo "=============================================="
+          echo "SETTING UP IOS SIGNING AND PROVISIONING"
+          echo "=============================================="
+          echo "Bundle ID: $BUNDLE_ID"
+          echo "Workspace: $XCODE_WORKSPACE"
+          echo "Scheme: $XCODE_SCHEME"
+
+          keychain initialize
 
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
 
           keychain add-certificates
+
           xcode-project use-profiles
+
+          echo "Signing files installed."
+
+          echo "Build settings after applying profiles:"
+          xcodebuild \
+            -workspace "$CM_BUILD_DIR/apps/mobile/ios/$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -showBuildSettings | grep -E "PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|PROVISIONING_PROFILE_SPECIFIER|CODE_SIGN_IDENTITY" || true
 
       - name: Increment iOS build number
         script: |
