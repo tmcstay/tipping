@@ -60,10 +60,14 @@ The workflow:
 3. Runs `npm run typecheck --workspace apps/mobile`.
 4. Runs `npm run test --workspace packages/tipping-core`.
 5. Runs `npx expo prebuild --platform ios --clean` from `apps/mobile`.
-6. Installs CocoaPods.
-7. Applies Codemagic iOS signing profiles.
-8. Builds a signed IPA.
-9. Publishes the IPA to App Store Connect/TestFlight.
+6. Sets the export-compliance flag and installs CocoaPods.
+7. Applies the existing Codemagic iOS signing profiles.
+8. Uses `CM_BUILD_NUMBER`, clamped to a minimum of `2`, for the native Xcode build number and prints the resulting `CFBundleVersion` values.
+9. Builds a signed IPA.
+10. Publishes the IPA through the existing App Store Connect integration.
+
+See [`docs/deployment/codemagic-ios.md`](./deployment/codemagic-ios.md) for the
+build-number incident, safeguards, and settings that must remain in place.
 
 Codemagic setup needed in the UI:
 
@@ -72,7 +76,6 @@ Codemagic setup needed in the UI:
 - Create the `supabase_cloud` environment variable group.
 - Create or connect the App Store Connect API key integration. The workflow currently references the integration as `codemagic_tipping_api_key`; rename that value in `codemagic.yaml` if your Codemagic integration has a different name.
 - Create an environment variable group named `app_store_connect`.
-- Set `APP_STORE_APPLE_ID` in the `app_store_connect` group to the numeric Apple ID from App Store Connect before publishing.
 - Configure iOS automatic signing for bundle ID `app.tipping`.
 
 Apple/App Store Connect requirements:
@@ -86,7 +89,6 @@ Required Codemagic variables/integrations:
 
 - `EXPO_PUBLIC_SUPABASE_URL` in group `supabase_cloud`.
 - `EXPO_PUBLIC_SUPABASE_ANON_KEY` in group `supabase_cloud`.
-- `APP_STORE_APPLE_ID` in group `app_store_connect`.
 - App Store Connect API integration named `codemagic_tipping_api_key`, or update `codemagic.yaml` to match your integration name.
 - iOS signing assets for `app.tipping` configured in Codemagic.
 
