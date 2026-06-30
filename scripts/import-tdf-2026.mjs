@@ -1,8 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 
 import {
+  analyzeTdfDataset,
   chunk,
   normalizeRiderName,
+  normalizeTeamName,
   parseArgs,
   readTdfDataset,
   stableUuid,
@@ -182,10 +184,144 @@ async function upsertRows(client, table, rows, batchSize = 500) {
   };
 }
 
+function matchExistingId(name, exactMatches, normalizedMatches, normalize) {
+  return exactMatches.get(name) ?? normalizedMatches.get(normalize(name)) ?? null;
+}
+
+async function reconcileExistingEntities(client, rows) {
+  const incomingRace = rows.race[0];
+  const { data: existingRace, error: raceError } = await client
+    .from("grand_tours")
+    .select("id")
+    .eq("sport", incomingRace.sport)
+    .eq("name", incomingRace.name)
+    .eq("year", incomingRace.year)
+    .limit(1)
+    .maybeSingle();
+  if (raceError) throw raceError;
+
+  const raceId = existingRace?.id ?? incomingRace.id;
+  rows.race[0].id = raceId;
+  for (const collection of [rows.competition, rows.teams, rows.riders, rows.stages, rows.audit]) {
+    for (const row of collection) row.grand_tour_id = raceId;
+  }
+
+  const incomingCompetition = rows.competition[0];
+  const { data: existingCompetition, error: competitionError } = await client
+    .from("grandtour_competitions")
+    .select("id")
+    .eq("grand_tour_id", raceId)
+    .eq("name", incomingCompetition.name)
+    .limit(1)
+    .maybeSingle();
+  if (competitionError) throw competitionError;
+  incomingCompetition.id = existingCompetition?.id
+    ?? stableUuid(`grandtour-competition:${raceId}:public`);
+
+  const [
+    { data: existingTeams, error: teamsError },
+    { data: existingRiders, error: ridersError },
+    { data: existingStages, error: stagesError },
+    { data: existingAudit, error: auditError },
+  ] = await Promise.all([
+    client.from("grandtour_teams").select("id,name").eq("grand_tour_id", raceId),
+    client.from("grandtour_riders").select("id,display_name").eq("grand_tour_id", raceId),
+    client.from("grandtour_stages").select("id,stage_number").eq("grand_tour_id", raceId),
+    client.from("data_audit").select("id,source_url,date_accessed").eq("grand_tour_id", raceId),
+  ]);
+  if (teamsError) throw teamsError;
+  if (ridersError) throw ridersError;
+  if (stagesError) throw stagesError;
+  if (auditError) throw auditError;
+
+  const teamExact = new Map((existingTeams ?? []).map((team) => [team.name, team.id]));
+  const teamNormalized = new Map(
+    (existingTeams ?? []).map((team) => [normalizeTeamName(team.name), team.id]),
+  );
+  const riderExact = new Map((existingRiders ?? []).map((rider) => [rider.display_name, rider.id]));
+  const riderNormalized = new Map(
+    (existingRiders ?? []).map((rider) => [normalizeRiderName(rider.display_name), rider.id]),
+  );
+  const teamIds = new Map();
+  const riderIds = new Map();
+  const stageIds = new Map();
+  let reusedTeams = 0;
+  let reusedRiders = 0;
+  let reusedStages = 0;
+  let reusedAuditRows = 0;
+
+  rows.teams = rows.teams.map((team) => {
+    const sourceId = team.id;
+    const matchedId = matchExistingId(team.name, teamExact, teamNormalized, normalizeTeamName);
+    if (matchedId && matchedId !== sourceId) reusedTeams += 1;
+    teamIds.set(sourceId, matchedId ?? sourceId);
+    return { ...team, id: matchedId ?? sourceId };
+  });
+
+  rows.riders = rows.riders.map((rider) => {
+    const sourceId = rider.id;
+    const matchedId = matchExistingId(
+      rider.display_name,
+      riderExact,
+      riderNormalized,
+      normalizeRiderName,
+    );
+    if (matchedId && matchedId !== sourceId) reusedRiders += 1;
+    riderIds.set(sourceId, matchedId ?? sourceId);
+    return {
+      ...rider,
+      id: matchedId ?? sourceId,
+      team_id: teamIds.get(rider.team_id) ?? rider.team_id,
+    };
+  });
+
+  const stagesByNumber = new Map(
+    (existingStages ?? []).map((stage) => [Number(stage.stage_number), stage.id]),
+  );
+  rows.stages = rows.stages.map((stage) => {
+    const sourceId = stage.id;
+    const matchedId = stagesByNumber.get(stage.stage_number) ?? sourceId;
+    if (matchedId !== sourceId) reusedStages += 1;
+    stageIds.set(sourceId, matchedId);
+    return { ...stage, id: matchedId };
+  });
+
+  rows.startlist = rows.startlist.map((entry) => {
+    const riderId = riderIds.get(entry.rider_id) ?? entry.rider_id;
+    const stageId = stageIds.get(entry.stage_id) ?? entry.stage_id;
+    return {
+      ...entry,
+      id: stableUuid(`grandtour-stage-startlist:${stageId}:${riderId}`),
+      stage_id: stageId,
+      rider_id: riderId,
+      team_id: teamIds.get(entry.team_id) ?? entry.team_id,
+    };
+  });
+
+  const auditBySourceAndDate = new Map(
+    (existingAudit ?? []).map((row) => [`${row.source_url}|${row.date_accessed}`, row.id]),
+  );
+  rows.audit = rows.audit.map((row) => {
+    const matchedId = auditBySourceAndDate.get(`${row.source_url}|${row.date_accessed}`) ?? row.id;
+    if (matchedId !== row.id) reusedAuditRows += 1;
+    return { ...row, id: matchedId };
+  });
+
+  return {
+    reusedRace: Boolean(existingRace),
+    reusedCompetition: Boolean(existingCompetition),
+    reusedTeams,
+    reusedRiders,
+    reusedStages,
+    reusedAuditRows,
+  };
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const dataset = await readTdfDataset(options.dataDir);
   const rows = buildRows(dataset);
+  const validation = analyzeTdfDataset(dataset);
   const planned = Object.fromEntries(
     Object.entries(rows).map(([name, values]) => [name, values.length]),
   );
@@ -195,6 +331,7 @@ async function main() {
       mode: "dry-run",
       dataDir: options.dataDir,
       planned,
+      validation,
       assumptions: {
         startTimes: "estimated",
         defaultStageStartTimeUtc: process.env.TDF_DEFAULT_STAGE_START_TIME_UTC ?? "12:00:00Z",
@@ -215,6 +352,7 @@ async function main() {
   });
 
   const summary = {};
+  const reconciliation = await reconcileExistingEntities(client, rows);
   summary.race = await upsertRows(client, "grand_tours", rows.race);
   summary.competition = await upsertRows(client, "grandtour_competitions", rows.competition);
   summary.teams = await upsertRows(client, "grandtour_teams", rows.teams);
@@ -222,7 +360,7 @@ async function main() {
   summary.stages = await upsertRows(client, "grandtour_stages", rows.stages);
   summary.startlist = await upsertRows(client, "grandtour_stage_startlists", rows.startlist);
   summary.audit = await upsertRows(client, "data_audit", rows.audit);
-  console.log(JSON.stringify({ mode: "import", dataDir: options.dataDir, summary }, null, 2));
+  console.log(JSON.stringify({ mode: "import", dataDir: options.dataDir, reconciliation, summary }, null, 2));
 }
 
 await main();

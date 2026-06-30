@@ -38,6 +38,25 @@ export type CyclingCompetition = {
   allow_daily: boolean;
 };
 
+export type CyclingTeam = {
+  id: string;
+  name: string;
+  code: string | null;
+  country: string | null;
+  team_type: string | null;
+  data_confidence: string;
+};
+
+export type CyclingRider = {
+  id: string;
+  team_id: string | null;
+  display_name: string;
+  normalized_name: string;
+  nationality: string | null;
+  rider_type: string | null;
+  data_confidence: string;
+};
+
 export type CyclingStartlistRider = {
   id: string;
   status: string;
@@ -88,6 +107,29 @@ export async function listCyclingStages(raceId: string): Promise<CyclingStage[]>
     .select("id,grand_tour_id,stage_number,stage_name,stage_type,starts_at,locks_at,start_location,finish_location,distance_km,start_time_is_estimated,source_url,data_confidence")
     .eq("grand_tour_id", raceId)
     .order("stage_number", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function listCyclingTeams(raceId: string): Promise<CyclingTeam[]> {
+  const { data, error } = await getSupabaseClient()
+    .from("grandtour_teams")
+    .select("id,name,code,country,team_type,data_confidence")
+    .eq("grand_tour_id", raceId)
+    .order("name", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function listCyclingRiders(raceId: string): Promise<CyclingRider[]> {
+  const { data, error } = await getSupabaseClient()
+    .from("grandtour_riders")
+    .select("id,team_id,display_name,normalized_name,nationality,rider_type,data_confidence")
+    .eq("grand_tour_id", raceId)
+    .eq("is_active", true)
+    .order("display_name", { ascending: true });
 
   if (error) throw error;
   return data ?? [];

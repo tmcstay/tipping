@@ -4,7 +4,9 @@ import {
   getCyclingRaceByYear,
   getPublicCyclingCompetition,
   listCyclingLeaderboard,
+  listCyclingRiders,
   listCyclingStages,
+  listCyclingTeams,
   listStageStartlist,
   saveCurrentUserCyclingStageWinnerTip,
   type CyclingLeaderboardRow
@@ -17,8 +19,12 @@ export function useCyclingRace(year = 2026) {
   return useAsyncData(loadRace, [year]);
 }
 
+export function useTdf2026Race() {
+  return useCyclingRace(2026);
+}
+
 export function useTdf2026Stages() {
-  const race = useCyclingRace(2026);
+  const race = useTdf2026Race();
   const raceId = race.data?.id ?? null;
   const loadStages = useCallback(
     () => (raceId ? listCyclingStages(raceId) : Promise.resolve([])),
@@ -26,6 +32,28 @@ export function useTdf2026Stages() {
   );
   const stages = useAsyncData(loadStages, [raceId]);
   return { race, stages };
+}
+
+export function useTdfTeams() {
+  const race = useTdf2026Race();
+  const raceId = race.data?.id ?? null;
+  const loadTeams = useCallback(
+    () => (raceId ? listCyclingTeams(raceId) : Promise.resolve([])),
+    [raceId]
+  );
+  const teams = useAsyncData(loadTeams, [raceId]);
+  return { race, teams };
+}
+
+export function useTdfRiders() {
+  const race = useTdf2026Race();
+  const raceId = race.data?.id ?? null;
+  const loadRiders = useCallback(
+    () => (raceId ? listCyclingRiders(raceId) : Promise.resolve([])),
+    [raceId]
+  );
+  const riders = useAsyncData(loadRiders, [raceId]);
+  return { race, riders };
 }
 
 export function useStageStartlist(stageId: string | null | undefined) {

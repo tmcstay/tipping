@@ -30,7 +30,78 @@ export function stableUuid(value, namespace = UUID_NAMESPACE) {
 }
 
 export function normalizeRiderName(name) {
-  return name.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("en");
+  return name
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("en");
+}
+
+export const normalizeTeamName = normalizeRiderName;
+
+function duplicateValues(rows, valueForRow) {
+  const seen = new Map();
+  for (const row of rows) {
+    const value = valueForRow(row);
+    const matches = seen.get(value) ?? [];
+    matches.push(row.id);
+    seen.set(value, matches);
+  }
+  return [...seen.entries()]
+    .filter(([, ids]) => ids.length > 1)
+    .map(([value, ids]) => ({ ids, value }));
+}
+
+function missingRequiredFields(entity, rows, fields) {
+  return rows.flatMap((row, index) => fields
+    .filter((field) => row[field] === undefined || row[field] === null || row[field] === "")
+    .map((field) => `${entity}[${row.id ?? index}].${field}`));
+}
+
+export function analyzeTdfDataset(dataset) {
+  const missingRequired = [
+    ...missingRequiredFields("race", [dataset.race], [
+      "id", "name", "year", "start_date", "end_date", "category", "source_url", "data_confidence",
+    ]),
+    ...missingRequiredFields("stages", dataset.stages, [
+      "id", "race_id", "stage_number", "stage_date", "start_location", "finish_location",
+      "distance_km", "stage_type", "is_rest_day", "source_url", "data_confidence",
+    ]),
+    ...missingRequiredFields("teams", dataset.teams, [
+      "id", "name", "team_type", "source_url", "data_confidence",
+    ]),
+    ...missingRequiredFields("riders", dataset.riders, [
+      "id", "full_name", "source_url", "data_confidence",
+    ]),
+    ...missingRequiredFields("startlist", dataset.startlist, [
+      "id", "race_id", "rider_id", "team_id", "status", "source_url", "data_confidence",
+    ]),
+    ...missingRequiredFields("audit", dataset.audit, [
+      "source_name", "source_url", "date_accessed", "fields_found", "missing_fields",
+      "confidence_notes", "data_confidence", "reuse_risk", "comments",
+    ]),
+  ];
+
+  return {
+    missingRequiredFields: missingRequired,
+    duplicateRiderNames: duplicateValues(
+      dataset.riders,
+      (rider) => normalizeRiderName(rider.full_name),
+    ),
+    duplicateTeamNames: duplicateValues(
+      dataset.teams,
+      (team) => normalizeTeamName(team.name),
+    ),
+    knownOptionalGaps: {
+      teamsWithoutCode: dataset.teams.filter((team) => !team.code).length,
+      teamsWithoutCountry: dataset.teams.filter((team) => !team.country).length,
+      ridersWithoutNationality: dataset.riders.filter((rider) => !rider.nationality).length,
+      ridersWithoutDateOfBirth: dataset.riders.filter((rider) => !rider.date_of_birth).length,
+      ridersWithUnknownRole: dataset.riders.filter((rider) => !rider.rider_role || rider.rider_role === "unknown").length,
+      startlistRowsWithoutBibNumber: dataset.startlist.filter((entry) => !entry.bib_number).length,
+    },
+  };
 }
 
 export function chunk(items, size) {
@@ -147,5 +218,17 @@ export async function readTdfDataset(dataDir = DEFAULT_TDF_DATA_DIR) {
     }
   }
 
-  return { audit, race, riders, stages, startlist, teams };
+  const dataset = { audit, race, riders, stages, startlist, teams };
+  const analysis = analyzeTdfDataset(dataset);
+  if (analysis.missingRequiredFields.length > 0) {
+    throw new Error(`Missing required dataset fields:\n${analysis.missingRequiredFields.join("\n")}`);
+  }
+  if (analysis.duplicateRiderNames.length > 0) {
+    throw new Error(`Duplicate normalized rider names: ${JSON.stringify(analysis.duplicateRiderNames)}`);
+  }
+  if (analysis.duplicateTeamNames.length > 0) {
+    throw new Error(`Duplicate normalized team names: ${JSON.stringify(analysis.duplicateTeamNames)}`);
+  }
+
+  return dataset;
 }
