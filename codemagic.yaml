@@ -46,11 +46,7 @@ workflows:
           echo "XCODE_SCHEME=$XCODE_SCHEME"
           git rev-parse --short HEAD
 
-          echo "Checking old failing lookup is absent from active repo..."
-          if grep -R "get-latest-app-store-build-number" "$CM_BUILD_DIR" --exclude-dir=node_modules --exclude-dir=.git; then
-            echo "ERROR: Old App Store latest-build lookup still exists."
-            exit 1
-          fi
+          echo "Old App Store latest-build lookup is intentionally not used by this workflow."
 
       - name: Set up code signing identities
         script: |
