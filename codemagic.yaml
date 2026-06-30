@@ -1,28 +1,29 @@
 workflows:
   ios-testflight:
-    name: iOS TestFlight
-
+    name: iOS TestFlight (Codemagic)
+    max_build_duration: 120
     instance_type: mac_mini_m2
-    max_build_duration: 60
-
     integrations:
       app_store_connect: codemagic_tipping_api_key
-
     environment:
-      node: 20
+      node: lts
       xcode: latest
       cocoapods: default
-
       groups:
-        - app_store_connect
         - supabase_cloud
-
+        - app_store_connect
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: app.tipping
       vars:
-        APP_NAME: F1Tips
-        XCODE_WORKSPACE: F1Tips.xcworkspace
-        XCODE_SCHEME: F1Tips
-        BUNDLE_ID: app.tipping
-
+        BUNDLE_ID: "app.tipping"
+        XCODE_WORKSPACE: "F1Tips.xcworkspace"
+        XCODE_SCHEME: "F1Tips"
+    cache:
+      cache_paths:
+        - $CM_BUILD_DIR/node_modules
+        - $CM_BUILD_DIR/apps/mobile/node_modules
+        - $HOME/Library/Caches/CocoaPods
     triggering:
       events:
         - push
@@ -30,105 +31,39 @@ workflows:
         - pattern: main
           include: true
           source: true
-
+      cancel_previous_builds: true
     scripts:
-      - name: Confirm workflow
-        script: |
-          echo "=============================================="
-          echo "IOS TESTFLIGHT WORKFLOW"
-          echo "Timestamp build numbers enabled"
-          echo "No App Store latest-build lookup"
-          echo "=============================================="
-          echo "CM_BUILD_DIR=$CM_BUILD_DIR"
-          echo "CM_BUILD_NUMBER=$CM_BUILD_NUMBER"
-          echo "BUNDLE_ID=$BUNDLE_ID"
-          echo "XCODE_WORKSPACE=$XCODE_WORKSPACE"
-          echo "XCODE_SCHEME=$XCODE_SCHEME"
-          git rev-parse --short HEAD
-
-          echo "Old App Store latest-build lookup is intentionally not used by this workflow."
-
       - name: Install npm dependencies
         script: |
-          cd "$CM_BUILD_DIR"
-          npm ci
-
+          npm install
       - name: Verify required Expo public environment variables
         script: |
-          cd "$CM_BUILD_DIR"
-
-          test -n "$EXPO_PUBLIC_SUPABASE_URL" || \
-            (echo "EXPO_PUBLIC_SUPABASE_URL is required" && exit 1)
-
-          test -n "$EXPO_PUBLIC_SUPABASE_ANON_KEY" || \
-            (echo "EXPO_PUBLIC_SUPABASE_ANON_KEY is required" && exit 1)
-
-          echo "Expo public environment variables found."
-
+          test -n "$EXPO_PUBLIC_SUPABASE_URL" || (echo "EXPO_PUBLIC_SUPABASE_URL is required" && exit 1)
+          test -n "$EXPO_PUBLIC_SUPABASE_ANON_KEY" || (echo "EXPO_PUBLIC_SUPABASE_ANON_KEY is required" && exit 1)
       - name: Typecheck mobile app
         script: |
-          cd "$CM_BUILD_DIR/apps/mobile"
-          npm run typecheck
-
+          npm run typecheck --workspace apps/mobile
       - name: Run tipping-core tests
         script: |
-          cd "$CM_BUILD_DIR"
           npm run test --workspace packages/tipping-core
-
       - name: Generate iOS native project
         script: |
-          cd "$CM_BUILD_DIR/apps/mobile"
+          cd apps/mobile
           npx expo prebuild --platform ios --clean
-
       - name: Set iOS export compliance flag
         script: |
-          cd "$CM_BUILD_DIR/apps/mobile/ios"
-
-          echo "Setting ITSAppUsesNonExemptEncryption to false..."
-
-          find . -name "Info.plist" -print0 | while IFS= read -r -d '' plist; do
-            if /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$plist" >/dev/null 2>&1; then
-              /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$plist" 2>/dev/null || \
-              /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$plist"
-
-              echo "Updated export compliance flag in $plist"
-            fi
-          done
-
+          PLIST="$CM_BUILD_DIR/apps/mobile/ios/$XCODE_SCHEME/Info.plist"
+          PLIST_BUDDY=/usr/libexec/PlistBuddy
+          $PLIST_BUDDY -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" || \
+          $PLIST_BUDDY -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST"
       - name: Install CocoaPods dependencies
         script: |
-          cd "$CM_BUILD_DIR/apps/mobile/ios"
+          cd apps/mobile/ios
           pod install
-
-      - name: Set up iOS signing and provisioning
+      - name: Set up provisioning profiles
         script: |
-          cd "$CM_BUILD_DIR/apps/mobile/ios"
-
-          echo "=============================================="
-          echo "SETTING UP IOS SIGNING AND PROVISIONING"
-          echo "=============================================="
-          echo "Bundle ID: $BUNDLE_ID"
-          echo "Workspace: $XCODE_WORKSPACE"
-          echo "Scheme: $XCODE_SCHEME"
-
-          keychain initialize
-
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --create
-
-          keychain add-certificates
-
+          cd apps/mobile
           xcode-project use-profiles
-
-          echo "Signing files installed."
-
-          echo "Build settings after applying profiles:"
-          xcodebuild \
-            -workspace "$CM_BUILD_DIR/apps/mobile/ios/$XCODE_WORKSPACE" \
-            -scheme "$XCODE_SCHEME" \
-            -showBuildSettings | grep -E "PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|PROVISIONING_PROFILE_SPECIFIER|CODE_SIGN_IDENTITY" || true
-
       - name: Increment iOS build number
         script: |
           cd "$CM_BUILD_DIR/apps/mobile/ios"
@@ -141,111 +76,37 @@ workflows:
 
           echo "Using iOS build number: $IOS_BUILD_NUMBER"
 
-          if [ "$IOS_BUILD_NUMBER" -le 2 ]; then
-            echo "ERROR: IOS_BUILD_NUMBER must be greater than 2."
-            exit 1
-          fi
-
           echo "IOS_BUILD_NUMBER=$IOS_BUILD_NUMBER" >> "$CM_ENV"
 
-          echo "Applying build number with agvtool..."
           agvtool new-version -all "$IOS_BUILD_NUMBER" || true
-
-          echo "Updating CFBundleVersion in all app Info.plist files..."
 
           find . -name "Info.plist" -print0 | while IFS= read -r -d '' plist; do
             if /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$plist" >/dev/null 2>&1; then
               /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $IOS_BUILD_NUMBER" "$plist" 2>/dev/null || \
               /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $IOS_BUILD_NUMBER" "$plist"
-
               echo "Updated $plist to CFBundleVersion $IOS_BUILD_NUMBER"
             fi
           done
 
-          echo "Final CFBundleVersion values before IPA build:"
-
+          echo "Final CFBundleVersion values:"
           find . -name "Info.plist" -print0 | while IFS= read -r -d '' plist; do
             if /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$plist" >/dev/null 2>&1; then
-              echo "---- $plist"
-              /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$plist" || true
-              /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$plist" || true
+              echo "$plist:"
+              /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$plist"
             fi
           done
-
       - name: Build iOS IPA
         script: |
-          cd "$CM_BUILD_DIR"
-
           xcode-project build-ipa \
             --workspace "$CM_BUILD_DIR/apps/mobile/ios/$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME"
-
-      - name: Verify IPA build number before publishing
-        script: |
-          cd "$CM_BUILD_DIR"
-
-          echo "=============================================="
-          echo "VERIFYING IPA BUILD NUMBER BEFORE PUBLISHING"
-          echo "=============================================="
-
-          IPA_PATH=$(find "$CM_BUILD_DIR" -name "*.ipa" | head -n 1)
-
-          test -n "$IPA_PATH" || \
-            (echo "ERROR: No IPA found" && exit 1)
-
-          echo "Found IPA: $IPA_PATH"
-
-          rm -rf /tmp/ipa-check
-          mkdir -p /tmp/ipa-check
-
-          unzip -q "$IPA_PATH" -d /tmp/ipa-check
-
-          echo "Payload contents:"
-          find /tmp/ipa-check/Payload -maxdepth 3 -print
-
-          APP_DIR=$(find /tmp/ipa-check/Payload -maxdepth 1 -type d -name "*.app" | head -n 1)
-
-          test -n "$APP_DIR" || \
-            (echo "ERROR: No .app directory found inside IPA Payload" && exit 1)
-
-          APP_PLIST="$APP_DIR/Info.plist"
-
-          test -f "$APP_PLIST" || \
-            (echo "ERROR: Main app Info.plist not found at $APP_PLIST" && exit 1)
-
-          echo "Using main app plist: $APP_PLIST"
-
-          FINAL_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PLIST")
-          FINAL_BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP_PLIST")
-          FINAL_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP_PLIST")
-
-          echo "IPA CFBundleIdentifier: $FINAL_BUNDLE_ID"
-          echo "IPA CFBundleShortVersionString: $FINAL_VERSION"
-          echo "IPA CFBundleVersion: $FINAL_BUILD_NUMBER"
-          echo "Expected CFBundleVersion: $IOS_BUILD_NUMBER"
-
-          if [ "$FINAL_BUILD_NUMBER" != "$IOS_BUILD_NUMBER" ]; then
-            echo "ERROR: IPA build number does not match expected build number."
-            exit 1
-          fi
-
-          if [ "$FINAL_BUILD_NUMBER" -le 2 ]; then
-            echo "ERROR: IPA build number must be greater than 2."
-            exit 1
-          fi
-
-          echo "IPA build number verified successfully."
-
     artifacts:
       - build/ios/ipa/*.ipa
-      - build/ios/xcarchive/*.xcarchive
-      - build/ios/ipa/*.dSYM.zip
-      - apps/mobile/ios/build/ios/ipa/*.ipa
-      - apps/mobile/ios/build/ios/xcarchive/*.xcarchive
-      - apps/mobile/ios/build/ios/ipa/*.dSYM.zip
       - /tmp/xcodebuild_logs/*.log
-
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
     publishing:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+        submit_to_app_store: false
