@@ -1,5 +1,6 @@
 import { getSupabaseClient } from "./client";
 import { getCurrentUser } from "./auth";
+import type { Json } from "@tipping-suite/shared-types";
 
 export type EventSummary = {
   id: string;
@@ -19,7 +20,7 @@ export type RaceMarket = {
   name: string;
   lock_at: string | null;
   status: string;
-  points_rule: Record<string, unknown>;
+  points_rule: Json;
 };
 
 export type RaceCompetitor = {
@@ -54,9 +55,9 @@ export async function listEventsForApp(appKey: string): Promise<EventSummary[]> 
   const { data, error } = await getSupabaseClient()
     .from("events")
     .select(
-      "id,event_key,name,venue,country,starts_at,lock_at,status,seasons!inner(competitions!inner(apps!inner(app_key)))"
+      "id,event_key,name,venue,country,starts_at,lock_at,status,seasons!inner(competitions!inner(apps!inner(code)))"
     )
-    .eq("seasons.competitions.apps.app_key", appKey)
+    .eq("seasons.competitions.apps.code", appKey)
     .order("starts_at", { ascending: true });
 
   if (error) {
@@ -223,9 +224,9 @@ export async function listLeaderboardForApp(
   const { data, error } = await getSupabaseClient()
     .from("leaderboards")
     .select(
-      "id,total_points,rank,tips_count,profiles(display_name),apps!inner(app_key)"
+      "id,total_points,rank,tips_count,profiles(display_name),apps!inner(code)"
     )
-    .eq("apps.app_key", appKey)
+    .eq("apps.code", appKey)
     .order("rank", { ascending: true, nullsFirst: false })
     .order("total_points", { ascending: false });
 

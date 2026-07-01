@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@tipping-suite/shared-types": "0.1.0",
     "@tipping-suite/supabase-client": "0.1.0",
     "@tipping-suite/tipping-core": "0.1.0",

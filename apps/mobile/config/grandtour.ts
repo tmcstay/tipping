@@ -1,7 +1,7 @@
 import type { AppConfig } from "@tipping-suite/shared-types";
 
 export const grandTourConfig: AppConfig = {
-  appKey: "grandtour",
+  appKey: "cycling",
   appName: "GrandTour Tips",
   sportType: "cycling",
   defaultCompetitionKey: "grandtour_france_2026",

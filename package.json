@@ -9,6 +9,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "npm --workspace packages/tipping-core test",
+    "test:auth": "node scripts/test-auth.mjs",
     "import:tdf:2026": "node scripts/import-tdf-2026.mjs",
     "import:tdf:2026:dry-run": "node scripts/import-tdf-2026.mjs --dry-run",
     "seed:tdf:dummy": "node scripts/generate-tdf-dummy-tips.mjs",
