@@ -30,8 +30,10 @@ function RootNavigator() {
         <Stack.Screen name="index" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="leaderboard" />
-        <Stack.Screen name="stages" />
-        <Stack.Screen name="races" />
+        <Stack.Screen name="stages/index" />
+        <Stack.Screen name="stages/[stageId]" />
+        <Stack.Screen name="races/index" />
+        <Stack.Screen name="races/[raceId]" />
       </Stack.Protected>
     </Stack>
   );

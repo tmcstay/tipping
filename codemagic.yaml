@@ -17,8 +17,8 @@ workflows:
         bundle_identifier: app.tipping
       vars:
         BUNDLE_ID: "app.tipping"
-        XCODE_WORKSPACE: "F1Tips.xcworkspace"
-        XCODE_SCHEME: "F1Tips"
+        XCODE_WORKSPACE: "GrandTour.xcworkspace"
+        XCODE_SCHEME: "GrandTour"
     cache:
       cache_paths:
         - $CM_BUILD_DIR/node_modules

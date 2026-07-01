@@ -1,6 +1,6 @@
 # Codemagic iOS TestFlight Build Numbers
 
-The repository root `codemagic.yaml` is the source of truth for the F1Tips iOS
+The repository root `codemagic.yaml` is the source of truth for the GrandTour iOS
 TestFlight workflow. Do not make a Codemagic UI-only YAML change without making
 the same reviewed change in the repository.
 
@@ -33,8 +33,8 @@ reliable for this App Store Connect app.
 ## Settings that must remain
 
 - Bundle identifier: `app.tipping`
-- Xcode workspace: `F1Tips.xcworkspace`
-- Xcode scheme: `F1Tips`
+- Xcode workspace: `GrandTour.xcworkspace`
+- Xcode scheme: `GrandTour`
 - App Store Connect integration: `codemagic_tipping_api_key`
 - Signing: Codemagic `ios_signing` with App Store distribution
 - Publishing: the existing `auth: integration` configuration
