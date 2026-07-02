@@ -1,5 +1,12 @@
-import { getCurrentUser } from "./auth";
 import { getSupabaseClient } from "./client";
+import { getCurrentUser } from "./auth";
+import type {
+  GrandTourTipMode,
+  GrandTourTipScope,
+  GrandTourTipSelectionInput,
+  GrandTourTipStatus,
+  Json
+} from "@tipping-suite/shared-types";
 
 export type CyclingRace = {
   id: string;
@@ -34,6 +41,8 @@ export type CyclingCompetition = {
   id: string;
   grand_tour_id: string;
   name: string;
+  is_public: boolean;
+  active_jersey_types: ("yellow" | "green" | "kom" | "white")[];
   allow_preselection: boolean;
   allow_daily: boolean;
 };
@@ -84,6 +93,43 @@ export type CyclingLeaderboardRow = {
   stages_tipped: number;
   last_stage_score: number | null;
   snapshot_at: string;
+  is_dummy: boolean;
+  is_prize_eligible: boolean;
+  display_name: string;
+};
+
+export type GrandTourTipSelection = GrandTourTipSelectionInput & { id: string };
+
+export type GrandTourScore = {
+  id: string;
+  top5_score: number;
+  jersey_score: number;
+  bonus_score: number;
+  total_score: number;
+  score_details: Json;
+  scored_at: string;
+  is_prize_eligible: boolean;
+};
+
+export type GrandTourTipRecord = {
+  id: string;
+  user_id: string;
+  competition_id: string;
+  stage_id: string | null;
+  tip_mode: GrandTourTipMode;
+  tip_scope: GrandTourTipScope;
+  status: GrandTourTipStatus;
+  submitted_at: string | null;
+  locked_at: string | null;
+  total_score: number;
+  is_dummy: boolean;
+  updated_at: string;
+  selections: GrandTourTipSelection[];
+  score: GrandTourScore | null;
+};
+
+export type LeagueTipComparison = GrandTourTipRecord & {
+  display_name: string;
 };
 
 export async function getCyclingRaceByYear(year = 2026): Promise<CyclingRace | null> {
@@ -140,7 +186,7 @@ export async function getPublicCyclingCompetition(
 ): Promise<CyclingCompetition | null> {
   const { data, error } = await getSupabaseClient()
     .from("grandtour_competitions")
-    .select("id,grand_tour_id,name,allow_preselection,allow_daily")
+    .select("id,grand_tour_id,name,is_public,active_jersey_types,allow_preselection,allow_daily")
     .eq("grand_tour_id", raceId)
     .eq("is_public", true)
     .order("created_at", { ascending: true })
@@ -149,6 +195,18 @@ export async function getPublicCyclingCompetition(
 
   if (error) throw error;
   return data;
+}
+
+export async function listCyclingCompetitions(raceId: string): Promise<CyclingCompetition[]> {
+  const { data, error } = await getSupabaseClient()
+    .from("grandtour_competitions")
+    .select("id,grand_tour_id,name,is_public,active_jersey_types,allow_preselection,allow_daily")
+    .eq("grand_tour_id", raceId)
+    .order("is_public", { ascending: false })
+    .order("name", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
 }
 
 export async function listStageStartlist(stageId: string): Promise<CyclingStartlistRider[]> {
@@ -167,98 +225,124 @@ export async function listStageStartlist(stageId: string): Promise<CyclingStartl
   }));
 }
 
-export async function saveCurrentUserCyclingStageWinnerTip(input: {
-  competitionId: string;
-  stageId: string;
-  riderId: string;
-}): Promise<{ tipId: string }> {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("You need to sign in before submitting tips.");
-
+async function hydrateTips(
+  tips: Omit<GrandTourTipRecord, "selections" | "score">[]
+): Promise<GrandTourTipRecord[]> {
+  if (tips.length === 0) return [];
   const client = getSupabaseClient();
-  const { data: existingTip, error: existingTipError } = await client
-    .from("grandtour_tips")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("competition_id", input.competitionId)
-    .eq("stage_id", input.stageId)
-    .eq("tip_mode", "daily")
-    .maybeSingle();
-  if (existingTipError) throw existingTipError;
+  const tipIds = tips.map((tip) => tip.id);
+  const [{ data: selections, error: selectionsError }, { data: scores, error: scoresError }] =
+    await Promise.all([
+      client
+        .from("grandtour_tip_selections")
+        .select("id,tip_id,selection_type,rider_id,predicted_position")
+        .in("tip_id", tipIds),
+      client
+        .from("grandtour_stage_scores")
+        .select("id,tip_id,top5_score,jersey_score,bonus_score,total_score,score_details,scored_at,is_prize_eligible")
+        .in("tip_id", tipIds)
+    ]);
+  if (selectionsError) throw selectionsError;
+  if (scoresError) throw scoresError;
 
-  let tipId = existingTip?.id;
-  if (!tipId) {
-    const { data, error } = await client
-      .from("grandtour_tips")
-      .insert({
-        user_id: user.id,
-        competition_id: input.competitionId,
-        stage_id: input.stageId,
-        tip_mode: "daily",
-        status: "draft"
-      })
-      .select("id")
-      .single();
-    if (error) throw error;
-    tipId = data.id;
-  }
-
-  const { data: existingSelection, error: selectionLookupError } = await client
-    .from("grandtour_tip_selections")
-    .select("id")
-    .eq("tip_id", tipId)
-    .eq("selection_type", "stage_top_5")
-    .eq("predicted_position", 1)
-    .maybeSingle();
-  if (selectionLookupError) throw selectionLookupError;
-
-  if (existingSelection) {
-    const { error } = await client
-      .from("grandtour_tip_selections")
-      .update({ rider_id: input.riderId })
-      .eq("id", existingSelection.id);
-    if (error) throw error;
-  } else {
-    const { error } = await client.from("grandtour_tip_selections").insert({
-      tip_id: tipId,
-      selection_type: "stage_top_5",
-      rider_id: input.riderId,
-      predicted_position: 1
-    });
-    if (error) throw error;
-  }
-
-  return { tipId };
+  return tips.map((tip) => ({
+    ...tip,
+    selections: (selections ?? [])
+      .filter((selection) => selection.tip_id === tip.id)
+      .map(({ tip_id: _tipId, ...selection }) => selection),
+    score: (scores ?? []).find((score) => score.tip_id === tip.id) ?? null
+  }));
 }
 
-export async function getCurrentUserCyclingStageWinnerTip(input: {
+const tipColumns = "id,user_id,competition_id,stage_id,tip_mode,tip_scope,status,submitted_at,locked_at,total_score,is_dummy,updated_at" as const;
+
+export async function getCurrentUserGrandTourTip(input: {
   competitionId: string;
-  stageId: string;
-}): Promise<{ riderId: string; tipId: string } | null> {
+  stageId: string | null;
+  tipMode: GrandTourTipMode;
+  tipScope: GrandTourTipScope;
+}): Promise<GrandTourTipRecord | null> {
   const user = await getCurrentUser();
   if (!user) return null;
-
-  const client = getSupabaseClient();
-  const { data: tip, error: tipError } = await client
+  let query = getSupabaseClient()
     .from("grandtour_tips")
-    .select("id")
+    .select(tipColumns)
     .eq("user_id", user.id)
     .eq("competition_id", input.competitionId)
-    .eq("stage_id", input.stageId)
-    .eq("tip_mode", "daily")
-    .maybeSingle();
-  if (tipError) throw tipError;
-  if (!tip) return null;
+    .eq("tip_mode", input.tipMode)
+    .eq("tip_scope", input.tipScope);
+  query = input.stageId === null ? query.is("stage_id", null) : query.eq("stage_id", input.stageId);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return (await hydrateTips([data]))[0] ?? null;
+}
 
-  const { data: selection, error: selectionError } = await client
-    .from("grandtour_tip_selections")
-    .select("rider_id")
-    .eq("tip_id", tip.id)
-    .eq("selection_type", "stage_top_5")
-    .eq("predicted_position", 1)
-    .maybeSingle();
-  if (selectionError) throw selectionError;
-  return selection ? { riderId: selection.rider_id, tipId: tip.id } : null;
+export async function saveGrandTourTipDraft(input: {
+  competitionId: string;
+  stageId: string | null;
+  tipMode: GrandTourTipMode;
+  tipScope: GrandTourTipScope;
+  selections: GrandTourTipSelectionInput[];
+}): Promise<string> {
+  const { data, error } = await getSupabaseClient().rpc("save_grandtour_tip_draft", {
+    p_competition_id: input.competitionId,
+    p_stage_id: input.stageId,
+    p_tip_mode: input.tipMode,
+    p_tip_scope: input.tipScope,
+    p_selections: input.selections,
+    p_request_id: globalThis.crypto?.randomUUID?.() ?? `draft-${Date.now()}`
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function submitGrandTourTip(tipId: string) {
+  const { data, error } = await getSupabaseClient().rpc("submit_grandtour_tip", {
+    p_tip_id: tipId,
+    p_request_id: globalThis.crypto?.randomUUID?.() ?? `submit-${Date.now()}`
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function clearGrandTourTip(tipId: string): Promise<boolean> {
+  const { data, error } = await getSupabaseClient().rpc("clear_grandtour_tip_draft", {
+    p_tip_id: tipId,
+    p_reason: "Cleared by user",
+    p_request_id: globalThis.crypto?.randomUUID?.() ?? `clear-${Date.now()}`
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function listLeagueTipsAfterLock(input: {
+  competitionId: string;
+  stageId: string | null;
+  tipMode: GrandTourTipMode;
+  tipScope: GrandTourTipScope;
+}): Promise<LeagueTipComparison[]> {
+  let query = getSupabaseClient()
+    .from("grandtour_tips")
+    .select(tipColumns)
+    .eq("competition_id", input.competitionId)
+    .eq("tip_mode", input.tipMode)
+    .eq("tip_scope", input.tipScope)
+    .in("status", ["submitted", "locked", "scored", "corrected"]);
+  query = input.stageId === null ? query.is("stage_id", null) : query.eq("stage_id", input.stageId);
+  const { data, error } = await query.order("submitted_at", { ascending: true });
+  if (error) throw error;
+  const tips = await hydrateTips(data ?? []);
+  if (tips.length === 0) return [];
+  const { data: profiles, error: profileError } = await getSupabaseClient()
+    .from("grandtour_league_profiles")
+    .select("id,display_name,is_dummy")
+    .in("id", tips.map((tip) => tip.user_id));
+  if (profileError) throw profileError;
+  return tips.map((tip) => ({
+    ...tip,
+    display_name: profiles?.find((profile) => profile.id === tip.user_id)?.display_name ?? `Entry ${tip.user_id.slice(0, 8)}`
+  }));
 }
 
 export async function listCyclingLeaderboard(
@@ -279,11 +363,25 @@ export async function listCyclingLeaderboard(
 
   const { data, error } = await client
     .from("grandtour_leaderboard_snapshots")
-    .select("id,user_id,leaderboard_type,rank,total_score,stages_tipped,last_stage_score,snapshot_at")
+    .select("id,user_id,leaderboard_type,rank,total_score,stages_tipped,last_stage_score,snapshot_at,is_dummy,is_prize_eligible")
     .eq("competition_id", competitionId)
     .eq("leaderboard_type", leaderboardType)
     .eq("snapshot_at", latest.snapshot_at)
     .order("rank", { ascending: true });
   if (error) throw error;
-  return (data ?? []) as CyclingLeaderboardRow[];
+  const rows = data ?? [];
+  if (rows.length === 0) return [];
+  const { data: profiles, error: profileError } = await client
+    .from("grandtour_league_profiles")
+    .select("id,display_name,is_dummy")
+    .in("id", rows.map((row) => row.user_id));
+  if (profileError) throw profileError;
+  return rows.map((row) => {
+    const profile = profiles?.find((candidate) => candidate.id === row.user_id);
+    return {
+      ...row,
+      is_dummy: row.is_dummy || profile?.is_dummy === true,
+      display_name: profile?.display_name ?? `Entry ${row.user_id.slice(0, 8)}`
+    };
+  }) as CyclingLeaderboardRow[];
 }

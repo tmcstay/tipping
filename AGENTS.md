@@ -84,24 +84,19 @@ A rider may be selected for multiple jersey categories and may also appear in th
 
 For each predicted top-five rider:
 
-- Exact position: 10 points
-- Actual top five but wrong position: 5 points
+- Exact positions 1 through 5: 10, 8, 6, 4, and 2 points respectively
+- Actual top five but wrong position: 1 point
 - Outside actual top five: 0 points
 
-Bonuses are cumulative:
-
-- Correct stage winner: 5 points
-- All five riders in the actual top five, any order: 10 points
-- Perfect top five exact order: 25 points
-
-Each correct yellow, green, KOM, or white jersey holder is worth 10 points.
+There are no additional stage bonuses. Each correct active yellow, green, KOM, or white jersey holder after a stage is worth 5 points. Each correct final jersey winner is worth 25 points.
 
 Maximum:
 
 ```text
-Top five: 90
-Jerseys:  40
-Stage:   130
+Top five:        30
+Daily jerseys:   20
+Stage:           50
+Overall jerseys: 100
 ```
 
 Implement scoring as deterministic pure logic in `packages/tipping-core`. Return a breakdown as well as the total. Daily and Preselection must call the same function. Overall equals Daily plus Preselection.
@@ -172,9 +167,9 @@ Keep business logic out of screens. Do not duplicate the stage form or scoring i
 Add or update tests with every relevant feature. Coverage must include:
 
 - Exact and wrong-position top-five scoring
-- Winner, all-five, and perfect-order bonuses
 - All four jersey categories
-- Maximum stage score of 130
+- Maximum stage score of 50
+- Maximum overall jersey score of 100
 - Duplicate-rider validation
 - Daily locking before, at, and after stage lock
 - Preselection locking before, at, and after tour lock
@@ -214,4 +209,3 @@ Do not rewrite the whole project unless explicitly asked. Preserve unrelated use
 8. Preselection completion flow
 9. Result entry and score breakdown
 10. Daily, Preselection, and Overall leaderboards
-

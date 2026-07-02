@@ -34,7 +34,10 @@ export function useAsyncData<T>(
       })
       .catch((cause: unknown) => {
         if (active) {
-          setError(cause instanceof Error ? cause.message : "Something went wrong.");
+          const message = typeof cause === "object" && cause !== null && "message" in cause
+            ? String(cause.message)
+            : null;
+          setError(message ?? "Something went wrong.");
         }
       })
       .finally(() => {

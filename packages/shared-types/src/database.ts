@@ -135,6 +135,13 @@ export type Database = {
             foreignKeyName: "chat_messages_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "grandtour_league_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -194,21 +201,30 @@ export type Database = {
           competition_id: string
           created_at: string
           id: string
+          invited_by: string | null
+          joined_at: string | null
           role: string
+          status: string
           user_id: string
         }
         Insert: {
           competition_id: string
           created_at?: string
           id?: string
+          invited_by?: string | null
+          joined_at?: string | null
           role?: string
+          status?: string
           user_id: string
         }
         Update: {
           competition_id?: string
           created_at?: string
           id?: string
+          invited_by?: string | null
+          joined_at?: string | null
           role?: string
+          status?: string
           user_id?: string
         }
         Relationships: [
@@ -217,6 +233,27 @@ export type Database = {
             columns: ["competition_id"]
             isOneToOne: false
             referencedRelation: "competitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_memberships_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "grandtour_league_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_memberships_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_memberships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_league_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -430,6 +467,9 @@ export type Database = {
           data_confidence: string
           ends_at: string | null
           id: string
+          manual_lock_reason: string | null
+          manual_locked_at: string | null
+          manual_locked_by: string | null
           name: string
           preselection_locks_at: string
           source_url: string | null
@@ -445,6 +485,9 @@ export type Database = {
           data_confidence?: string
           ends_at?: string | null
           id?: string
+          manual_lock_reason?: string | null
+          manual_locked_at?: string | null
+          manual_locked_by?: string | null
           name: string
           preselection_locks_at: string
           source_url?: string | null
@@ -460,6 +503,9 @@ export type Database = {
           data_confidence?: string
           ends_at?: string | null
           id?: string
+          manual_lock_reason?: string | null
+          manual_locked_at?: string | null
+          manual_locked_by?: string | null
           name?: string
           preselection_locks_at?: string
           source_url?: string | null
@@ -468,12 +514,29 @@ export type Database = {
           updated_at?: string
           year?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "grand_tours_manual_locked_by_fkey"
+            columns: ["manual_locked_by"]
+            isOneToOne: false
+            referencedRelation: "grandtour_league_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grand_tours_manual_locked_by_fkey"
+            columns: ["manual_locked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       grandtour_competitions: {
         Row: {
+          active_jersey_types: Database["public"]["Enums"]["grandtour_jersey_type"][]
           allow_daily: boolean
           allow_preselection: boolean
+          competition_id: string
           created_at: string
           grand_tour_id: string
           id: string
@@ -481,8 +544,10 @@ export type Database = {
           name: string
         }
         Insert: {
+          active_jersey_types?: Database["public"]["Enums"]["grandtour_jersey_type"][]
           allow_daily?: boolean
           allow_preselection?: boolean
+          competition_id: string
           created_at?: string
           grand_tour_id: string
           id?: string
@@ -490,8 +555,10 @@ export type Database = {
           name: string
         }
         Update: {
+          active_jersey_types?: Database["public"]["Enums"]["grandtour_jersey_type"][]
           allow_daily?: boolean
           allow_preselection?: boolean
+          competition_id?: string
           created_at?: string
           grand_tour_id?: string
           id?: string
@@ -499,6 +566,13 @@ export type Database = {
           name?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "grandtour_competitions_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: true
+            referencedRelation: "competitions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "grandtour_competitions_grand_tour_id_fkey"
             columns: ["grand_tour_id"]
@@ -508,10 +582,75 @@ export type Database = {
           },
         ]
       }
+      grandtour_game_audit: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          competition_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          reason: string | null
+          request_id: string | null
+          stage_id: string | null
+          tip_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          competition_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          reason?: string | null
+          request_id?: string | null
+          stage_id?: string | null
+          tip_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          competition_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          reason?: string | null
+          request_id?: string | null
+          stage_id?: string | null
+          tip_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grandtour_game_audit_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_competitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_game_audit_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grandtour_leaderboard_snapshots: {
         Row: {
           competition_id: string
           id: string
+          is_dummy: boolean
+          is_prize_eligible: boolean
           last_stage_score: number | null
           leaderboard_type: string
           rank: number
@@ -523,6 +662,8 @@ export type Database = {
         Insert: {
           competition_id: string
           id?: string
+          is_dummy?: boolean
+          is_prize_eligible?: boolean
           last_stage_score?: number | null
           leaderboard_type: string
           rank: number
@@ -534,6 +675,8 @@ export type Database = {
         Update: {
           competition_id?: string
           id?: string
+          is_dummy?: boolean
+          is_prize_eligible?: boolean
           last_stage_score?: number | null
           leaderboard_type?: string
           rank?: number
@@ -736,12 +879,14 @@ export type Database = {
           bonus_score: number
           competition_id: string
           id: string
+          is_prize_eligible: boolean
           jersey_score: number
           score_details: Json
           scored_at: string
           stage_id: string
           tip_id: string
           tip_mode: Database["public"]["Enums"]["grandtour_tip_mode"]
+          tip_scope: Database["public"]["Enums"]["grandtour_tip_scope"]
           top5_score: number
           total_score: number
           user_id: string
@@ -750,12 +895,14 @@ export type Database = {
           bonus_score?: number
           competition_id: string
           id?: string
+          is_prize_eligible?: boolean
           jersey_score?: number
           score_details?: Json
           scored_at?: string
           stage_id: string
           tip_id: string
           tip_mode: Database["public"]["Enums"]["grandtour_tip_mode"]
+          tip_scope?: Database["public"]["Enums"]["grandtour_tip_scope"]
           top5_score?: number
           total_score?: number
           user_id: string
@@ -764,12 +911,14 @@ export type Database = {
           bonus_score?: number
           competition_id?: string
           id?: string
+          is_prize_eligible?: boolean
           jersey_score?: number
           score_details?: Json
           scored_at?: string
           stage_id?: string
           tip_id?: string
           tip_mode?: Database["public"]["Enums"]["grandtour_tip_mode"]
+          tip_scope?: Database["public"]["Enums"]["grandtour_tip_scope"]
           top5_score?: number
           total_score?: number
           user_id?: string
@@ -871,6 +1020,9 @@ export type Database = {
           grand_tour_id: string
           id: string
           locks_at: string
+          manual_lock_reason: string | null
+          manual_locked_at: string | null
+          manual_locked_by: string | null
           source_url: string | null
           stage_name: string | null
           stage_number: number
@@ -888,6 +1040,9 @@ export type Database = {
           grand_tour_id: string
           id?: string
           locks_at: string
+          manual_lock_reason?: string | null
+          manual_locked_at?: string | null
+          manual_locked_by?: string | null
           source_url?: string | null
           stage_name?: string | null
           stage_number: number
@@ -905,6 +1060,9 @@ export type Database = {
           grand_tour_id?: string
           id?: string
           locks_at?: string
+          manual_lock_reason?: string | null
+          manual_locked_at?: string | null
+          manual_locked_by?: string | null
           source_url?: string | null
           stage_name?: string | null
           stage_number?: number
@@ -920,6 +1078,20 @@ export type Database = {
             columns: ["grand_tour_id"]
             isOneToOne: false
             referencedRelation: "grand_tours"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_stages_manual_locked_by_fkey"
+            columns: ["manual_locked_by"]
+            isOneToOne: false
+            referencedRelation: "grandtour_league_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_stages_manual_locked_by_fkey"
+            columns: ["manual_locked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1023,10 +1195,11 @@ export type Database = {
           id: string
           is_dummy: boolean
           locked_at: string | null
-          stage_id: string
+          stage_id: string | null
           status: Database["public"]["Enums"]["grandtour_tip_status"]
           submitted_at: string | null
           tip_mode: Database["public"]["Enums"]["grandtour_tip_mode"]
+          tip_scope: Database["public"]["Enums"]["grandtour_tip_scope"]
           total_score: number
           updated_at: string
           user_id: string
@@ -1037,10 +1210,11 @@ export type Database = {
           id?: string
           is_dummy?: boolean
           locked_at?: string | null
-          stage_id: string
+          stage_id?: string | null
           status?: Database["public"]["Enums"]["grandtour_tip_status"]
           submitted_at?: string | null
           tip_mode: Database["public"]["Enums"]["grandtour_tip_mode"]
+          tip_scope?: Database["public"]["Enums"]["grandtour_tip_scope"]
           total_score?: number
           updated_at?: string
           user_id: string
@@ -1051,10 +1225,11 @@ export type Database = {
           id?: string
           is_dummy?: boolean
           locked_at?: string | null
-          stage_id?: string
+          stage_id?: string | null
           status?: Database["public"]["Enums"]["grandtour_tip_status"]
           submitted_at?: string | null
           tip_mode?: Database["public"]["Enums"]["grandtour_tip_mode"]
+          tip_scope?: Database["public"]["Enums"]["grandtour_tip_scope"]
           total_score?: number
           updated_at?: string
           user_id?: string
@@ -1123,6 +1298,13 @@ export type Database = {
             columns: ["season_id"]
             isOneToOne: false
             referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leaderboards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_league_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1330,6 +1512,13 @@ export type Database = {
             foreignKeyName: "subscriptions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "grandtour_league_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1436,6 +1625,13 @@ export type Database = {
             foreignKeyName: "tips_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "grandtour_league_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tips_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1478,6 +1674,13 @@ export type Database = {
             foreignKeyName: "user_app_memberships_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "grandtour_league_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_app_memberships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1485,10 +1688,153 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      grandtour_league_profiles: {
+        Row: {
+          avatar_url: string | null
+          display_name: string | null
+          id: string | null
+          is_dummy: boolean | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          display_name?: string | null
+          id?: string | null
+          is_dummy?: boolean | null
+        }
+        Update: {
+          avatar_url?: string | null
+          display_name?: string | null
+          id?: string | null
+          is_dummy?: boolean | null
+        }
+        Relationships: []
+      }
+      grandtour_prize_eligible_scores: {
+        Row: {
+          bonus_score: number | null
+          competition_id: string | null
+          id: string | null
+          is_prize_eligible: boolean | null
+          jersey_score: number | null
+          score_details: Json | null
+          scored_at: string | null
+          stage_id: string | null
+          tip_id: string | null
+          tip_mode: Database["public"]["Enums"]["grandtour_tip_mode"] | null
+          tip_scope: Database["public"]["Enums"]["grandtour_tip_scope"] | null
+          top5_score: number | null
+          total_score: number | null
+          user_id: string | null
+        }
+        Insert: {
+          bonus_score?: number | null
+          competition_id?: string | null
+          id?: string | null
+          is_prize_eligible?: boolean | null
+          jersey_score?: number | null
+          score_details?: Json | null
+          scored_at?: string | null
+          stage_id?: string | null
+          tip_id?: string | null
+          tip_mode?: Database["public"]["Enums"]["grandtour_tip_mode"] | null
+          tip_scope?: Database["public"]["Enums"]["grandtour_tip_scope"] | null
+          top5_score?: number | null
+          total_score?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          bonus_score?: number | null
+          competition_id?: string | null
+          id?: string | null
+          is_prize_eligible?: boolean | null
+          jersey_score?: number | null
+          score_details?: Json | null
+          scored_at?: string | null
+          stage_id?: string | null
+          tip_id?: string | null
+          tip_mode?: Database["public"]["Enums"]["grandtour_tip_mode"] | null
+          tip_scope?: Database["public"]["Enums"]["grandtour_tip_scope"] | null
+          top5_score?: number | null
+          total_score?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grandtour_stage_scores_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_competitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_stage_scores_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_stage_scores_tip_id_fkey"
+            columns: ["tip_id"]
+            isOneToOne: true
+            referencedRelation: "grandtour_tips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      clear_grandtour_tip_draft: {
+        Args: { p_reason?: string; p_request_id?: string; p_tip_id: string }
+        Returns: boolean
+      }
+      lock_grandtour_stage_tips: {
+        Args: { p_reason: string; p_request_id?: string; p_stage_id: string }
+        Returns: number
+      }
+      recalculate_grandtour_stage_scores: {
+        Args: { p_reason?: string; p_request_id?: string; p_stage_id: string }
+        Returns: number
+      }
+      save_grandtour_tip_draft: {
+        Args: {
+          p_competition_id: string
+          p_request_id?: string
+          p_selections: Json
+          p_stage_id: string
+          p_tip_mode: Database["public"]["Enums"]["grandtour_tip_mode"]
+          p_tip_scope: Database["public"]["Enums"]["grandtour_tip_scope"]
+        }
+        Returns: string
+      }
+      score_grandtour_stage: {
+        Args: { p_request_id?: string; p_stage_id: string }
+        Returns: number
+      }
+      submit_grandtour_tip: {
+        Args: { p_request_id?: string; p_tip_id: string }
+        Returns: {
+          competition_id: string
+          created_at: string
+          id: string
+          is_dummy: boolean
+          locked_at: string | null
+          stage_id: string | null
+          status: Database["public"]["Enums"]["grandtour_tip_status"]
+          submitted_at: string | null
+          tip_mode: Database["public"]["Enums"]["grandtour_tip_mode"]
+          tip_scope: Database["public"]["Enums"]["grandtour_tip_scope"]
+          total_score: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "grandtour_tips"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       grandtour_jersey_type: "yellow" | "green" | "kom" | "white"
@@ -1500,13 +1846,26 @@ export type Database = {
         | "team_time_trial"
         | "rest_day"
       grandtour_tip_mode: "preselection" | "daily"
+      grandtour_tip_scope: "stage" | "overall_jerseys"
       grandtour_tip_selection_type:
         | "stage_top_5"
         | "yellow_holder"
         | "green_holder"
         | "kom_holder"
         | "white_holder"
-      grandtour_tip_status: "draft" | "submitted" | "locked" | "scored"
+        | "overall_yellow_winner"
+        | "overall_green_winner"
+        | "overall_kom_winner"
+        | "overall_white_winner"
+      grandtour_tip_status:
+        | "draft"
+        | "submitted"
+        | "locked"
+        | "scored"
+        | "voided"
+        | "corrected"
+        | "missed"
+        | "deleted"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1644,14 +2003,28 @@ export const Constants = {
         "rest_day",
       ],
       grandtour_tip_mode: ["preselection", "daily"],
+      grandtour_tip_scope: ["stage", "overall_jerseys"],
       grandtour_tip_selection_type: [
         "stage_top_5",
         "yellow_holder",
         "green_holder",
         "kom_holder",
         "white_holder",
+        "overall_yellow_winner",
+        "overall_green_winner",
+        "overall_kom_winner",
+        "overall_white_winner",
       ],
-      grandtour_tip_status: ["draft", "submitted", "locked", "scored"],
+      grandtour_tip_status: [
+        "draft",
+        "submitted",
+        "locked",
+        "scored",
+        "voided",
+        "corrected",
+        "missed",
+        "deleted",
+      ],
     },
   },
 } as const

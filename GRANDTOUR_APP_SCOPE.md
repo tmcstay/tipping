@@ -4,7 +4,7 @@
 
 GrandTour is a cycling tipping app for grand tour stage racing fans.
 
-Users predict each stage's top five riders in finishing order and the holders of the yellow, green, KOM/polka-dot, and white jerseys after that stage. Users may enter a Preselection competition, a Daily competition, or both. An Overall leaderboard combines their scores from those two modes.
+Users predict each stage's top five riders in finishing order, the holders of the yellow, green, KOM/polka-dot, and white jerseys after that stage, and the final winner of each jersey classification. Users may enter a Preselection competition, a Daily competition, or both. An Overall leaderboard combines their scores from those two modes.
 
 GrandTour is an independent product. Do not use official Tour de France branding, protected logos, or wording that implies endorsement, affiliation, or official status.
 
@@ -110,39 +110,32 @@ Ordered top-five selections require a position or slot from 1 through 5.
 
 ### Stage Top Five
 
-For each predicted rider:
-
-- Exact rider in the exact position: 10 points
-- Rider in the actual top five but in a different position: 5 points
+- Correct first place: 10 points
+- Correct second place: 8 points
+- Correct third place: 6 points
+- Correct fourth place: 4 points
+- Correct fifth place: 2 points
+- Rider in the actual top five but in a different position: 1 point
 - Rider outside the actual top five: 0 points
 
-The exact-position and wrong-position awards are mutually exclusive for each rider.
-
-Bonuses are cumulative:
-
-- Correct stage winner: 5 points
-- All five predicted riders are in the actual top five, in any order: 10 points
-- Perfect top five in exact order: 25 points
-
-A perfect top five scores:
-
-```text
-5 exact positions (50) + winner bonus (5) + all-five bonus (10) + perfect-order bonus (25) = 90
-```
+The exact-position and wrong-position awards are mutually exclusive for each rider. There are no additional stage bonuses.
 
 ### Jersey Holders
 
-- Correct yellow jersey holder after the stage: 10 points
-- Correct green jersey holder after the stage: 10 points
-- Correct KOM/polka-dot jersey holder after the stage: 10 points
-- Correct white jersey holder after the stage: 10 points
+- Each correct active jersey holder after the stage: 5 points
+
+### Overall Jersey Winners
+
+- Each correct final active jersey winner: 25 points
+- Overall jersey selections are tour-level Preselection tips and use the tour lock.
 
 ### Maximum Per Stage
 
 ```text
-Top five maximum: 90
-Jersey maximum:   40
-Total maximum:   130
+Top five maximum: 30
+Jersey maximum:   20
+Stage maximum:    50
+Overall jerseys: 100
 ```
 
 Scoring must be implemented as deterministic, pure TypeScript logic in `packages/tipping-core`. The function should return both the total and a category-level breakdown. Daily and Preselection must call exactly the same scoring function.
@@ -290,15 +283,14 @@ These features must not complicate the first implementation of tips, locks, resu
 
 ### Scoring
 
-- Exact position awards 10 points
-- Actual top-five rider in the wrong position awards 5 points
+- Exact positions award 10, 8, 6, 4, and 2 points respectively
+- Actual top-five rider in the wrong position awards 1 point
 - Rider outside the actual top five awards 0 points
-- Correct stage winner bonus awards 5 points
-- All-five-any-order bonus awards 10 points
-- Perfect-order bonus awards 25 points
-- Perfect top five totals 90 points
-- Each correct jersey awards 10 points
-- Perfect stage totals 130 points
+- Perfect top five totals 30 points
+- Each correct daily jersey awards 5 points
+- Perfect stage totals 50 points
+- Each correct overall jersey winner awards 25 points
+- Perfect overall jersey tips total 100 points
 - Partial and mixed predictions produce the expected breakdown
 - Daily and Preselection return identical scores for identical picks/results
 

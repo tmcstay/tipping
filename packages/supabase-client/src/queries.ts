@@ -158,66 +158,6 @@ export async function listCurrentUserTipsForMarkets(
   return data ?? [];
 }
 
-export async function saveCurrentUserTip(input: {
-  competitorId: string;
-  marketId: string;
-}): Promise<UserTip> {
-  const user = await getCurrentUser();
-
-  if (!user) {
-    throw new Error("You need to sign in before submitting tips.");
-  }
-
-  const client = getSupabaseClient();
-  const submittedAt = new Date().toISOString();
-  const { data: existingTip, error: existingTipError } = await client
-    .from("tips")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("market_id", input.marketId)
-    .maybeSingle();
-
-  if (existingTipError) {
-    throw existingTipError;
-  }
-
-  if (existingTip) {
-    const { data, error } = await client
-      .from("tips")
-      .update({
-        competitor_id: input.competitorId,
-        submitted_at: submittedAt
-      })
-      .eq("id", existingTip.id)
-      .select("id,user_id,market_id,competitor_id,submitted_at,is_dummy")
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    return data;
-  }
-
-  const { data, error } = await client
-    .from("tips")
-    .insert({
-      competitor_id: input.competitorId,
-      is_dummy: false,
-      market_id: input.marketId,
-      submitted_at: submittedAt,
-      user_id: user.id
-    })
-    .select("id,user_id,market_id,competitor_id,submitted_at,is_dummy")
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
-}
-
 export async function listLeaderboardForApp(
   appKey: string
 ): Promise<LeaderboardRow[]> {

@@ -12,6 +12,7 @@ type AppShellProps = PropsWithChildren<{
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/stages", label: "Stages" },
+  { href: "/overall-jerseys", label: "Jerseys" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/profile", label: "Profile" }
 ] as const;

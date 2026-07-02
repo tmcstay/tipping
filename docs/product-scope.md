@@ -10,7 +10,7 @@ and refresh procedure are documented in
 
 ## MVP Goal
 
-Deliver a simple Expo/React Native game backed by Supabase where authenticated users predict each stage's ordered top five and the yellow, green, KOM/polka-dot, and white jersey holders after the stage.
+Deliver a simple Expo/React Native game backed by Supabase where authenticated users predict each stage's ordered top five, the yellow, green, KOM/polka-dot, and white jersey holders after the stage, and the final winner of each active jersey classification.
 
 Users may play:
 
@@ -24,17 +24,11 @@ Daily and Preselection use the same form, validation, results, and scoring imple
 
 For each predicted top-five rider:
 
-- Exact position: 10 points
-- Actual top five, wrong position: 5 points
+- Exact positions 1 through 5: 10, 8, 6, 4, and 2 points respectively
+- Actual top five, wrong position: 1 point
 - Outside the actual top five: 0 points
 
-Cumulative bonuses:
-
-- Correct stage winner: 5 points
-- All five riders in the actual top five, any order: 10 points
-- Perfect exact-order top five: 25 points
-
-Each correct post-stage jersey holder is worth 10 points. A perfect stage scores 90 top-five points plus 40 jersey points, for a maximum of 130.
+Each correct post-stage jersey holder is worth 5 points, for a maximum stage score of 50. Each correct final jersey winner is worth 25 points, for a maximum overall-jersey score of 100. There are no additional stage bonuses.
 
 ## In Scope
 

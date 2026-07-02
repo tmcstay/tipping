@@ -100,18 +100,18 @@ Changing a rider's later status does not delete an existing tip.
 
 ## Cycling rules and tests
 
-The additional stage-winner v1 rules live in
-`packages/tipping-core/src/cycling-stage-tip.ts`:
+The compatibility stage-winner helper in
+`packages/tipping-core/src/cycling-stage-tip.ts` now follows the first slot of
+the canonical ordered-top-five rules:
 
 - Winner: 10 points
-- Second: 6 points
-- Third: 4 points
-- Fourth through tenth: 1 point
-- Otherwise: 0 points
+- Elsewhere in the actual top five: 1 point
+- Outside the actual top five: 0 points
 
-The canonical GrandTour ordered-top-five and jersey game remains unchanged.
-Stage result lines may contain either five rows for the canonical game or ten
-rows when the stage-winner v1 top-ten award is required.
+The complete canonical scoring implementation lives in
+`packages/tipping-core/src/grandtour-scoring.ts`. Stage result imports may still
+retain positions six through ten as useful race data, but those positions do
+not score in the canonical game.
 Run all current shared tests with:
 
 ```bash

@@ -29,3 +29,13 @@ coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Local production deployment artifacts (never commit)
+backups/
+.deployment/
+grandtour-database-production-*.ts
+packages/shared-types/src/database.production*.ts
+db-push-dry-run.txt
+
+# Local authenticated E2E fixture with predictable test credentials
+supabase/seeds/grandtour_e2e.sql

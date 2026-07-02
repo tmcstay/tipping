@@ -71,16 +71,12 @@ test("scores an exact stage winner", () => {
   assert.equal(scoreCyclingStageWinnerTip(1), 10);
 });
 
-test("scores podium finishes", () => {
-  assert.equal(scoreCyclingStageWinnerTip(2), 6);
-  assert.equal(scoreCyclingStageWinnerTip(3), 4);
+test("scores one point when the predicted winner finishes elsewhere in the top five", () => {
+  assert.equal(scoreCyclingStageWinnerTip(2), 1);
+  assert.equal(scoreCyclingStageWinnerTip(5), 1);
 });
 
-test("scores a top-ten finish", () => {
-  assert.equal(scoreCyclingStageWinnerTip(10), 1);
-});
-
-test("scores no points outside the top ten", () => {
-  assert.equal(scoreCyclingStageWinnerTip(11), 0);
+test("scores no points outside the top five", () => {
+  assert.equal(scoreCyclingStageWinnerTip(6), 0);
   assert.equal(scoreCyclingStageWinnerTip(null), 0);
 });

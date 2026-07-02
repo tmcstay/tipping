@@ -90,12 +90,10 @@ export function scoreCyclingStageWinnerTip(
   resultPosition: number | null | undefined
 ): number {
   if (resultPosition === 1) return 10;
-  if (resultPosition === 2) return 6;
-  if (resultPosition === 3) return 4;
   if (
     typeof resultPosition === "number" &&
-    resultPosition >= 4 &&
-    resultPosition <= 10
+    resultPosition >= 2 &&
+    resultPosition <= 5
   ) return 1;
   return 0;
 }

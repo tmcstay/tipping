@@ -17,12 +17,12 @@ export default function HomeScreen() {
   return (
     <AppShell
       title="Tour de France 2026"
-      subtitle="Stage-winner tipping for cycling fans."
+      subtitle="Grand tour stage and jersey tipping for cycling fans."
     >
       <InfoCard title={`Welcome to ${activeAppConfig.appName}`} meta="Cycling">
         <Text style={styles.copy}>
-          Pick one rider to win each stage before the stage locks. The current
-          rider list is provisional and will be refreshed as teams are confirmed.
+          Pick an ordered stage Top 5, daily jersey holders, and the overall
+          jersey winners. Save drafts deliberately, then submit before lock.
         </Text>
       </InfoCard>
 
@@ -46,10 +46,10 @@ export default function HomeScreen() {
         ) : null}
       </InfoCard>
 
-      <InfoCard title="Stage-winner scoring" meta="Rules">
-        <Text style={styles.copy}>Winner: 10 points</Text>
-        <Text style={styles.copy}>Second: 6 points · Third: 4 points</Text>
-        <Text style={styles.copy}>Fourth–tenth: 1 point</Text>
+      <InfoCard title="Canonical scoring" meta="Rules">
+        <Text style={styles.copy}>Exact Top 5 positions: 10 · 8 · 6 · 4 · 2 points</Text>
+        <Text style={styles.copy}>Wrong position inside the actual Top 5: 1 point</Text>
+        <Text style={styles.copy}>Daily jerseys: 5 each · Overall jerseys: 25 each</Text>
       </InfoCard>
 
       <View style={styles.actions}>
@@ -63,7 +63,7 @@ export default function HomeScreen() {
           <Text style={styles.primaryButtonText}>View all stages</Text>
         </Pressable>
         <Pressable onPress={() => router.push("/leaderboard")} style={styles.secondaryButton}>
-          <Text style={styles.secondaryButtonText}>Stage leaderboard</Text>
+          <Text style={styles.secondaryButtonText}>League leaderboard</Text>
         </Pressable>
       </View>
 

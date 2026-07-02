@@ -1,14 +1,13 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import {
-  getCurrentUserCyclingStageWinnerTip,
   getCyclingRaceByYear,
   getPublicCyclingCompetition,
+  listCyclingCompetitions,
   listCyclingLeaderboard,
   listCyclingRiders,
   listCyclingStages,
   listCyclingTeams,
   listStageStartlist,
-  saveCurrentUserCyclingStageWinnerTip,
   type CyclingLeaderboardRow
 } from "@tipping-suite/supabase-client";
 
@@ -72,20 +71,12 @@ export function useCyclingCompetition(raceId: string | null | undefined) {
   return useAsyncData(loadCompetition, [raceId]);
 }
 
-export function useCurrentCyclingTip(input: {
-  competitionId: string | null | undefined;
-  stageId: string | null | undefined;
-}) {
-  const loadTip = useCallback(
-    () => input.competitionId && input.stageId
-      ? getCurrentUserCyclingStageWinnerTip({
-          competitionId: input.competitionId,
-          stageId: input.stageId
-        })
-      : Promise.resolve(null),
-    [input.competitionId, input.stageId]
+export function useCyclingCompetitions(raceId: string | null | undefined) {
+  const loadCompetitions = useCallback(
+    () => raceId ? listCyclingCompetitions(raceId) : Promise.resolve([]),
+    [raceId]
   );
-  return useAsyncData(loadTip, [input.competitionId, input.stageId]);
+  return useAsyncData(loadCompetitions, [raceId]);
 }
 
 export function useCyclingLeaderboard(
@@ -99,29 +90,4 @@ export function useCyclingLeaderboard(
     [competitionId, leaderboardType]
   );
   return useAsyncData(loadLeaderboard, [competitionId, leaderboardType]);
-}
-
-export function useSubmitCyclingTip() {
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const submit = useCallback(async (input: {
-    competitionId: string;
-    stageId: string;
-    riderId: string;
-  }) => {
-    setSaving(true);
-    setError(null);
-    try {
-      return await saveCurrentUserCyclingStageWinnerTip(input);
-    } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Could not save cycling tip.";
-      setError(message);
-      throw cause;
-    } finally {
-      setSaving(false);
-    }
-  }, []);
-
-  return { error, saving, submit };
 }

@@ -19,7 +19,7 @@ export default function StageListScreen() {
   return (
     <AppShell
       title="Tour de France 2026"
-      subtitle="Choose a stage, review its provisional startlist, and pick a winner."
+      subtitle="Choose a stage and enter your ordered Top 5 and jersey-holder tips."
     >
       {loading ? <LoadingState /> : null}
       {race.error ? <ErrorState error={race.error} onRetry={race.reload} /> : null}

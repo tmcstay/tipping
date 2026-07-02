@@ -28,9 +28,34 @@ set
   ends_at = excluded.ends_at,
   preselection_locks_at = excluded.preselection_locks_at;
 
+insert into public.competitions (
+  id, app_id, competition_key, name, sport_type, season,
+  starts_at, ends_at, is_active, is_public
+)
+select
+  '21000000-0000-4000-8000-000000000001',
+  app.id,
+  'grandtour-france-2026-public',
+  'GrandTour France 2026 Public League',
+  'cycling',
+  '2026',
+  '2026-08-01 10:00:00+00',
+  '2026-08-21 17:00:00+00',
+  true,
+  true
+from public.apps app
+where app.code = 'cycling'
+on conflict (id) do update set
+  name = excluded.name,
+  starts_at = excluded.starts_at,
+  ends_at = excluded.ends_at,
+  is_active = excluded.is_active,
+  is_public = excluded.is_public;
+
 insert into public.grandtour_competitions (
   id,
   grand_tour_id,
+  competition_id,
   name,
   is_public,
   allow_preselection,
@@ -39,6 +64,7 @@ insert into public.grandtour_competitions (
 values (
   '20000000-0000-4000-8000-000000000001',
   '10000000-0000-4000-8000-000000000001',
+  '21000000-0000-4000-8000-000000000001',
   'GrandTour France 2026 Public League',
   true,
   true,
@@ -47,6 +73,7 @@ values (
 on conflict (id) do update
 set
   grand_tour_id = excluded.grand_tour_id,
+  competition_id = excluded.competition_id,
   name = excluded.name,
   is_public = excluded.is_public,
   allow_preselection = excluded.allow_preselection,
