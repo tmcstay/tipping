@@ -1,12 +1,14 @@
 import { useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
 import type { GrandTourTipMode } from "@tipping-suite/shared-types";
+import { isTeamTimeTrialStageType } from "@tipping-suite/tipping-core";
 
 import { AppShell } from "../../../components/AppShell";
 import { EmptyState, ErrorState, LoadingState } from "../../../components/DataState";
 import { TipComparisonCard } from "../../../components/TipComparisonCard";
 import { useCyclingCompetition, useStageStartlist, useTdf2026Stages } from "../../../hooks/useCyclingData";
 import { useLeagueTipsAfterLock } from "../../../hooks/useGrandTourTips";
+import { formatRiderDisplayName, preferStageBibNumber } from "../../../lib/formatters";
 
 export default function StageComparisonScreen() {
   const params = useLocalSearchParams<{ stageId: string; mode?: string }>();
@@ -16,8 +18,18 @@ export default function StageComparisonScreen() {
   const competition = useCyclingCompetition(race.data?.id);
   const startlist = useStageStartlist(stageId);
   const tips = useLeagueTipsAfterLock({ competitionId: competition.data?.id, stageId, tipMode, tipScope: "stage" });
-  const names = useMemo(() => new Map((startlist.data ?? []).map((entry) => [entry.rider.id, entry.rider.display_name])), [startlist.data]);
+  const names = useMemo(() => new Map((startlist.data ?? []).map((entry) => [
+    entry.rider.id,
+    formatRiderDisplayName(
+      entry.rider.display_name,
+      preferStageBibNumber(entry.bib_number, entry.rider.bib_number)
+    )
+  ])), [startlist.data]);
+  const teamNames = useMemo(() => new Map((startlist.data ?? []).flatMap((entry) => entry.team
+    ? [[entry.team.id, entry.team.name] as const]
+    : [])), [startlist.data]);
   const stage = stages.data?.find((candidate) => candidate.id === stageId);
+  const isTtt = isTeamTimeTrialStageType(stage?.stage_type);
 
   return (
     <AppShell title={`Stage ${stage?.stage_number ?? ""} comparison`} subtitle={`${tipMode} · submitted tips only`}>
@@ -27,7 +39,15 @@ export default function StageComparisonScreen() {
       {!tips.loading && !tips.error && tips.data?.length === 0 ? (
         <EmptyState message="No eligible submitted tips have been released by the server. Drafts always remain private." />
       ) : null}
-      {tips.data?.map((tip) => <TipComparisonCard key={tip.id} tip={tip} riderName={(id) => names.get(id) ?? "Unknown rider"} />)}
+      {tips.data?.map((tip) => (
+        <TipComparisonCard
+          isTtt={isTtt}
+          key={tip.id}
+          riderName={(id) => names.get(id) ?? "Unknown rider"}
+          teamName={(id) => teamNames.get(id) ?? "Unknown team"}
+          tip={tip}
+        />
+      ))}
     </AppShell>
   );
 }

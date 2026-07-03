@@ -22,7 +22,7 @@ import {
   useSaveTipDraft,
   useSubmitTip
 } from "../hooks/useGrandTourTips";
-import { formatDateTime } from "../lib/formatters";
+import { formatDateTime, formatRiderDisplayName } from "../lib/formatters";
 
 const overallType: Record<JerseyKey, "overall_yellow_winner" | "overall_green_winner" | "overall_kom_winner" | "overall_white_winner"> = {
   yellow: "overall_yellow_winner",
@@ -54,13 +54,16 @@ export default function OverallJerseyTipScreen() {
     setJerseys(next);
   }, [tip.data?.id, tip.data?.updated_at]);
 
-  const riderNames = useMemo(() => new Map((riders.riders.data ?? []).map((rider) => [rider.id, rider.display_name])), [riders.riders.data]);
+  const riderNames = useMemo(() => new Map((riders.riders.data ?? []).map((rider) => [
+    rider.id,
+    formatRiderDisplayName(rider.display_name, rider.bib_number)
+  ])), [riders.riders.data]);
   const riderChoices: CyclingStartlistRider[] = useMemo(() => (riders.riders.data ?? []).map((rider) => ({
     id: rider.id,
     status: "confirmed",
     bib_number: null,
     rider_role: rider.rider_type,
-    rider: { id: rider.id, display_name: rider.display_name, nationality: rider.nationality, rider_type: rider.rider_type },
+    rider: { id: rider.id, bib_number: rider.bib_number, display_name: rider.display_name, nationality: rider.nationality, rider_type: rider.rider_type },
     team: null
   })), [riders.riders.data]);
   const selections = useMemo(() => buildOverallJerseySelections(

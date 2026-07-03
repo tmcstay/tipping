@@ -5,9 +5,11 @@ import { InfoCard } from "./InfoCard";
 import { ScoreBreakdown } from "./ScoreBreakdown";
 import { TipStatusBadge } from "./TipStatusBadge";
 
-export function TipComparisonCard({ tip, riderName }: {
+export function TipComparisonCard({ isTtt = false, tip, riderName, teamName }: {
+  isTtt?: boolean;
   tip: LeagueTipComparison;
   riderName: (id: string) => string;
+  teamName?: (id: string) => string;
 }) {
   const topFive = tip.selections
     .filter((selection) => selection.selection_type === "stage_top_5")
@@ -18,9 +20,15 @@ export function TipComparisonCard({ tip, riderName }: {
       <TipStatusBadge status={tip.status} />
       {topFive.length ? (
         <View style={styles.section}>
-          <Text style={styles.heading}>Ordered Top 5</Text>
+          <Text style={styles.heading}>{isTtt ? "Team Time Trial Top 5" : "Ordered Top 5"}</Text>
           {topFive.map((selection) => (
-            <Text key={selection.id} style={styles.copy}>{selection.predicted_position}. {riderName(selection.rider_id)}</Text>
+            <Text key={selection.id} style={styles.copy}>
+              {selection.predicted_position}. {isTtt && selection.team_id
+                ? teamName?.(selection.team_id) ?? "Unknown team"
+                : selection.rider_id
+                  ? riderName(selection.rider_id)
+                  : "Unknown rider"}
+            </Text>
           ))}
         </View>
       ) : null}
@@ -28,7 +36,7 @@ export function TipComparisonCard({ tip, riderName }: {
         <Text style={styles.heading}>Jerseys</Text>
         {jerseys.map((selection) => (
           <Text key={selection.id} style={styles.copy}>
-            {selection.selection_type.replace("overall_", "").replace("_holder", "").replace("_winner", "").replaceAll("_", " ")}: {riderName(selection.rider_id)}
+            {selection.selection_type.replace("overall_", "").replace("_holder", "").replace("_winner", "").replaceAll("_", " ")}: {selection.rider_id ? riderName(selection.rider_id) : "Pending"}
           </Text>
         ))}
       </View>

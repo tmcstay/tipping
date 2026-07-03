@@ -4,7 +4,9 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { GrandTourTipMode } from "@tipping-suite/shared-types";
 import {
   buildStageTipSelections,
-  isCompleteStageTip
+  buildTeamTimeTrialTipSelections,
+  isCompleteStageTip,
+  isCompleteTeamTimeTrialTip
 } from "@tipping-suite/tipping-core";
 
 import { AppShell } from "../../components/AppShell";
@@ -14,9 +16,13 @@ import { JerseyHolderPicker, type JerseyKey } from "../../components/JerseyHolde
 import { OrderedTopFivePicker } from "../../components/OrderedTopFivePicker";
 import { RiderSelectionPanel } from "../../components/RiderSelectionPanel";
 import { ScoreBreakdown } from "../../components/ScoreBreakdown";
+import { TeamSelectionPanel, type StageTeam } from "../../components/TeamSelectionPanel";
+import { StageTypeBadge } from "../../components/StageTypeBadge";
 import { TipStatusBadge, type TipDisplayStatus } from "../../components/TipStatusBadge";
+import { TttResultSummary } from "../../components/TttResultSummary";
 import {
   useCyclingCompetition,
+  useStageResult,
   useStageStartlist,
   useTdf2026Stages
 } from "../../hooks/useCyclingData";
@@ -28,7 +34,8 @@ import {
   useStageTipDraft,
   useSubmitTip
 } from "../../hooks/useGrandTourTips";
-import { formatDateTime } from "../../lib/formatters";
+import { formatDurationUntil, formatRiderDisplayName, formatShortDate, formatTime, preferStageBibNumber } from "../../lib/formatters";
+import { getStageTipExperience } from "../../lib/stageExperience";
 
 type ActivePicker = { type: "top5"; position: number } | { type: "jersey"; jersey: JerseyKey } | null;
 
@@ -45,8 +52,11 @@ export default function StageTipScreen() {
   const stageId = Array.isArray(params.stageId) ? params.stageId[0] : params.stageId;
   const { race, stages } = useTdf2026Stages();
   const stage = stages.data?.find((candidate) => candidate.id === stageId) ?? null;
+  const experience = getStageTipExperience(stage?.stage_type);
+  const isTtt = experience.isTtt;
   const competition = useCyclingCompetition(race.data?.id);
   const startlist = useStageStartlist(stageId);
+  const stageResult = useStageResult(stageId);
   const [tipMode, setTipMode] = useState<GrandTourTipMode>("daily");
   const currentTip = useStageTipDraft({ competitionId: competition.data?.id, stageId, tipMode });
   const save = useSaveTipDraft();
@@ -64,25 +74,43 @@ export default function StageTipScreen() {
     const nextJerseys: Partial<Record<JerseyKey, string>> = {};
     tip?.selections.forEach((selection) => {
       if (selection.selection_type === "stage_top_5" && selection.predicted_position) {
-        nextTopFive[selection.predicted_position - 1] = selection.rider_id;
+        nextTopFive[selection.predicted_position - 1] = isTtt
+          ? selection.team_id ?? null
+          : selection.rider_id ?? null;
       }
       (Object.keys(jerseySelectionType) as JerseyKey[]).forEach((jersey) => {
-        if (selection.selection_type === jerseySelectionType[jersey]) nextJerseys[jersey] = selection.rider_id;
+        if (selection.selection_type === jerseySelectionType[jersey] && selection.rider_id) {
+          nextJerseys[jersey] = selection.rider_id;
+        }
       });
     });
     setTopFive(nextTopFive);
     setJerseys(nextJerseys);
     setActivePicker(null);
     setMessage(null);
-  }, [currentTip.data?.id, currentTip.data?.updated_at, tipMode]);
+  }, [currentTip.data?.id, currentTip.data?.updated_at, isTtt, tipMode]);
 
   const riderNames = useMemo(() => new Map(
-    (startlist.data ?? []).map((entry) => [entry.rider.id, entry.rider.display_name])
+    (startlist.data ?? []).map((entry) => [
+      entry.rider.id,
+      formatRiderDisplayName(
+        entry.rider.display_name,
+        preferStageBibNumber(entry.bib_number, entry.rider.bib_number)
+      )
+    ])
   ), [startlist.data]);
-  const selections = useMemo(() => buildStageTipSelections(
-    topFive,
-    Object.fromEntries(Object.entries(jerseys).map(([key, riderId]) => [jerseySelectionType[key as JerseyKey], riderId]))
-  ), [jerseys, topFive]);
+  const stageTeams = useMemo(() => Array.from(new Map(
+    (startlist.data ?? [])
+      .filter((entry) => entry.team !== null)
+      .map((entry) => [entry.team!.id, entry.team!] as const)
+  ).values()) as StageTeam[], [startlist.data]);
+  const teamNames = useMemo(() => new Map(stageTeams.map((team) => [team.id, team.name])), [stageTeams]);
+  const jerseySelections = useMemo(() => Object.fromEntries(
+    Object.entries(jerseys).map(([key, riderId]) => [jerseySelectionType[key as JerseyKey], riderId])
+  ), [jerseys]);
+  const selections = useMemo(() => isTtt
+    ? buildTeamTimeTrialTipSelections(topFive, jerseySelections)
+    : buildStageTipSelections(topFive, jerseySelections), [isTtt, jerseySelections, topFive]);
   const lockTime = tipMode === "preselection" ? race.data?.preselection_locks_at : stage?.locks_at;
   const clientLocked = Boolean(stage?.manual_locked_at)
     || Boolean(lockTime && new Date(lockTime).getTime() <= Date.now());
@@ -99,13 +127,18 @@ export default function StageTipScreen() {
   const error = save.error ?? submit.error ?? clear.error;
   const tipEntryEnabled = tipEntryAvailability.data === true;
   const tipEntryUnavailable = !tipEntryAvailability.loading && !tipEntryEnabled;
+  const completedTopFive = topFive.filter(Boolean).length;
+  const completedJerseys = Object.keys(jerseys).length;
+  const complete = isTtt
+    ? isCompleteTeamTimeTrialTip(selections)
+    : isCompleteStageTip(selections);
 
-  const selectRider = (riderId: string) => {
+  const selectItem = (itemId: string) => {
     if (!tipEntryEnabled || !activePicker) return;
     if (activePicker.type === "top5") {
-      setTopFive((current) => current.map((value, index) => index === activePicker.position - 1 ? riderId : value));
+      setTopFive((current) => current.map((value, index) => index === activePicker.position - 1 ? itemId : value));
     } else {
-      setJerseys((current) => ({ ...current, [activePicker.jersey]: riderId }));
+      setJerseys((current) => ({ ...current, [activePicker.jersey]: itemId }));
     }
     setActivePicker(null);
     setMessage(null);
@@ -127,8 +160,10 @@ export default function StageTipScreen() {
 
   const submitTips = async () => {
     if (!tipEntryEnabled) return;
-    if (!isCompleteStageTip(selections)) {
-      setMessage("Choose five different riders and all four jersey holders before submitting.");
+    if (!complete) {
+      setMessage(isTtt
+        ? "Choose five different teams and all four rider jersey holders before submitting."
+        : "Choose five different riders and all four jersey holders before submitting.");
       return;
     }
     try {
@@ -166,36 +201,47 @@ export default function StageTipScreen() {
       {!stages.loading && !stages.error && !stage ? <EmptyState message="This stage could not be found." /> : null}
 
       {stage ? (
-        <InfoCard title={stage.stage_name ?? `Stage ${stage.stage_number}`} meta={stage.stage_type.replaceAll("_", " ")}>
-          <Text style={styles.copy}>Starts {formatDateTime(stage.starts_at)} · {stage.distance_km ?? "—"} km</Text>
-          <Text style={locked ? styles.locked : styles.lock}>Tips lock {formatDateTime(stage.locks_at)}</Text>
-          <TipStatusBadge status={displayStatus} />
-          <Text style={styles.serverNote}>The server is authoritative for lock and submission checks.</Text>
+        <InfoCard
+          accent
+          title={stage.stage_name ?? `Stage ${stage.stage_number}`}
+          meta={`${formatShortDate(stage.starts_at)} · Stage ${stage.stage_number}`}
+        >
+          <View style={styles.summaryTopRow}>
+            <StageTypeBadge stageType={stage.stage_type} />
+            <Text style={styles.summaryDistance}>{stage.distance_km ? `${stage.distance_km} km` : "Distance TBC"}</Text>
+          </View>
+          <Text style={styles.summaryRoute}>{stage.start_location ?? "TBC"} → {stage.finish_location ?? "TBC"}</Text>
+          <Text style={styles.summaryCopy}>{experience.isTtt ? "Team result picks are teams. Jersey picks are individual riders." : "Pick five riders in order, then choose the four jersey holders."}</Text>
+          <View style={styles.summaryStatusRow}>
+            <TipStatusBadge status={displayStatus} />
+            <Text style={styles.summaryLock}>{locked ? "Tips locked" : `Locks ${formatTime(stage.locks_at)} · ${formatDurationUntil(stage.locks_at)}`}</Text>
+          </View>
         </InfoCard>
       ) : null}
 
       <View style={styles.tabs}>
         {(["daily", "preselection"] as GrandTourTipMode[]).map((mode) => (
           <Pressable key={mode} onPress={() => setTipMode(mode)} style={[styles.tab, tipMode === mode && styles.tabActive]}>
-            <Text style={[styles.tabText, tipMode === mode && styles.tabTextActive]}>{mode}</Text>
+            <Text style={[styles.tabText, tipMode === mode && styles.tabTextActive]}>{mode === "daily" ? "Stage tips" : "Pre-race"}</Text>
           </Pressable>
         ))}
       </View>
 
-      <InfoCard title="Ordered Top 5" meta={`${tipMode} entry`}>
-        <Text style={styles.copy}>Select five different riders in predicted finishing order.</Text>
+      <InfoCard title={experience.topFiveTitle} meta={`${completedTopFive}/5 selected`}>
+        <Text style={styles.copy}>{experience.topFiveCopy}</Text>
         <OrderedTopFivePicker
           activePosition={activePicker?.type === "top5" ? activePicker.position : null}
           disabled={locked || busy || !tipEntryEnabled}
+          itemLabel={experience.topFivePicker}
+          itemName={(id) => isTtt ? teamNames.get(id) ?? "Unknown team" : riderNames.get(id) ?? "Unknown rider"}
           onActivate={(position) => setActivePicker({ type: "top5", position })}
           onClear={(position) => setTopFive((current) => current.map((value, index) => index === position - 1 ? null : value))}
-          riderName={(id) => riderNames.get(id) ?? "Unknown rider"}
           topFive={topFive}
         />
       </InfoCard>
 
-      <InfoCard title="Jersey holders after this stage" meta="Daily jerseys">
-        <Text style={styles.copy}>The same rider may be selected for more than one jersey.</Text>
+      <InfoCard title="Jersey picks" meta={`${completedJerseys}/4 selected`}>
+        <Text style={styles.copy}>{isTtt ? "Jersey points are based on the official individual jersey holders after the stage." : "The same rider may be selected for more than one jersey."}</Text>
         <JerseyHolderPicker
           activeJersey={activePicker?.type === "jersey" ? activePicker.jersey : null}
           disabled={locked || busy || !tipEntryEnabled}
@@ -205,16 +251,44 @@ export default function StageTipScreen() {
         />
       </InfoCard>
 
-      {tipEntryEnabled && activePicker && startlist.data ? (
+      <InfoCard title="Review and submit" meta={complete ? "Ready" : "Incomplete"}>
+        <Text style={styles.copy}>{isTtt ? "Stage result picks are teams. Jersey picks are individual riders." : "Check your ordered Top 5 and jersey picks before submitting."}</Text>
+        <View style={styles.reviewList}>
+          {topFive.map((id, index) => (
+            <View key={`review-top5-${index}`} style={styles.reviewRow}>
+              <Text style={styles.reviewLabel}>{index + 1}. {isTtt ? "Team" : "Rider"}</Text>
+              <Text style={id ? styles.reviewValue : styles.reviewMissing}>{id ? (isTtt ? teamNames.get(id) ?? "Unknown team" : riderNames.get(id) ?? "Unknown rider") : "Missing"}</Text>
+            </View>
+          ))}
+          {(["yellow", "green", "kom", "white"] as JerseyKey[]).map((jersey) => (
+            <View key={`review-${jersey}`} style={styles.reviewRow}>
+              <Text style={styles.reviewLabel}>{jersey === "kom" ? "Polka Dot" : `${jersey.charAt(0).toUpperCase()}${jersey.slice(1)}`}</Text>
+              <Text style={jerseys[jersey] ? styles.reviewValue : styles.reviewMissing}>{jerseys[jersey] ? riderNames.get(jerseys[jersey]!) ?? "Unknown rider" : "Missing"}</Text>
+            </View>
+          ))}
+        </View>
+        {!complete ? <Text style={styles.warningInline}>{isTtt ? "Select five different teams and all four rider jersey holders." : "Select five different riders and all four jersey holders."}</Text> : null}
+      </InfoCard>
+
+      {tipEntryEnabled && activePicker?.type === "top5" && isTtt ? (
+        <TeamSelectionPanel
+          excludedTeamIds={topFive.filter((id): id is string => Boolean(id))}
+          onSelect={selectItem}
+          teams={stageTeams}
+          title={`Choose team for position ${activePicker.position}`}
+        />
+      ) : null}
+      {tipEntryEnabled && activePicker && startlist.data && (!isTtt || activePicker.type === "jersey") ? (
         <RiderSelectionPanel
           excludedRiderIds={activePicker.type === "top5" ? topFive.filter((id): id is string => Boolean(id)) : []}
-          onSelect={selectRider}
+          onSelect={selectItem}
           riders={startlist.data}
-          title={activePicker.type === "top5" ? `Choose position ${activePicker.position}` : `Choose ${activePicker.jersey} jersey holder`}
+          title={activePicker.type === "top5" ? `Choose rider for position ${activePicker.position}` : `Choose ${activePicker.jersey} jersey holder`}
         />
       ) : null}
       {startlist.loading ? <LoadingState /> : null}
       {startlist.error ? <ErrorState error={startlist.error} onRetry={startlist.reload} /> : null}
+      {stageResult.error ? <ErrorState error={stageResult.error} onRetry={stageResult.reload} /> : null}
 
       {currentTip.data?.status === "draft" ? (
         <Text style={styles.warning}>You have saved a draft, but it has not been submitted. Only submitted tips can score points.</Text>
@@ -239,6 +313,13 @@ export default function StageTipScreen() {
         </View>
       ) : null}
 
+      {currentTip.data?.score && isTtt && stageResult.loading ? <LoadingState /> : null}
+      {currentTip.data?.score && isTtt && !stageResult.loading ? (
+        <TttResultSummary
+          result={stageResult.data ?? null}
+          score={currentTip.data.score}
+        />
+      ) : null}
       {currentTip.data?.score ? <ScoreBreakdown score={currentTip.data.score} /> : null}
       {locked ? (
         <Pressable onPress={() => router.push(`/stages/${stageId}/compare?mode=${tipMode}`)} style={styles.secondaryButton}>
@@ -259,15 +340,27 @@ const styles = StyleSheet.create({
   lock: { color: "#12372A", fontSize: 14, fontWeight: "800" },
   locked: { color: "#A12622", fontSize: 14, fontWeight: "800" },
   message: { color: "#176B3A", fontSize: 14, fontWeight: "800" },
-  primaryButton: { alignItems: "center", backgroundColor: "#12372A", borderRadius: 10, justifyContent: "center", minHeight: 50 },
+  primaryButton: { alignItems: "center", backgroundColor: "#12372A", borderRadius: 14, justifyContent: "center", minHeight: 52 },
   primaryButtonText: { color: "#FFFFFF", fontWeight: "900" },
-  secondaryButton: { alignItems: "center", borderColor: "#12372A", borderRadius: 10, borderWidth: 1, justifyContent: "center", minHeight: 50 },
+  secondaryButton: { alignItems: "center", borderColor: "#12372A", borderRadius: 14, borderWidth: 1, justifyContent: "center", minHeight: 50 },
   secondaryButtonText: { color: "#12372A", fontWeight: "900" },
   serverNote: { color: "#68746D", fontSize: 11 },
-  tab: { alignItems: "center", borderRadius: 8, flex: 1, padding: 10 },
+  summaryCopy: { color: "#E7F1EA", fontSize: 14, lineHeight: 20 },
+  summaryDistance: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" },
+  summaryLock: { color: "#E7F1EA", flex: 1, fontSize: 12, fontWeight: "800", textAlign: "right" },
+  summaryRoute: { color: "#FFFFFF", fontSize: 16, fontWeight: "900" },
+  summaryStatusRow: { alignItems: "center", flexDirection: "row", gap: 10, justifyContent: "space-between" },
+  summaryTopRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
+  reviewLabel: { color: "#68746D", fontSize: 12, fontWeight: "900", minWidth: 86, textTransform: "uppercase" },
+  reviewList: { backgroundColor: "#F7FAF8", borderColor: "#E0E8E2", borderRadius: 14, borderWidth: 1, gap: 0, overflow: "hidden" },
+  reviewMissing: { color: "#A12622", flex: 1, fontSize: 13, fontWeight: "900", textAlign: "right" },
+  reviewRow: { alignItems: "center", borderBottomColor: "#E0E8E2", borderBottomWidth: 1, flexDirection: "row", gap: 8, minHeight: 42, paddingHorizontal: 12, paddingVertical: 8 },
+  reviewValue: { color: "#12372A", flex: 1, fontSize: 13, fontWeight: "900", textAlign: "right" },
+  tab: { alignItems: "center", borderRadius: 12, flex: 1, padding: 11 },
   tabActive: { backgroundColor: "#12372A" },
   tabText: { color: "#536159", fontWeight: "800", textTransform: "capitalize" },
   tabTextActive: { color: "#FFFFFF" },
-  tabs: { backgroundColor: "#EEF2EF", borderRadius: 10, flexDirection: "row", padding: 4 },
-  warning: { backgroundColor: "#FFF3CD", borderRadius: 8, color: "#6F5200", fontSize: 14, fontWeight: "800", lineHeight: 20, padding: 12 }
+  tabs: { backgroundColor: "#EEF2EF", borderRadius: 14, flexDirection: "row", padding: 4 },
+  warning: { backgroundColor: "#FFF3CD", borderRadius: 12, color: "#6F5200", fontSize: 14, fontWeight: "800", lineHeight: 20, padding: 12 },
+  warningInline: { backgroundColor: "#FFF3CD", borderRadius: 10, color: "#6F5200", fontSize: 13, fontWeight: "800", lineHeight: 19, padding: 10 }
 });

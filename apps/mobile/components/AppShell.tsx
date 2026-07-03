@@ -11,11 +11,11 @@ type AppShellProps = PropsWithChildren<{
 }>;
 
 const navItems = [
-  { href: "/", label: "Home" },
-  { href: "/stages", label: "Stages" },
+  { href: "/", label: "Dashboard" },
+  { href: "/stages", label: "Tips" },
   { href: "/overall-jerseys", label: "Jerseys" },
   { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/profile", label: "Profile" }
+  { href: "/profile", label: "More" }
 ] as const;
 
 export function AppShell({ children, subtitle, title }: AppShellProps) {
@@ -28,35 +28,37 @@ export function AppShell({ children, subtitle, title }: AppShellProps) {
   );
 
   return (
-    <View style={[styles.page, { backgroundColor: theme.backgroundColor }]}>
-      <View style={[styles.header, { borderBottomColor: theme.primaryColor }]}>
+    <View style={[styles.page, { backgroundColor: theme.backgroundColor }]}> 
+      <View style={styles.header}>
         <Text style={styles.appName}>{activeAppConfig.appName}</Text>
         <Text style={styles.title}>{title}</Text>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>{children}</ScrollView>
 
-      <View style={styles.nav}>
-        {visibleNavItems.map((item) => {
-          const active =
-            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+      <View style={styles.navWrap}>
+        <View style={styles.nav}>
+          {visibleNavItems.map((item) => {
+            const active =
+              item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 
-          return (
-            <Pressable
-              key={item.href}
-              onPress={() => router.push(item.href)}
-              style={[
-                styles.navItem,
-                active && { backgroundColor: theme.primaryColor }
-              ]}
-            >
-              <Text style={[styles.navText, active && styles.navTextActive]}>
-                {item.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+            return (
+              <Pressable
+                key={item.href}
+                onPress={() => router.push(item.href)}
+                style={[
+                  styles.navItem,
+                  active && { backgroundColor: theme.secondaryColor }
+                ]}
+              >
+                <Text style={[styles.navText, active && styles.navTextActive]}>
+                  {item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -64,61 +66,75 @@ export function AppShell({ children, subtitle, title }: AppShellProps) {
 
 const styles = StyleSheet.create({
   appName: {
-    color: "#666666",
-    fontSize: 13,
-    fontWeight: "700",
+    color: "#68746D",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.7,
     textTransform: "uppercase"
   },
   content: {
-    gap: 12,
+    gap: 14,
     padding: 16,
-    paddingBottom: 96
+    paddingBottom: 104
   },
   header: {
-    borderBottomWidth: 3,
+    backgroundColor: "#FFFFFF",
+    borderBottomColor: "#E5ECE7",
+    borderBottomWidth: 1,
     padding: 16,
-    paddingTop: 28
+    paddingTop: 30
   },
   nav: {
-    backgroundColor: "#111111",
-    bottom: 0,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#DCE6DF",
+    borderRadius: 22,
+    borderWidth: 1,
     flexDirection: "row",
-    gap: 8,
+    gap: 6,
+    padding: 6,
+    shadowColor: "#0F241A",
+    shadowOffset: { height: 4, width: 0 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16
+  },
+  navItem: {
+    alignItems: "center",
+    borderRadius: 16,
+    flex: 1,
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: 4
+  },
+  navText: {
+    color: "#4D5A52",
+    fontSize: 11,
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  navTextActive: {
+    color: "#FFFFFF"
+  },
+  navWrap: {
+    bottom: 0,
     left: 0,
     padding: 12,
     position: "absolute",
     right: 0
   },
-  navItem: {
-    alignItems: "center",
-    borderRadius: 8,
-    flex: 1,
-    minHeight: 42,
-    justifyContent: "center",
-    paddingHorizontal: 8
-  },
-  navText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-    textAlign: "center"
-  },
-  navTextActive: {
-    color: "#111111"
-  },
   page: {
     flex: 1
   },
   subtitle: {
-    color: "#666666",
+    color: "#536159",
     fontSize: 15,
     lineHeight: 21,
     marginTop: 6
   },
   title: {
-    color: "#111111",
-    fontSize: 28,
-    fontWeight: "800",
+    color: "#12372A",
+    fontSize: 30,
+    fontWeight: "900",
+    letterSpacing: -0.7,
     marginTop: 6
   }
 });

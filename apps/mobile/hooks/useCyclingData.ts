@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import {
   getCyclingRaceByYear,
+  getCyclingStageResult,
   getPublicCyclingCompetition,
   listCyclingCompetitions,
   listCyclingLeaderboard,
@@ -61,6 +62,14 @@ export function useStageStartlist(stageId: string | null | undefined) {
     [stageId]
   );
   return useAsyncData(loadStartlist, [stageId]);
+}
+
+export function useStageResult(stageId: string | null | undefined) {
+  const loadResult = useCallback(
+    () => (stageId ? getCyclingStageResult(stageId) : Promise.resolve(null)),
+    [stageId]
+  );
+  return useAsyncData(loadResult, [stageId]);
 }
 
 export function useCyclingCompetition(raceId: string | null | undefined) {

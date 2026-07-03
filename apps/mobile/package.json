@@ -9,6 +9,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "web:build": "expo export -p web",
+    "test:ui": "tsc lib/stageExperience.ts lib/formatters.ts --outDir ../../dist/mobile-tests --target es2022 --module commonjs --moduleResolution node --skipLibCheck && node --test tests/*.test.cjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
