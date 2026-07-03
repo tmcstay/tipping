@@ -3,6 +3,7 @@ import type { PropsWithChildren } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { activeAppConfig } from "../lib/appConfig";
+import { useGrandTourTipEntryAvailability } from "../hooks/useGrandTourTips";
 
 type AppShellProps = PropsWithChildren<{
   title: string;
@@ -21,6 +22,10 @@ export function AppShell({ children, subtitle, title }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const theme = activeAppConfig.theme;
+  const tipEntryAvailability = useGrandTourTipEntryAvailability();
+  const visibleNavItems = navItems.filter(
+    (item) => item.href !== "/overall-jerseys" || tipEntryAvailability.data === true
+  );
 
   return (
     <View style={[styles.page, { backgroundColor: theme.backgroundColor }]}>
@@ -33,7 +38,7 @@ export function AppShell({ children, subtitle, title }: AppShellProps) {
       <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
 
       <View style={styles.nav}>
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const active =
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 

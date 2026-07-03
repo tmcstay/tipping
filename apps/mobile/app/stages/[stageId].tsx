@@ -21,7 +21,9 @@ import {
   useTdf2026Stages
 } from "../../hooks/useCyclingData";
 import {
+  GRANDTOUR_TIPPING_UNAVAILABLE_MESSAGE,
   useClearTip,
+  useGrandTourTipEntryAvailability,
   useSaveTipDraft,
   useStageTipDraft,
   useSubmitTip
@@ -50,6 +52,7 @@ export default function StageTipScreen() {
   const save = useSaveTipDraft();
   const submit = useSubmitTip();
   const clear = useClearTip();
+  const tipEntryAvailability = useGrandTourTipEntryAvailability();
   const [topFive, setTopFive] = useState<(string | null)[]>([null, null, null, null, null]);
   const [jerseys, setJerseys] = useState<Partial<Record<JerseyKey, string>>>({});
   const [activePicker, setActivePicker] = useState<ActivePicker>(null);
@@ -94,9 +97,11 @@ export default function StageTipScreen() {
       : currentTip.data?.status ?? "not_started";
   const busy = save.saving || submit.saving || clear.saving;
   const error = save.error ?? submit.error ?? clear.error;
+  const tipEntryEnabled = tipEntryAvailability.data === true;
+  const tipEntryUnavailable = !tipEntryAvailability.loading && !tipEntryEnabled;
 
   const selectRider = (riderId: string) => {
-    if (!activePicker) return;
+    if (!tipEntryEnabled || !activePicker) return;
     if (activePicker.type === "top5") {
       setTopFive((current) => current.map((value, index) => index === activePicker.position - 1 ? riderId : value));
     } else {
@@ -107,7 +112,7 @@ export default function StageTipScreen() {
   };
 
   const persistDraft = async () => {
-    if (!competition.data) return null;
+    if (!tipEntryEnabled || !competition.data) return null;
     const tipId = await save.saveDraft({
       competitionId: competition.data.id,
       stageId,
@@ -121,6 +126,7 @@ export default function StageTipScreen() {
   };
 
   const submitTips = async () => {
+    if (!tipEntryEnabled) return;
     if (!isCompleteStageTip(selections)) {
       setMessage("Choose five different riders and all four jersey holders before submitting.");
       return;
@@ -137,7 +143,7 @@ export default function StageTipScreen() {
   };
 
   const clearTip = async () => {
-    if (!currentTip.data) return;
+    if (!tipEntryEnabled || !currentTip.data) return;
     try {
       await clear.clearTip(currentTip.data.id);
       setTopFive([null, null, null, null, null]);
@@ -180,7 +186,7 @@ export default function StageTipScreen() {
         <Text style={styles.copy}>Select five different riders in predicted finishing order.</Text>
         <OrderedTopFivePicker
           activePosition={activePicker?.type === "top5" ? activePicker.position : null}
-          disabled={locked || busy}
+          disabled={locked || busy || !tipEntryEnabled}
           onActivate={(position) => setActivePicker({ type: "top5", position })}
           onClear={(position) => setTopFive((current) => current.map((value, index) => index === position - 1 ? null : value))}
           riderName={(id) => riderNames.get(id) ?? "Unknown rider"}
@@ -192,14 +198,14 @@ export default function StageTipScreen() {
         <Text style={styles.copy}>The same rider may be selected for more than one jersey.</Text>
         <JerseyHolderPicker
           activeJersey={activePicker?.type === "jersey" ? activePicker.jersey : null}
-          disabled={locked || busy}
+          disabled={locked || busy || !tipEntryEnabled}
           onActivate={(jersey) => setActivePicker({ type: "jersey", jersey })}
           riderName={(id) => riderNames.get(id) ?? "Unknown rider"}
           selections={jerseys}
         />
       </InfoCard>
 
-      {activePicker && startlist.data ? (
+      {tipEntryEnabled && activePicker && startlist.data ? (
         <RiderSelectionPanel
           excludedRiderIds={activePicker.type === "top5" ? topFive.filter((id): id is string => Boolean(id)) : []}
           onSelect={selectRider}
@@ -213,10 +219,11 @@ export default function StageTipScreen() {
       {currentTip.data?.status === "draft" ? (
         <Text style={styles.warning}>You have saved a draft, but it has not been submitted. Only submitted tips can score points.</Text>
       ) : null}
+      {tipEntryUnavailable ? <Text style={styles.warning}>{GRANDTOUR_TIPPING_UNAVAILABLE_MESSAGE}</Text> : null}
       {message ? <Text style={styles.message}>{message}</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {!locked ? (
+      {!locked && tipEntryEnabled ? (
         <View style={styles.actions}>
           <Pressable disabled={busy || !competition.data} onPress={() => void persistDraft().catch(() => undefined)} style={[styles.secondaryButton, busy && styles.disabled]}>
             <Text style={styles.secondaryButtonText}>Save Draft</Text>

@@ -162,6 +162,46 @@ select pg_temp.assert_true(
   'saving a complete draft must not auto-submit'
 );
 
+reset role;
+update public.apps
+set grandtour_tipping_enabled = false
+where code = 'cycling';
+set local role authenticated;
+select pg_temp.authenticate('10000000-0000-0000-0000-000000000001');
+
+do $$
+begin
+  begin
+    perform public.submit_grandtour_tip(
+      (select id from public.grandtour_tips
+       where user_id = '10000000-0000-0000-0000-000000000001'
+         and tip_mode = 'daily'),
+      'test-disabled-submit'
+    );
+    raise exception 'disabled submit unexpectedly accepted';
+  exception when others then
+    if sqlerrm <> 'GrandTour tipping is temporarily unavailable while we make updates.' then
+      raise;
+    end if;
+  end;
+end;
+$$;
+
+select pg_temp.assert_true(
+  (select count(*) = 1
+   from public.grandtour_tips
+   where user_id = '10000000-0000-0000-0000-000000000001'
+     and status = 'draft'),
+  'kill switch must preserve read-only access to an existing draft'
+);
+
+reset role;
+update public.apps
+set grandtour_tipping_enabled = true
+where code = 'cycling';
+set local role authenticated;
+select pg_temp.authenticate('10000000-0000-0000-0000-000000000001');
+
 select public.submit_grandtour_tip(
   (select id from public.grandtour_tips
    where user_id = '10000000-0000-0000-0000-000000000001'
@@ -176,6 +216,58 @@ select pg_temp.assert_true(
      and tip_mode = 'daily'),
   'a complete top-five and jersey tip must submit'
 );
+
+reset role;
+update public.apps
+set grandtour_tipping_enabled = false
+where code = 'cycling';
+set local role authenticated;
+select pg_temp.authenticate('10000000-0000-0000-0000-000000000001');
+
+do $$
+begin
+  begin
+    perform public.save_grandtour_tip_draft(
+      '40000000-0000-0000-0000-000000000001',
+      '70000000-0000-0000-0000-000000000001',
+      'daily',
+      'stage',
+      '[]'::jsonb,
+      'test-disabled-save'
+    );
+    raise exception 'disabled save unexpectedly accepted';
+  exception when others then
+    if sqlerrm <> 'GrandTour tipping is temporarily unavailable while we make updates.' then
+      raise;
+    end if;
+  end;
+end;
+$$;
+
+do $$
+begin
+  begin
+    perform public.clear_grandtour_tip_draft(
+      (select id from public.grandtour_tips
+       where user_id = '10000000-0000-0000-0000-000000000001'
+         and tip_mode = 'daily'),
+      'test disabled clear',
+      'test-disabled-clear'
+    );
+    raise exception 'disabled clear unexpectedly accepted';
+  exception when others then
+    if sqlerrm <> 'GrandTour tipping is temporarily unavailable while we make updates.' then
+      raise;
+    end if;
+  end;
+end;
+$$;
+
+reset role;
+update public.apps
+set grandtour_tipping_enabled = true
+where code = 'cycling';
+set local role authenticated;
 
 select pg_temp.authenticate('10000000-0000-0000-0000-000000000002');
 
@@ -470,6 +562,10 @@ select pg_temp.assert_true(
 );
 
 reset role;
+update public.apps
+set grandtour_tipping_enabled = false
+where code = 'cycling';
+
 insert into public.grandtour_stage_results (id, stage_id, is_final)
 values (
   '80000000-0000-0000-0000-000000000001',
@@ -550,6 +646,86 @@ select pg_temp.assert_true(
    where tip.user_id = '10000000-0000-0000-0000-000000000004'),
   'dummy users must be excluded from prize eligibility'
 );
+
+select pg_temp.authenticate('10000000-0000-0000-0000-000000000001');
+
+select pg_temp.assert_true(
+  (select count(*) = 2
+     and count(*) = count(distinct user_id)
+     and max(total_score) = 50
+   from public.get_grandtour_leaderboard(
+     '40000000-0000-0000-0000-000000000001',
+     'daily'
+   )),
+  'live daily leaderboard must exclude drafts and return one row per scored user'
+);
+
+select pg_temp.assert_true(
+  (select total_score = 100 and stages_tipped = 0 and rank = 1
+   from public.get_grandtour_leaderboard(
+     '40000000-0000-0000-0000-000000000001',
+     'preselection'
+   )
+   where user_id = '10000000-0000-0000-0000-000000000001'),
+  'preselection leaderboard must include overall jersey winner points'
+);
+
+select pg_temp.assert_true(
+  (select total_score = 150 and stages_tipped = 1 and rank = 1
+   from public.get_grandtour_leaderboard(
+     '40000000-0000-0000-0000-000000000001',
+     'overall'
+   )
+   where user_id = '10000000-0000-0000-0000-000000000001'),
+  'overall leaderboard must equal daily plus preselection scores'
+);
+
+select pg_temp.assert_true(
+  (select is_dummy and not is_prize_eligible
+   from public.get_grandtour_leaderboard(
+     '40000000-0000-0000-0000-000000000001',
+     'daily'
+   )
+   where user_id = '10000000-0000-0000-0000-000000000004'),
+  'live leaderboard must label dummy users and exclude them from prizes'
+);
+
+select pg_temp.assert_true(
+  (select first_run.rows = second_run.rows
+   from (
+     select jsonb_agg(to_jsonb(row_data) order by row_data.rank, row_data.user_id) as rows
+     from public.get_grandtour_leaderboard(
+       '40000000-0000-0000-0000-000000000001',
+       'overall'
+     ) row_data
+   ) first_run
+   cross join (
+     select jsonb_agg(to_jsonb(row_data) order by row_data.rank, row_data.user_id) as rows
+     from public.get_grandtour_leaderboard(
+       '40000000-0000-0000-0000-000000000001',
+       'overall'
+     ) row_data
+   ) second_run),
+  'repeated live leaderboard reads must be deterministic and idempotent'
+);
+
+select pg_temp.authenticate('10000000-0000-0000-0000-000000000003');
+do $$
+begin
+  begin
+    perform *
+    from public.get_grandtour_leaderboard(
+      '40000000-0000-0000-0000-000000000001',
+      'overall'
+    );
+    raise exception 'private league outsider unexpectedly read leaderboard';
+  exception when others then
+    if sqlerrm = 'private league outsider unexpectedly read leaderboard' then raise; end if;
+  end;
+end;
+$$;
+
+select pg_temp.authenticate('10000000-0000-0000-0000-000000000005');
 
 insert into public.grandtour_leaderboard_snapshots (
   competition_id,
@@ -647,19 +823,41 @@ select pg_temp.assert_true(
   'non-scoring lifecycle statuses must not be prize eligible'
 );
 
+select pg_temp.authenticate('10000000-0000-0000-0000-000000000001');
 select pg_temp.assert_true(
-  (select count(*) = 3
-   from pg_proc procedure
-   join pg_namespace namespace on namespace.oid = procedure.pronamespace
-   where namespace.nspname = 'public'
-     and procedure.proname in (
-       'save_grandtour_tip_draft',
-       'submit_grandtour_tip',
-       'clear_grandtour_tip_draft'
-     )),
-  'all three canonical frontend RPCs must exist'
+  (select count(*) = 1
+     and count(*) filter (
+       where user_id = '10000000-0000-0000-0000-000000000001'
+     ) = 1
+     and min(total_score) = 150
+   from public.get_grandtour_leaderboard(
+     '40000000-0000-0000-0000-000000000001',
+     'overall'
+   )),
+  'live leaderboard must retain corrected scores and exclude voided, missed, and deleted tips'
+);
+
+select pg_temp.assert_true(
+  (select count(*) = 4
+    from pg_proc procedure
+    join pg_namespace namespace on namespace.oid = procedure.pronamespace
+    where namespace.nspname = 'public'
+      and procedure.proname in (
+        'save_grandtour_tip_draft',
+        'submit_grandtour_tip',
+        'clear_grandtour_tip_draft',
+        'get_grandtour_leaderboard'
+      )),
+  'all four canonical frontend RPCs must exist'
 );
 
 reset role;
+update public.apps
+set grandtour_tipping_enabled = true
+where code = 'cycling';
+select pg_temp.assert_true(
+  (select grandtour_tipping_enabled from public.apps where code = 'cycling'),
+  'kill switch must be safely re-enabled after verification'
+);
 select 'canonical GrandTour tipping SQL tests passed' as result;
 rollback;

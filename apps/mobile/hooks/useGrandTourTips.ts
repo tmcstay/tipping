@@ -6,6 +6,7 @@ import type {
 } from "@tipping-suite/shared-types";
 import {
   clearGrandTourTip,
+  getGrandTourTipEntryAvailability,
   getCurrentUserGrandTourTip,
   listLeagueTipsAfterLock,
   saveGrandTourTipDraft,
@@ -13,6 +14,14 @@ import {
 } from "@tipping-suite/supabase-client";
 
 import { useAsyncData } from "./useAsyncData";
+
+export const GRANDTOUR_TIPPING_UNAVAILABLE_MESSAGE =
+  "GrandTour tipping is temporarily unavailable while we make updates.";
+
+export function useGrandTourTipEntryAvailability() {
+  const loadAvailability = useCallback(() => getGrandTourTipEntryAvailability(), []);
+  return useAsyncData(loadAvailability, []);
+}
 
 type TipIdentity = {
   competitionId: string | null | undefined;

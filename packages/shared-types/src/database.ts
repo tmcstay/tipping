@@ -53,6 +53,7 @@ export type Database = {
           code: string
           created_at: string
           dummy_activity_enabled: boolean
+          grandtour_tipping_enabled: boolean
           id: string
           is_active: boolean
           name: string
@@ -66,6 +67,7 @@ export type Database = {
           code: string
           created_at?: string
           dummy_activity_enabled?: boolean
+          grandtour_tipping_enabled?: boolean
           id?: string
           is_active?: boolean
           name: string
@@ -79,6 +81,7 @@ export type Database = {
           code?: string
           created_at?: string
           dummy_activity_enabled?: boolean
+          grandtour_tipping_enabled?: boolean
           id?: string
           is_active?: boolean
           name?: string
@@ -1787,6 +1790,22 @@ export type Database = {
       clear_grandtour_tip_draft: {
         Args: { p_reason?: string; p_request_id?: string; p_tip_id: string }
         Returns: boolean
+      }
+      get_grandtour_leaderboard: {
+        Args: { p_competition_id: string; p_leaderboard_type?: string }
+        Returns: {
+          display_name: string
+          id: string
+          is_dummy: boolean
+          is_prize_eligible: boolean
+          last_stage_score: number
+          leaderboard_type: string
+          rank: number
+          snapshot_at: string
+          stages_tipped: number
+          total_score: number
+          user_id: string
+        }[]
       }
       lock_grandtour_stage_tips: {
         Args: { p_reason: string; p_request_id?: string; p_stage_id: string }

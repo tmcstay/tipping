@@ -13,9 +13,9 @@ Read-only verification on 2 July 2026 confirmed:
 - PostgreSQL: `17.6.1.127`
 - Dashboard: <https://supabase.com/dashboard/project/nsdpilmmrfobiapbwona>
 
-At that verification point, production migration history ended at `20260701053811` and exactly four migrations were pending. This is time-sensitive information; verify it again immediately before deployment.
+At that verification point, production migration history ended at `20260701053811`. The four canonical workflow migrations plus the live-leaderboard and kill-switch migrations below must be pending immediately before deployment. This is time-sensitive information; verify it again immediately before deployment.
 
-The current worktree is dirty and the four canonical migrations are untracked. Production remains **NO-GO** until the deployment commit is clean, reviewed, and has passed CI.
+The first four canonical migrations and associated application changes are tracked and committed in `d65c5fea7244cd0f66ed9a7110a6e30294b4634f`. Migrations `20260702055447_live_grandtour_leaderboards.sql` and `20260702061010_grandtour_tipping_kill_switch.sql`, their client/types/tests, and this checklist update must be committed in a reviewed successor. The current checkout also has a local-only `supabase/config.toml` modification that enables the ignored E2E seed during local reset. Do not deploy from this dirty checkout. Use a clean checkout of the reviewed, pushed deployment commit after CI passes.
 
 ## Required migration order
 
@@ -25,6 +25,8 @@ Production must receive these files in this exact order:
 2. `20260701081334_canonical_grandtour_tipping_rpcs_rls.sql`
 3. `20260702003933_add_grandtour_tip_lifecycle_statuses.sql`
 4. `20260702003948_harden_grandtour_tip_lifecycle.sql`
+5. `20260702055447_live_grandtour_leaderboards.sql`
+6. `20260702061010_grandtour_tipping_kill_switch.sql`
 
 The enum migration must remain separate from the lifecycle migration because PostgreSQL must commit the new enum values before a later transaction uses them.
 
@@ -41,7 +43,7 @@ Never run or supply any of the following against linked production:
 - Anything under `supabase/seeds/`
 - `supabase/seeds/grandtour_e2e.sql`
 
-Both `supabase/seed.sql` and `supabase/seeds/grandtour_e2e.sql` are local development fixtures and must not be deployed. The E2E fixture contains predictable test passwords, two test users, one dummy user, and synthetic competitions, leagues, memberships, riders, tips, results, and scores. The four canonical migrations contain none of those fixture identifiers.
+Both `supabase/seed.sql` and `supabase/seeds/grandtour_e2e.sql` are local development fixtures and must not be deployed. The E2E fixture contains predictable test passwords, two test users, one dummy user, and synthetic competitions, leagues, memberships, riders, tips, results, and scores. The six required migrations contain none of those fixture identifiers.
 
 The documented production command does not include seeds. Do not add a seed flag manually and do not use a wrapper, alias, CI job, or deployment script that appends one.
 
@@ -77,14 +79,16 @@ Record:
 
 The commit SHA must identify the exact reviewed source being deployed. Do not deploy from a moving branch reference or dirty worktree.
 
-### 2. Confirm all four migration files are tracked
+### 2. Confirm all six migration files are tracked
 
 ```powershell
 git ls-files --error-unmatch -- `
   supabase/migrations/20260701081127_canonical_grandtour_tipping_workflow.sql `
   supabase/migrations/20260701081334_canonical_grandtour_tipping_rpcs_rls.sql `
   supabase/migrations/20260702003933_add_grandtour_tip_lifecycle_statuses.sql `
-  supabase/migrations/20260702003948_harden_grandtour_tip_lifecycle.sql
+  supabase/migrations/20260702003948_harden_grandtour_tip_lifecycle.sql `
+  supabase/migrations/20260702055447_live_grandtour_leaderboards.sql `
+  supabase/migrations/20260702061010_grandtour_tipping_kill_switch.sql
 ```
 
 This command must succeed. Confirm the files are included in the recorded deployment commit:
@@ -114,7 +118,7 @@ npx.cmd supabase migration list --local
 npx.cmd supabase migration list --linked
 ```
 
-The remote column must be blank for exactly the four required migrations and no others. Save the output with the deployment record.
+The remote column must be blank for exactly the six required migrations and no others. Save the output with the deployment record.
 
 ### 5. Run application verification
 
@@ -241,12 +245,14 @@ npx.cmd supabase db push --linked --dry-run 2>&1 | Tee-Object -FilePath $dryRunF
 if ($LASTEXITCODE -ne 0) { throw "Production migration dry run failed." }
 ```
 
-The operator and reviewer must inspect the complete output. It must list exactly these four files, in order, and no seed operation:
+The operator and reviewer must inspect the complete output. It must list exactly these six files, in order, and no seed operation:
 
 1. `20260701081127_canonical_grandtour_tipping_workflow.sql`
 2. `20260701081334_canonical_grandtour_tipping_rpcs_rls.sql`
 3. `20260702003933_add_grandtour_tip_lifecycle_statuses.sql`
 4. `20260702003948_harden_grandtour_tip_lifecycle.sql`
+5. `20260702055447_live_grandtour_leaderboards.sql`
+6. `20260702061010_grandtour_tipping_kill_switch.sql`
 
 Any additional, missing, reordered, repaired, or seed-related operation is a stop condition.
 
@@ -258,15 +264,15 @@ The following fields must be completed immediately before deployment:
 - [ ] Project name is exactly `tipping-suite`.
 - [ ] The deployment commit SHA matches the reviewed commit.
 - [ ] The worktree is clean.
-- [ ] All four migration files are tracked and committed.
-- [ ] Remote history shows exactly the four expected pending migrations.
-- [ ] Dry-run output shows exactly those four migrations in order.
+- [ ] All six migration files are tracked and committed.
+- [ ] Remote history shows exactly the six expected pending migrations.
+- [ ] Dry-run output shows exactly those six migrations in order.
 - [ ] No command, alias, wrapper, or automation contains `--include-seed` or `--include-all`.
 - [ ] Every backup artifact exists and has a non-zero size.
 - [ ] Backup hashes and managed restore point are recorded.
-- [ ] Leaderboard snapshot refresh is confirmed.
+- [ ] The live leaderboard RPC is present, security-invoker, authenticated-only, and passes private-league smoke tests.
 - [ ] Last-known-good frontend rollback is confirmed.
-- [ ] GrandTour tipping kill switch is implemented and tested, or absence has formal go-live risk acceptance.
+- [ ] The GrandTour tipping kill switch disable, read-only UI, server rejection, and re-enable smoke tests pass.
 
 Approval record:
 
@@ -299,7 +305,7 @@ npx.cmd supabase db lint --linked --schema public --level warning --fail-on erro
 npx.cmd supabase db advisors --linked --type security --level info --fail-on error
 ```
 
-Migration history must show all four versions in both local and remote columns. Save all output with the deployment record.
+Migration history must show all six versions in both local and remote columns. Save all output with the deployment record.
 
 ### Read-only catalog verification
 
@@ -318,7 +324,8 @@ where n.nspname = 'public'
   and p.proname in (
     'save_grandtour_tip_draft',
     'submit_grandtour_tip',
-    'clear_grandtour_tip_draft'
+    'clear_grandtour_tip_draft',
+    'get_grandtour_leaderboard'
   )
 order by p.proname, p.oid::regprocedure::text;
 ```
@@ -328,8 +335,9 @@ Expected:
 - `save_grandtour_tip_draft(uuid,uuid,grandtour_tip_mode,grandtour_tip_scope,jsonb,text)` returns `uuid`.
 - `submit_grandtour_tip(uuid,text)` returns `grandtour_tips`.
 - `clear_grandtour_tip_draft(uuid,text,text)` returns `boolean`.
-- All three are security invoker (`security_definer = false`).
-- `authenticated_can_execute = true` and `anon_can_execute = false` for all three.
+- `get_grandtour_leaderboard(uuid,text)` returns live ranked leaderboard rows.
+- All four are security invoker (`security_definer = false`).
+- `authenticated_can_execute = true` and `anon_can_execute = false` for all four.
 
 Verify RLS on every gameplay table touched by this workflow:
 
@@ -367,7 +375,7 @@ Do not use the service role for these checks; it bypasses RLS. Use dedicated, cl
 2. After lock, member B may see member A's submitted eligible tip but must never see a draft.
 3. A private-league member can read the league and use the save/submit RPCs before lock.
 4. A non-member cannot read private-league tips or write a tip to that league.
-5. A dummy QA profile is visibly labelled and has `is_prize_eligible = false` in scores and snapshots.
+5. A dummy QA profile is visibly labelled and has `is_prize_eligible = false` in scores and live leaderboard rows.
 
 Record user IDs, competition ID, stage ID, timestamps, expected result, and actual result without recording passwords or tokens.
 
@@ -422,50 +430,51 @@ Use dedicated, clearly labelled, non-prize production QA accounts and a controll
 14. Run recalculation once and verify totals remain identical with one score row per tip.
 15. Verify ordered Top 5, daily jerseys, overall jerseys, and score JSON.
 16. Verify a clearly labelled dummy QA account is shown as dummy and not prize eligible.
-17. Refresh leaderboard snapshots using the separately approved process below.
-18. Verify Daily, Preselection, and Overall rows, totals, and ranks.
+17. Load the live leaderboard for Daily, Preselection, and Overall.
+18. Verify rows, totals, ranks, stage counts, dummy labels, and prize eligibility directly reflect the latest authoritative score rows.
 
 Stop the smoke test and initiate containment if authorization, locking, scoring, or privacy differs from the expected result.
 
-## Leaderboard snapshot refresh and validation
+## Live leaderboard process and validation
 
-The repository currently has a `grandtour_leaderboard_snapshots` table and read queries, but no repository-owned refresh function, RPC, scheduled job, or documented admin builder. Test SQL inserts fixture snapshots directly; that is not a production refresh process.
+Launch does not require `grandtour_leaderboard_snapshots`. The app calls `get_grandtour_leaderboard(uuid,text)`, which derives Daily, Preselection, and Overall standings from authoritative `grandtour_stage_scores` joined to tips whose lifecycle status is `scored` or `corrected`.
 
-Therefore, leaderboard go-live is **blocked** until one of the following is implemented and reviewed:
+The RPC is read-only, `STABLE`, security-invoker, available only to `authenticated`, and explicitly checks competition access. Database RLS continues to protect scores, tips, and profiles. Draft, missed, voided, and deleted tips are excluded. Overall is calculated as Daily plus Preselection, including final overall-jersey points. Repeated calls do not write rows, so there is no refresh job, duplicate-row risk, or stale snapshot batch.
 
-- An idempotent, authorised database/admin refresh function with auditability; or
-- A documented external/admin process that deterministically rebuilds all three leaderboard types.
+The existing snapshot table remains available for a future historical/reporting feature, but no production snapshot refresh or manual snapshot insert is part of launch.
 
-Do not manually insert production snapshots by copying the test fixture. The approved process must define its command or admin action, owner, authorization, retry behavior, and correction behavior here before deployment:
-
-- Refresh command/admin action: _________________________
-- Authorised operator role: _____________________________
-- Process owner: ________________________________________
-- Evidence of staging rehearsal: ________________________
-
-After refresh, run this read-only validation:
+For an authenticated read-only SQL verification, replace the two placeholders with a controlled private-league member and competition, then run:
 
 ```sql
+begin read only;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '<QA_MEMBER_UUID>', true);
 select
-  competition_id,
+  user_id,
   leaderboard_type,
-  count(*) as row_count,
-  count(distinct user_id) as distinct_users,
-  min(rank) as best_rank,
-  max(rank) as worst_rank,
-  max(snapshot_at) as latest_snapshot_at
-from public.grandtour_leaderboard_snapshots
-group by competition_id, leaderboard_type
-order by competition_id, leaderboard_type;
-
-select count(*) as dummy_eligibility_mismatches
-from public.grandtour_leaderboard_snapshots s
-join public.profiles p on p.id = s.user_id
-where s.is_dummy <> p.is_dummy
-   or s.is_prize_eligible <> (not p.is_dummy);
+  rank,
+  total_score,
+  stages_tipped,
+  last_stage_score,
+  is_dummy,
+  is_prize_eligible,
+  display_name
+from public.get_grandtour_leaderboard(
+  '<QA_GRANDTOUR_COMPETITION_UUID>'::uuid,
+  'overall'
+);
+rollback;
 ```
 
-For the controlled competition, all expected types must exist, each user must have no more than one current row per leaderboard type, snapshot timestamps must match the refresh, and `dummy_eligibility_mismatches` must be zero.
+Validate through a normal authenticated private-league member session, never with the service role:
+
+1. Call `get_grandtour_leaderboard` for `daily`, `preselection`, and `overall`.
+2. Confirm one row per scored user and no draft-only user.
+3. Confirm Overall totals equal Daily plus Preselection.
+4. Confirm a dummy row has `is_dummy = true` and `is_prize_eligible = false`.
+5. Repeat the calls and confirm the rows are unchanged when scores are unchanged.
+6. Confirm a private-league non-member receives an access error.
+7. Correct and rescore one controlled stage, then confirm the next read reflects the corrected totals without any refresh action.
 
 ## Rollback and containment
 
@@ -483,7 +492,7 @@ Complete and rehearse this before go-live:
 
 If application behavior fails after migration:
 
-1. Stop further scoring, result finalisation, and leaderboard refreshes.
+1. Stop further scoring and result finalisation.
 2. Notify the rollback approver and record the incident time.
 3. Redeploy the recorded immutable last-known-good release using the recorded CI workflow or command. Do not deploy from a dirty local checkout.
 4. Confirm the deployed release/commit identifier.
@@ -495,17 +504,50 @@ The exact redeploy workflow cannot be inferred safely from this repository and m
 
 ### GrandTour tipping kill switch
 
-No dedicated GrandTour tipping kill switch currently exists. The existing `allow_daily` and `allow_preselection` competition fields are business-mode controls, not a complete emergency feature flag, and must not be treated as one.
+The remote flag is `public.apps.grandtour_tipping_enabled` for the row whose `code = 'cycling'`. Its default is `true`. Database triggers enforce it for inserts, updates, and deletes on GrandTour tips and selections, so disabled writes fail even from an older client. Read-only stages, existing tips, comparisons, scores, and live leaderboards remain available.
 
-Before go-live, implement and test a formal server-controlled or deployment-controlled flag that:
+When disabled, the current frontend hides Save Draft, Submit Tips, Clear Tip, and the Overall Jerseys navigation item; rider pickers become read-only and the entry screens show:
 
-- Removes or disables GrandTour tip-entry actions in the frontend.
-- Shows a clear temporary-unavailability message.
-- Does not weaken database RLS or lock enforcement.
-- Can be enabled without rebuilding from an unreviewed source tree.
-- Has a named owner, audited activation procedure, and rollback test.
+> GrandTour tipping is temporarily unavailable while we make updates.
 
-Until that exists, frontend rollback is the only UI containment method and the missing kill switch remains a formal go-live blocker unless the accountable approver explicitly accepts the risk in writing.
+An authorised operator disables entry in Supabase Dashboard SQL Editor with:
+
+```sql
+begin;
+update public.apps
+set grandtour_tipping_enabled = false
+where code = 'cycling'
+returning code, grandtour_tipping_enabled;
+commit;
+```
+
+Re-enable entry only after incident approval and smoke testing:
+
+```sql
+begin;
+update public.apps
+set grandtour_tipping_enabled = true
+where code = 'cycling'
+returning code, grandtour_tipping_enabled;
+commit;
+```
+
+Verify the remote state read-only:
+
+```sql
+select code, is_active, grandtour_tipping_enabled
+from public.apps
+where code = 'cycling';
+```
+
+Disabled verification:
+
+1. Reload or reopen the app so it refetches remote configuration.
+2. Confirm stage browsing, existing tip status, comparison, score breakdown, and leaderboards still load.
+3. Confirm the Overall Jerseys navigation item is hidden.
+4. Confirm stage and overall-jersey entry screens show the temporary-unavailability message and no Save, Submit, or Clear actions.
+5. Using a controlled pre-lock QA tip, confirm Save Draft, Submit Tips, and Clear Tip each fail server-side with the same temporary-unavailability message.
+6. Set the flag back to `true`, reload the app, and confirm controlled pre-lock tip entry works again.
 
 ### Database rollback boundaries
 
@@ -534,9 +576,9 @@ Prefer a reviewed roll-forward migration. Never edit, delete, or mark an applied
 - **Lock data:** missing or invalid timestamps fail closed; manual locks override timestamps.
 - **Score recalculation:** test one controlled stage before any broader operation.
 - **Seed deployment:** seed flags would create predictable users and synthetic production data.
-- **Leaderboard snapshots:** no confirmed refresh process currently exists.
-- **Feature shutdown:** no dedicated GrandTour tipping kill switch currently exists.
-- **Deployment source:** the current dirty worktree and untracked migrations cannot be deployed.
+- **Live leaderboard:** reads authoritative score rows at request time; monitor query performance as league size grows. Snapshots are not a launch dependency.
+- **Feature shutdown:** the remote `grandtour_tipping_enabled` flag is server-enforced; verify both disable and re-enable paths before go-live.
+- **Deployment source:** the migrations are committed, but deployment must use a clean checkout of the reviewed and pushed commit; the local-only `supabase/config.toml` E2E change must remain outside the deployment commit.
 - **Backup scope:** logical public-schema exports do not replace managed Auth/Storage recovery.
 
 ## Final plain-English go/no-go checklist
@@ -545,19 +587,19 @@ Proceed only when every answer is yes:
 
 - [ ] Am I linked to `tipping-suite` / `nsdpilmmrfobiapbwona`?
 - [ ] Is the exact deployment commit reviewed, recorded, and checked out with a clean worktree?
-- [ ] Are all four canonical migrations tracked and committed?
-- [ ] Does linked migration history show exactly the expected four pending migrations?
+- [ ] Are all six required migrations tracked and committed?
+- [ ] Does linked migration history show exactly the expected six pending migrations?
 - [ ] Did CI/deployment automation pass the seed-flag audit?
 - [ ] Is a recent managed backup/PITR point recorded?
 - [ ] Are all logical backup files outside Git, non-empty, hashed, and securely stored?
 - [ ] Has restoration been rehearsed or has the approver formally accepted that risk?
-- [ ] Does the reviewed dry run list exactly the expected four files in order?
+- [ ] Does the reviewed dry run list exactly the expected six files in order?
 - [ ] Are `--include-seed` and `--include-all` absent from the production command and all wrappers?
 - [ ] Have production lock times and private memberships been checked?
 - [ ] Do typecheck, tests, SQL tests, and web export pass on the deployment commit?
 - [ ] Is an exact, rehearsed frontend rollback release and workflow recorded?
-- [ ] Is the tipping kill switch implemented and tested, or is its absence formally accepted?
-- [ ] Is a reviewed leaderboard snapshot-refresh process implemented and rehearsed?
+- [ ] Has the remote tipping kill switch been tested disabled and re-enabled using controlled QA accounts?
+- [ ] Does the live leaderboard RPC pass member, non-member, draft-exclusion, correction, dummy, and idempotency checks?
 - [ ] Are controlled production QA accounts and a non-prize smoke competition ready?
 - [ ] Has the team agreed not to run broad score recalculation during deployment?
 - [ ] Have the operator and reviewer signed the mandatory approval gate?
@@ -566,9 +608,7 @@ Proceed only when every answer is yes:
 
 Production deployment and full go-live remain **NO-GO** until all of the following are resolved:
 
-1. The dirty worktree is committed, reviewed, and clean, including all four migration files.
+1. A reviewed successor to `d65c5fea7244cd0f66ed9a7110a6e30294b4634f` containing the live leaderboard and kill-switch migrations, client/types/tests, and checklist correction is pushed, passes CI, and is deployed from a clean checkout without the local E2E config change.
 2. A managed restore point and verified external logical backup are recorded.
-3. The leaderboard snapshot-refresh process is implemented, documented, and rehearsed.
-4. The exact frontend rollback release and redeployment workflow are recorded and rehearsed.
-5. A GrandTour tipping kill switch is implemented and tested, or its absence receives explicit written risk acceptance.
-6. The mandatory production write approval gate is completed by both operator and reviewer.
+3. The exact frontend rollback release and redeployment workflow are recorded and rehearsed.
+4. The mandatory production write approval gate is completed by both operator and reviewer.

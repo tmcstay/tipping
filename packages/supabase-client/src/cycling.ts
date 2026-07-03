@@ -128,6 +128,18 @@ export type GrandTourTipRecord = {
   score: GrandTourScore | null;
 };
 
+export async function getGrandTourTipEntryAvailability(): Promise<boolean> {
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from("apps")
+    .select("grandtour_tipping_enabled")
+    .eq("code", "cycling")
+    .eq("is_active", true)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.grandtour_tipping_enabled === true;
+}
+
 export type LeagueTipComparison = GrandTourTipRecord & {
   display_name: string;
 };
@@ -350,38 +362,13 @@ export async function listCyclingLeaderboard(
   leaderboardType: CyclingLeaderboardRow["leaderboard_type"] = "overall"
 ): Promise<CyclingLeaderboardRow[]> {
   const client = getSupabaseClient();
-  const { data: latest, error: latestError } = await client
-    .from("grandtour_leaderboard_snapshots")
-    .select("snapshot_at")
-    .eq("competition_id", competitionId)
-    .eq("leaderboard_type", leaderboardType)
-    .order("snapshot_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (latestError) throw latestError;
-  if (!latest) return [];
-
-  const { data, error } = await client
-    .from("grandtour_leaderboard_snapshots")
-    .select("id,user_id,leaderboard_type,rank,total_score,stages_tipped,last_stage_score,snapshot_at,is_dummy,is_prize_eligible")
-    .eq("competition_id", competitionId)
-    .eq("leaderboard_type", leaderboardType)
-    .eq("snapshot_at", latest.snapshot_at)
-    .order("rank", { ascending: true });
+  const { data, error } = await client.rpc("get_grandtour_leaderboard", {
+    p_competition_id: competitionId,
+    p_leaderboard_type: leaderboardType
+  });
   if (error) throw error;
-  const rows = data ?? [];
-  if (rows.length === 0) return [];
-  const { data: profiles, error: profileError } = await client
-    .from("grandtour_league_profiles")
-    .select("id,display_name,is_dummy")
-    .in("id", rows.map((row) => row.user_id));
-  if (profileError) throw profileError;
-  return rows.map((row) => {
-    const profile = profiles?.find((candidate) => candidate.id === row.user_id);
-    return {
-      ...row,
-      is_dummy: row.is_dummy || profile?.is_dummy === true,
-      display_name: profile?.display_name ?? `Entry ${row.user_id.slice(0, 8)}`
-    };
-  }) as CyclingLeaderboardRow[];
+  return (data ?? []).map((row) => ({
+    ...row,
+    leaderboard_type: row.leaderboard_type as CyclingLeaderboardRow["leaderboard_type"]
+  }));
 }

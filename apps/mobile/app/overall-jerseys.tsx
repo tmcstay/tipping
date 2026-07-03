@@ -14,7 +14,14 @@ import { RiderSelectionPanel } from "../components/RiderSelectionPanel";
 import { ScoreBreakdown } from "../components/ScoreBreakdown";
 import { TipStatusBadge, type TipDisplayStatus } from "../components/TipStatusBadge";
 import { useCyclingCompetition, useTdfRiders, useTdf2026Race } from "../hooks/useCyclingData";
-import { useClearTip, useOverallJerseyTip, useSaveTipDraft, useSubmitTip } from "../hooks/useGrandTourTips";
+import {
+  GRANDTOUR_TIPPING_UNAVAILABLE_MESSAGE,
+  useClearTip,
+  useGrandTourTipEntryAvailability,
+  useOverallJerseyTip,
+  useSaveTipDraft,
+  useSubmitTip
+} from "../hooks/useGrandTourTips";
 import { formatDateTime } from "../lib/formatters";
 
 const overallType: Record<JerseyKey, "overall_yellow_winner" | "overall_green_winner" | "overall_kom_winner" | "overall_white_winner"> = {
@@ -32,6 +39,7 @@ export default function OverallJerseyTipScreen() {
   const save = useSaveTipDraft();
   const submit = useSubmitTip();
   const clear = useClearTip();
+  const tipEntryAvailability = useGrandTourTipEntryAvailability();
   const [jerseys, setJerseys] = useState<Partial<Record<JerseyKey, string>>>({});
   const [activeJersey, setActiveJersey] = useState<JerseyKey | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -70,15 +78,18 @@ export default function OverallJerseyTipScreen() {
       : tip.data?.status ?? "not_started";
   const busy = save.saving || submit.saving || clear.saving;
   const error = save.error ?? submit.error ?? clear.error;
+  const tipEntryEnabled = tipEntryAvailability.data === true;
+  const tipEntryUnavailable = !tipEntryAvailability.loading && !tipEntryEnabled;
 
   const persist = async () => {
-    if (!competition.data) return null;
+    if (!tipEntryEnabled || !competition.data) return null;
     const tipId = await save.saveDraft({ competitionId: competition.data.id, stageId: null, tipMode: "preselection", tipScope: "overall_jerseys", selections });
     setMessage("Draft saved.");
     tip.reload();
     return tipId;
   };
   const submitTips = async () => {
+    if (!tipEntryEnabled) return;
     if (!isCompleteOverallJerseyTip(selections)) {
       setMessage("Choose all four overall jersey winners before submitting.");
       return;
@@ -91,7 +102,7 @@ export default function OverallJerseyTipScreen() {
     } catch { /* Server error is displayed below. */ }
   };
   const clearTip = async () => {
-    if (!tip.data) return;
+    if (!tipEntryEnabled || !tip.data) return;
     try {
       await clear.clearTip(tip.data.id);
       setJerseys({});
@@ -109,13 +120,14 @@ export default function OverallJerseyTipScreen() {
         <Text style={styles.copy}>Pick the rider who will win each jersey at the end of the tour.</Text>
         <Text style={styles.lock}>Locks {race.data ? formatDateTime(race.data.preselection_locks_at) : "—"}</Text>
         <TipStatusBadge status={status} />
-        <JerseyHolderPicker activeJersey={activeJersey} disabled={locked || busy} onActivate={setActiveJersey} riderName={(id) => riderNames.get(id) ?? "Unknown rider"} selections={jerseys} />
+        <JerseyHolderPicker activeJersey={activeJersey} disabled={locked || busy || !tipEntryEnabled} onActivate={setActiveJersey} riderName={(id) => riderNames.get(id) ?? "Unknown rider"} selections={jerseys} />
       </InfoCard>
-      {activeJersey ? <RiderSelectionPanel riders={riderChoices} title={`Choose overall ${activeJersey} winner`} onSelect={(riderId) => { setJerseys((current) => ({ ...current, [activeJersey]: riderId })); setActiveJersey(null); }} /> : null}
+      {tipEntryEnabled && activeJersey ? <RiderSelectionPanel riders={riderChoices} title={`Choose overall ${activeJersey} winner`} onSelect={(riderId) => { setJerseys((current) => ({ ...current, [activeJersey]: riderId })); setActiveJersey(null); }} /> : null}
       {tip.data?.status === "draft" ? <Text style={styles.warning}>You have saved a draft, but it has not been submitted. Only submitted tips can score points.</Text> : null}
+      {tipEntryUnavailable ? <Text style={styles.warning}>{GRANDTOUR_TIPPING_UNAVAILABLE_MESSAGE}</Text> : null}
       {message ? <Text style={styles.message}>{message}</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      {!locked ? <View style={styles.actions}>
+      {!locked && tipEntryEnabled ? <View style={styles.actions}>
         <Pressable disabled={busy} onPress={() => void persist().catch(() => undefined)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Save Draft</Text></Pressable>
         <Pressable disabled={busy} onPress={() => void submitTips()} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Submit Tips</Text></Pressable>
         {tip.data && ["draft", "submitted"].includes(tip.data.status) ? <Pressable disabled={busy} onPress={() => void clearTip()} style={styles.clearButton}><Text style={styles.clearButtonText}>Clear tip</Text></Pressable> : null}
