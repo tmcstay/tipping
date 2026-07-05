@@ -6,6 +6,7 @@ import {
   listCyclingCompetitions,
   listCyclingLeaderboard,
   listCyclingRiders,
+  listCyclingStageResults,
   listCyclingStages,
   listCyclingTeams,
   listStageStartlist,
@@ -70,6 +71,14 @@ export function useStageResult(stageId: string | null | undefined) {
     [stageId]
   );
   return useAsyncData(loadResult, [stageId]);
+}
+
+export function useCyclingStageResults(raceId: string | null | undefined) {
+  const loadResults = useCallback(
+    () => raceId ? listCyclingStageResults(raceId) : Promise.resolve([]),
+    [raceId]
+  );
+  return useAsyncData(loadResults, [raceId]);
 }
 
 export function useCyclingCompetition(raceId: string | null | undefined) {

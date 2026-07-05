@@ -42,8 +42,28 @@ export type GrandTourSelectionType =
   | "overall_kom_winner"
   | "overall_white_winner";
 
-export type GrandTourTipSelectionInput = {
-  selection_type: GrandTourSelectionType;
+type GrandTourStageRiderSelectionInput = {
+  selection_type: "stage_top_5";
   rider_id: string;
-  predicted_position?: number | null;
+  team_id?: null;
+  predicted_position: number;
 };
+
+type GrandTourStageTeamSelectionInput = {
+  selection_type: "stage_top_5";
+  rider_id?: null;
+  team_id: string;
+  predicted_position: number;
+};
+
+type GrandTourJerseySelectionInput = {
+  selection_type: Exclude<GrandTourSelectionType, "stage_top_5">;
+  rider_id: string;
+  team_id?: null;
+  predicted_position?: null;
+};
+
+export type GrandTourTipSelectionInput =
+  | GrandTourStageRiderSelectionInput
+  | GrandTourStageTeamSelectionInput
+  | GrandTourJerseySelectionInput;

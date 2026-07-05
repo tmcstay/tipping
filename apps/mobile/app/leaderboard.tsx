@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { CyclingLeaderboardRow } from "@tipping-suite/supabase-client";
 
+import { useAuth } from "../auth/useAuth";
 import { AppShell } from "../components/AppShell";
 import { EmptyState, ErrorState, LoadingState } from "../components/DataState";
 import { InfoCard } from "../components/InfoCard";
@@ -24,6 +25,7 @@ function leaderboardLabel(type: CyclingLeaderboardRow["leaderboard_type"]) {
 }
 
 export default function LeaderboardScreen() {
+  const { user } = useAuth();
   const [leaderboardType, setLeaderboardType] = useState<CyclingLeaderboardRow["leaderboard_type"]>("overall");
   const [competitionId, setCompetitionId] = useState<string | null>(null);
   const race = useCyclingRace(2026);
@@ -42,7 +44,7 @@ export default function LeaderboardScreen() {
       {leader ? (
         <InfoCard accent title={`${leader.display_name} leads`} meta={`${leader.total_score} points`}>
           <Text style={styles.heroCopy}>Top score in {leaderboardLabel(leaderboardType).toLowerCase()} leaderboard.</Text>
-          <Text style={styles.heroCopy}>{leader.stages_tipped} stages tipped{leader.is_dummy ? " · Dummy user" : ""}</Text>
+          <Text style={styles.heroCopy}>{leader.stages_tipped} stages tipped</Text>
         </InfoCard>
       ) : null}
 
@@ -76,8 +78,8 @@ export default function LeaderboardScreen() {
       ) : null}
       {!leaderboard.loading && !leaderboard.error && leaderboard.data?.map((row) => (
         <InfoCard
-          title={row.display_name}
-          meta={`Rank ${row.rank}${row.is_dummy ? " · Dummy user" : ""}`}
+          title={`${row.display_name}${row.user_id === user?.id ? " (You)" : ""}`}
+          meta={`Rank ${row.rank}`}
           key={row.id}
         >
           <View style={styles.row}>
@@ -95,7 +97,6 @@ export default function LeaderboardScreen() {
               </View>
             ) : null}
           </View>
-          {row.is_dummy ? <Text style={styles.dummy}>Dummy entry · not prize eligible</Text> : null}
         </InfoCard>
       ))}
     </AppShell>
@@ -104,7 +105,6 @@ export default function LeaderboardScreen() {
 
 const styles = StyleSheet.create({
   copy: { color: "#536159", fontSize: 14 },
-  dummy: { color: "#8A5A00", fontSize: 12, fontWeight: "900" },
   entryCopy: { flex: 1 },
   heroCopy: { color: "#E7F1EA", fontSize: 14, lineHeight: 20 },
   lastStageLabel: { color: "#68746D", fontSize: 10, fontWeight: "900", textTransform: "uppercase" },

@@ -27,6 +27,8 @@ export type CyclingStage = {
   stage_number: number;
   stage_name: string | null;
   stage_type: string;
+  ttt_timing_rule: "team_time" | "individual_time" | null;
+  manual_locked_at: string | null;
   starts_at: string;
   locks_at: string;
   start_location: string | null;
@@ -59,6 +61,7 @@ export type CyclingTeam = {
 export type CyclingRider = {
   id: string;
   team_id: string | null;
+  bib_number: number | null;
   display_name: string;
   normalized_name: string;
   nationality: string | null;
@@ -73,6 +76,7 @@ export type CyclingStartlistRider = {
   rider_role: string | null;
   rider: {
     id: string;
+    bib_number: number | null;
     display_name: string;
     nationality: string | null;
     rider_type: string | null;
@@ -96,6 +100,31 @@ export type CyclingLeaderboardRow = {
   is_dummy: boolean;
   is_prize_eligible: boolean;
   display_name: string;
+};
+
+export type CyclingStageResult = {
+  id: string;
+  stage_id: string;
+  riderResults: {
+    actual_position: number;
+    rider: {
+      id: string;
+      display_name: string;
+      team: { id: string; name: string; code: string | null } | null;
+    };
+  }[];
+  teamResults: {
+    actual_position: number;
+    team: { id: string; name: string };
+  }[];
+  jerseyResults: {
+    jersey_type: "yellow" | "green" | "kom" | "white";
+    rider: {
+      id: string;
+      display_name: string;
+      team: { id: string; name: string; code: string | null } | null;
+    };
+  }[];
 };
 
 export type GrandTourTipSelection = GrandTourTipSelectionInput & { id: string };
@@ -162,7 +191,7 @@ export async function getCyclingRaceByYear(year = 2026): Promise<CyclingRace | n
 export async function listCyclingStages(raceId: string): Promise<CyclingStage[]> {
   const { data, error } = await getSupabaseClient()
     .from("grandtour_stages")
-    .select("id,grand_tour_id,stage_number,stage_name,stage_type,starts_at,locks_at,start_location,finish_location,distance_km,start_time_is_estimated,source_url,data_confidence")
+    .select("id,grand_tour_id,stage_number,stage_name,stage_type,ttt_timing_rule,manual_locked_at,starts_at,locks_at,start_location,finish_location,distance_km,start_time_is_estimated,source_url,data_confidence")
     .eq("grand_tour_id", raceId)
     .order("stage_number", { ascending: true });
 
@@ -184,7 +213,7 @@ export async function listCyclingTeams(raceId: string): Promise<CyclingTeam[]> {
 export async function listCyclingRiders(raceId: string): Promise<CyclingRider[]> {
   const { data, error } = await getSupabaseClient()
     .from("grandtour_riders")
-    .select("id,team_id,display_name,normalized_name,nationality,rider_type,data_confidence")
+    .select("id,team_id,bib_number,display_name,normalized_name,nationality,rider_type,data_confidence")
     .eq("grand_tour_id", raceId)
     .eq("is_active", true)
     .order("display_name", { ascending: true });
@@ -224,7 +253,7 @@ export async function listCyclingCompetitions(raceId: string): Promise<CyclingCo
 export async function listStageStartlist(stageId: string): Promise<CyclingStartlistRider[]> {
   const { data, error } = await getSupabaseClient()
     .from("grandtour_stage_startlists")
-    .select("id,status,bib_number,rider_role,grandtour_riders!inner(id,display_name,nationality,rider_type),grandtour_teams(id,name,code)")
+    .select("id,status,bib_number,rider_role,grandtour_riders!inner(id,bib_number,display_name,nationality,rider_type),grandtour_teams(id,name,code)")
     .eq("stage_id", stageId)
     .in("status", ["provisional", "confirmed"])
     .order("status", { ascending: true });
@@ -234,6 +263,117 @@ export async function listStageStartlist(stageId: string): Promise<CyclingStartl
     ...row,
     rider: Array.isArray(grandtour_riders) ? grandtour_riders[0] : grandtour_riders,
     team: Array.isArray(grandtour_teams) ? grandtour_teams[0] ?? null : grandtour_teams
+  }));
+}
+
+export async function getCyclingStageResult(stageId: string): Promise<CyclingStageResult | null> {
+  const client = getSupabaseClient();
+  const { data: result, error: resultError } = await client
+    .from("grandtour_stage_results")
+    .select("id,stage_id")
+    .eq("stage_id", stageId)
+    .eq("is_final", true)
+    .maybeSingle();
+  if (resultError) throw resultError;
+  if (!result) return null;
+
+  return (await hydrateCyclingStageResults([result]))[0] ?? null;
+}
+
+export async function listCyclingStageResults(raceId: string): Promise<CyclingStageResult[]> {
+  const { data, error } = await getSupabaseClient()
+    .from("grandtour_stage_results")
+    .select("id,stage_id,grandtour_stages!inner(grand_tour_id)")
+    .eq("grandtour_stages.grand_tour_id", raceId)
+    .eq("is_final", true);
+  if (error) throw error;
+  return hydrateCyclingStageResults((data ?? []).map(({ grandtour_stages: _stage, ...result }) => result));
+}
+
+async function hydrateCyclingStageResults(
+  results: { id: string; stage_id: string }[]
+): Promise<CyclingStageResult[]> {
+  if (results.length === 0) return [];
+  const client = getSupabaseClient();
+  const resultIds = results.map((result) => result.id);
+  const stageIds = results.map((result) => result.stage_id);
+
+  const [
+    { data: riderLines, error: riderLineError },
+    { data: teamLines, error: teamError },
+    { data: jerseyLines, error: jerseyError }
+  ] = await Promise.all([
+    client
+      .from("grandtour_stage_result_lines")
+      .select("stage_result_id,actual_position,rider_id")
+      .in("stage_result_id", resultIds)
+      .order("actual_position", { ascending: true }),
+    client
+      .from("grandtour_stage_team_result_lines")
+      .select("stage_result_id,actual_position,team_id")
+      .in("stage_result_id", resultIds)
+      .order("actual_position", { ascending: true }),
+    client
+      .from("grandtour_stage_jersey_holders")
+      .select("stage_id,jersey_type,rider_id")
+      .in("stage_id", stageIds)
+  ]);
+  if (riderLineError) throw riderLineError;
+  if (teamError) throw teamError;
+  if (jerseyError) throw jerseyError;
+
+  const teamIds = (teamLines ?? []).map((line) => line.team_id);
+  const riderIds = [
+    ...(riderLines ?? []).map((line) => line.rider_id),
+    ...(jerseyLines ?? []).map((line) => line.rider_id)
+  ];
+  const [{ data: teams, error: teamsError }, { data: riders, error: ridersError }] = await Promise.all([
+    teamIds.length
+      ? client.from("grandtour_teams").select("id,name,code").in("id", teamIds)
+      : Promise.resolve({ data: [], error: null }),
+    riderIds.length
+      ? client.from("grandtour_riders").select("id,display_name,team_id").in("id", riderIds)
+      : Promise.resolve({ data: [], error: null })
+  ]);
+  if (teamsError) throw teamsError;
+  if (ridersError) throw ridersError;
+  const riderTeamIds = (riders ?? [])
+    .map((rider) => rider.team_id)
+    .filter((teamId): teamId is string => teamId !== null && !teamIds.includes(teamId));
+  const { data: riderTeams, error: riderTeamsError } = riderTeamIds.length
+    ? await client.from("grandtour_teams").select("id,name,code").in("id", riderTeamIds)
+    : { data: [], error: null };
+  if (riderTeamsError) throw riderTeamsError;
+  const allTeams = [...(teams ?? []), ...(riderTeams ?? [])];
+
+  const riderWithTeam = (riderId: string) => {
+    const rider = riders?.find((candidate) => candidate.id === riderId);
+    if (!rider) return null;
+    const team = allTeams.find((candidate) => candidate.id === rider.team_id) ?? null;
+    return { id: rider.id, display_name: rider.display_name, team };
+  };
+
+  return results.map((result) => ({
+    id: result.id,
+    stage_id: result.stage_id,
+    riderResults: (riderLines ?? [])
+      .filter((line) => line.stage_result_id === result.id)
+      .flatMap((line) => {
+        const rider = riderWithTeam(line.rider_id);
+        return rider ? [{ actual_position: line.actual_position, rider }] : [];
+      }),
+    teamResults: (teamLines ?? [])
+      .filter((line) => line.stage_result_id === result.id)
+      .flatMap((line) => {
+        const team = allTeams.find((candidate) => candidate.id === line.team_id);
+        return team ? [{ actual_position: line.actual_position, team }] : [];
+      }),
+    jerseyResults: (jerseyLines ?? [])
+      .filter((line) => line.stage_id === result.stage_id)
+      .flatMap((line) => {
+        const rider = riderWithTeam(line.rider_id);
+        return rider ? [{ jersey_type: line.jersey_type, rider }] : [];
+      })
   }));
 }
 
@@ -247,7 +387,7 @@ async function hydrateTips(
     await Promise.all([
       client
         .from("grandtour_tip_selections")
-        .select("id,tip_id,selection_type,rider_id,predicted_position")
+        .select("id,tip_id,selection_type,rider_id,team_id,predicted_position")
         .in("tip_id", tipIds),
       client
         .from("grandtour_stage_scores")
@@ -261,7 +401,35 @@ async function hydrateTips(
     ...tip,
     selections: (selections ?? [])
       .filter((selection) => selection.tip_id === tip.id)
-      .map(({ tip_id: _tipId, ...selection }) => selection),
+      .flatMap(({ tip_id: _tipId, ...selection }): GrandTourTipSelection[] => {
+        if (selection.selection_type === "stage_top_5") {
+          if (selection.predicted_position === null) return [];
+          if (selection.team_id) return [{
+            ...selection,
+            selection_type: "stage_top_5",
+            rider_id: null,
+            team_id: selection.team_id,
+            predicted_position: selection.predicted_position
+          }];
+          if (selection.rider_id) return [{
+            ...selection,
+            selection_type: "stage_top_5",
+            rider_id: selection.rider_id,
+            team_id: null,
+            predicted_position: selection.predicted_position
+          }];
+          return [];
+        }
+        if (!selection.rider_id) return [];
+        const selectionType = selection.selection_type;
+        return [{
+          ...selection,
+          selection_type: selectionType,
+          rider_id: selection.rider_id,
+          team_id: null,
+          predicted_position: null
+        }];
+      }),
     score: (scores ?? []).find((score) => score.tip_id === tip.id) ?? null
   }));
 }
@@ -299,7 +467,9 @@ export async function saveGrandTourTipDraft(input: {
 }): Promise<string> {
   const { data, error } = await getSupabaseClient().rpc("save_grandtour_tip_draft", {
     p_competition_id: input.competitionId,
-    p_stage_id: input.stageId,
+    // The generated RPC type does not represent nullable Postgres parameters;
+    // overall-jersey tips intentionally pass null at runtime.
+    p_stage_id: input.stageId!,
     p_tip_mode: input.tipMode,
     p_tip_scope: input.tipScope,
     p_selections: input.selections,

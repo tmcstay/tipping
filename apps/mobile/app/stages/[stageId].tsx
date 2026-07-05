@@ -36,6 +36,7 @@ import {
 } from "../../hooks/useGrandTourTips";
 import { formatDurationUntil, formatRiderDisplayName, formatShortDate, formatTime, preferStageBibNumber } from "../../lib/formatters";
 import { getStageTipExperience } from "../../lib/stageExperience";
+import { getMissingTipFields } from "../../lib/tipEntryExperience";
 
 type ActivePicker = { type: "top5"; position: number } | { type: "jersey"; jersey: JerseyKey } | null;
 
@@ -132,6 +133,7 @@ export default function StageTipScreen() {
   const complete = isTtt
     ? isCompleteTeamTimeTrialTip(selections)
     : isCompleteStageTip(selections);
+  const missingFields = getMissingTipFields(topFive, jerseys, isTtt);
 
   const selectItem = (itemId: string) => {
     if (!tipEntryEnabled || !activePicker) return;
@@ -153,7 +155,7 @@ export default function StageTipScreen() {
       tipScope: "stage",
       selections
     });
-    setMessage("Draft saved.");
+    setMessage("Draft saved. Remember to submit before tips lock.");
     currentTip.reload();
     return tipId;
   };
@@ -161,9 +163,9 @@ export default function StageTipScreen() {
   const submitTips = async () => {
     if (!tipEntryEnabled) return;
     if (!complete) {
-      setMessage(isTtt
-        ? "Choose five different teams and all four rider jersey holders before submitting."
-        : "Choose five different riders and all four jersey holders before submitting.");
+      setMessage(missingFields[0] ?? (isTtt
+        ? "Choose five different teams before submitting."
+        : "Choose five different riders before submitting."));
       return;
     }
     try {
@@ -211,10 +213,10 @@ export default function StageTipScreen() {
             <Text style={styles.summaryDistance}>{stage.distance_km ? `${stage.distance_km} km` : "Distance TBC"}</Text>
           </View>
           <Text style={styles.summaryRoute}>{stage.start_location ?? "TBC"} → {stage.finish_location ?? "TBC"}</Text>
-          <Text style={styles.summaryCopy}>{experience.isTtt ? "Team result picks are teams. Jersey picks are individual riders." : "Pick five riders in order, then choose the four jersey holders."}</Text>
+          <Text style={styles.summaryCopy}>{experience.isTtt ? "Team Time Trial stage: pick the top 5 teams for the stage result. Jersey tips are still individual riders." : "Pick your top 5 riders for the stage result, then select the jersey holders."}</Text>
           <View style={styles.summaryStatusRow}>
             <TipStatusBadge status={displayStatus} />
-            <Text style={styles.summaryLock}>{locked ? "Tips locked" : `Locks ${formatTime(stage.locks_at)} · ${formatDurationUntil(stage.locks_at)}`}</Text>
+            <Text style={styles.summaryLock}>{locked ? "Tips are locked for this stage." : `Locks ${formatTime(lockTime ?? null)} · ${formatDurationUntil(lockTime ?? null)}`}</Text>
           </View>
         </InfoCard>
       ) : null}
@@ -253,6 +255,7 @@ export default function StageTipScreen() {
 
       <InfoCard title="Review and submit" meta={complete ? "Ready" : "Incomplete"}>
         <Text style={styles.copy}>{isTtt ? "Stage result picks are teams. Jersey picks are individual riders." : "Check your ordered Top 5 and jersey picks before submitting."}</Text>
+        <Text style={styles.reviewHeading}>Stage Result Picks</Text>
         <View style={styles.reviewList}>
           {topFive.map((id, index) => (
             <View key={`review-top5-${index}`} style={styles.reviewRow}>
@@ -260,6 +263,9 @@ export default function StageTipScreen() {
               <Text style={id ? styles.reviewValue : styles.reviewMissing}>{id ? (isTtt ? teamNames.get(id) ?? "Unknown team" : riderNames.get(id) ?? "Unknown rider") : "Missing"}</Text>
             </View>
           ))}
+        </View>
+        <Text style={styles.reviewHeading}>Jersey Picks</Text>
+        <View style={styles.reviewList}>
           {(["yellow", "green", "kom", "white"] as JerseyKey[]).map((jersey) => (
             <View key={`review-${jersey}`} style={styles.reviewRow}>
               <Text style={styles.reviewLabel}>{jersey === "kom" ? "Polka Dot" : `${jersey.charAt(0).toUpperCase()}${jersey.slice(1)}`}</Text>
@@ -267,7 +273,7 @@ export default function StageTipScreen() {
             </View>
           ))}
         </View>
-        {!complete ? <Text style={styles.warningInline}>{isTtt ? "Select five different teams and all four rider jersey holders." : "Select five different riders and all four jersey holders."}</Text> : null}
+        {!complete ? <View style={styles.warningInline}>{missingFields.map((field) => <Text key={field} style={styles.warningLine}>• {field}</Text>)}</View> : null}
       </InfoCard>
 
       {tipEntryEnabled && activePicker?.type === "top5" && isTtt ? (
@@ -291,9 +297,9 @@ export default function StageTipScreen() {
       {stageResult.error ? <ErrorState error={stageResult.error} onRetry={stageResult.reload} /> : null}
 
       {currentTip.data?.status === "draft" ? (
-        <Text style={styles.warning}>You have saved a draft, but it has not been submitted. Only submitted tips can score points.</Text>
+        <View style={styles.warning}><Text style={styles.warningTitle}>Draft only</Text><Text style={styles.warningLine}>Draft tips are not entered until you submit them.</Text></View>
       ) : null}
-      {tipEntryUnavailable ? <Text style={styles.warning}>{GRANDTOUR_TIPPING_UNAVAILABLE_MESSAGE}</Text> : null}
+      {tipEntryUnavailable ? <View style={styles.warning}><Text style={styles.warningLine}>{GRANDTOUR_TIPPING_UNAVAILABLE_MESSAGE}</Text></View> : null}
       {message ? <Text style={styles.message}>{message}</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -303,7 +309,7 @@ export default function StageTipScreen() {
             <Text style={styles.secondaryButtonText}>Save Draft</Text>
           </Pressable>
           <Pressable disabled={busy || !competition.data} onPress={() => void submitTips()} style={[styles.primaryButton, busy && styles.disabled]}>
-            <Text style={styles.primaryButtonText}>Submit Tips</Text>
+            <Text style={styles.primaryButtonText}>{currentTip.data?.status === "submitted" ? "Update Submitted Tips" : "Submit Tips"}</Text>
           </Pressable>
           {currentTip.data && ["draft", "submitted"].includes(currentTip.data.status) ? (
             <Pressable disabled={busy} onPress={() => void clearTip()} style={styles.clearButton}>
@@ -352,6 +358,7 @@ const styles = StyleSheet.create({
   summaryStatusRow: { alignItems: "center", flexDirection: "row", gap: 10, justifyContent: "space-between" },
   summaryTopRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   reviewLabel: { color: "#68746D", fontSize: 12, fontWeight: "900", minWidth: 86, textTransform: "uppercase" },
+  reviewHeading: { color: "#17231C", fontSize: 13, fontWeight: "900", marginTop: 4 },
   reviewList: { backgroundColor: "#F7FAF8", borderColor: "#E0E8E2", borderRadius: 14, borderWidth: 1, gap: 0, overflow: "hidden" },
   reviewMissing: { color: "#A12622", flex: 1, fontSize: 13, fontWeight: "900", textAlign: "right" },
   reviewRow: { alignItems: "center", borderBottomColor: "#E0E8E2", borderBottomWidth: 1, flexDirection: "row", gap: 8, minHeight: 42, paddingHorizontal: 12, paddingVertical: 8 },
@@ -361,6 +368,8 @@ const styles = StyleSheet.create({
   tabText: { color: "#536159", fontWeight: "800", textTransform: "capitalize" },
   tabTextActive: { color: "#FFFFFF" },
   tabs: { backgroundColor: "#EEF2EF", borderRadius: 14, flexDirection: "row", padding: 4 },
-  warning: { backgroundColor: "#FFF3CD", borderRadius: 12, color: "#6F5200", fontSize: 14, fontWeight: "800", lineHeight: 20, padding: 12 },
-  warningInline: { backgroundColor: "#FFF3CD", borderRadius: 10, color: "#6F5200", fontSize: 13, fontWeight: "800", lineHeight: 19, padding: 10 }
+  warning: { backgroundColor: "#FFF3CD", borderRadius: 12, padding: 12 },
+  warningInline: { backgroundColor: "#FFF3CD", borderRadius: 10, gap: 3, padding: 10 },
+  warningLine: { color: "#6F5200", fontSize: 13, fontWeight: "800", lineHeight: 19 },
+  warningTitle: { color: "#6F5200", fontSize: 14, fontWeight: "900", marginBottom: 2 }
 });

@@ -120,6 +120,19 @@ Ordered top-five selections require a position or slot from 1 through 5.
 
 The exact-position and wrong-position awards are mutually exclusive for each rider. There are no additional stage bonuses.
 
+### Team Time Trial Stage Top Five
+
+For a Team Time Trial, users predict five teams rather than five riders:
+
+- Team in the exact position: 6 points
+- Team in the official top five at a different position: 3 points
+- Correct winning team: an additional 4 points
+
+TTT jersey selections remain individual riders and use the official post-stage
+classification holders. A jersey holder must never be inferred from the winning
+team. If an official component is not yet available, that component remains
+pending and is recalculated when the official result is completed.
+
 ### Jersey Holders
 
 - Each correct active jersey holder after the stage: 5 points
@@ -137,6 +150,9 @@ Jersey maximum:   20
 Stage maximum:    50
 Overall jerseys: 100
 ```
+
+A perfect TTT scores 30 team-position points, a 4-point winning-team bonus,
+and 20 jersey points, for a maximum of 54.
 
 Scoring must be implemented as deterministic, pure TypeScript logic in `packages/tipping-core`. The function should return both the total and a category-level breakdown. Daily and Preselection must call exactly the same scoring function.
 
@@ -292,6 +308,11 @@ These features must not complicate the first implementation of tips, locks, resu
 - Each correct overall jersey winner awards 25 points
 - Perfect overall jersey tips total 100 points
 - Partial and mixed predictions produce the expected breakdown
+- TTT exact team positions award 6 points each
+- TTT wrong-position teams in the official top five award 3 points each
+- A correct TTT winning team awards a 4-point bonus
+- TTT jerseys use only official individual rider holders
+- Missing TTT result components remain pending and recalculate idempotently
 - Daily and Preselection return identical scores for identical picks/results
 
 ### Validation and Locking

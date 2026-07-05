@@ -37,5 +37,16 @@ grandtour-database-production-*.ts
 packages/shared-types/src/database.production*.ts
 db-push-dry-run.txt
 
+# Unrelated root-level design handoff artifacts (exact paths only)
+/Logo - General.png
+/tour_tips_icon_pack.zip
+/.agents.zip
+/grandtour-ui-card-dashboard-files.zip
+/grandtour-ui-card-dashboard-files/
+
+# Generated local reconciliation reports
+/data/cycling/tdf/2026/official_startlist_refresh_report.json
+/data/cycling/tdf/2026/rider_import_review.json
+
 # Local authenticated E2E fixture with predictable test credentials
 supabase/seeds/grandtour_e2e.sql
