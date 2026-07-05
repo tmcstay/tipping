@@ -3,7 +3,8 @@ import test from "node:test";
 
 import {
   scoreGrandTourOverallJerseys,
-  scoreGrandTourStageTip
+  scoreGrandTourStageTip,
+  scoreGrandTourTeamTimeTrialTip
 } from "../dist/grandtour-scoring.js";
 
 const exactTopFive = [1, 2, 3, 4, 5].map((position) => ({
@@ -17,6 +18,31 @@ const jerseys = {
   kom: "rider-3",
   white: "rider-4"
 };
+
+const exactTeamTopFive = [1, 2, 3, 4, 5].map((position) => ({
+  teamId: `team-${position}`,
+  position
+}));
+
+const rotatedTeamTopFive = [
+  { teamId: "team-2", position: 1 },
+  { teamId: "team-3", position: 2 },
+  { teamId: "team-4", position: 3 },
+  { teamId: "team-5", position: 4 },
+  { teamId: "team-1", position: 5 }
+];
+
+function scoreTtt(overrides = {}) {
+  return scoreGrandTourTeamTimeTrialTip({
+    status: "submitted",
+    predictedTopFive: exactTeamTopFive,
+    actualTopFive: exactTeamTopFive,
+    predictedJerseys: jerseys,
+    actualJerseys: jerseys,
+    tttTimingRule: "individual_time",
+    ...overrides
+  });
+}
 
 test("scores exact top-five positions 10, 8, 6, 4, and 2", () => {
   const score = scoreGrandTourStageTip({
@@ -149,4 +175,78 @@ test("scored tips remain eligible for deterministic recalculation", () => {
   });
 
   assert.equal(score.totalScore, 30);
+});
+
+test("TTT exact team positions score six points each", () => {
+  const score = scoreTtt({ activeJerseys: [] });
+
+  assert.deepEqual(score.topFive.map(({ points }) => points), [6, 6, 6, 6, 6]);
+  assert.equal(score.topFiveScore, 30);
+});
+
+test("TTT teams in the official top five at the wrong position score three points", () => {
+  const score = scoreTtt({
+    predictedTopFive: rotatedTeamTopFive,
+    activeJerseys: []
+  });
+
+  assert.ok(score.topFive.every(({ points }) => points === 3));
+  assert.equal(score.topFiveScore, 15);
+});
+
+test("TTT correct winning team earns the four-point winner bonus", () => {
+  const score = scoreTtt({ activeJerseys: [] });
+
+  assert.equal(score.winningTeamBonus, 4);
+  assert.equal(score.teamStageScore, 34);
+});
+
+test("TTT yellow scoring uses the official individual yellow holder", () => {
+  const score = scoreTtt({ activeJerseys: ["yellow"] });
+
+  assert.equal(score.officialYellowHolderRiderId, "rider-1");
+  assert.equal(score.jerseys[0].points, 5);
+});
+
+test("TTT winning-team pick does not award yellow points for a different rider", () => {
+  const score = scoreTtt({
+    predictedJerseys: { yellow: "rider-on-winning-team" },
+    actualJerseys: { yellow: "official-yellow-rider" },
+    activeJerseys: ["yellow"]
+  });
+
+  assert.equal(score.teamStageScore, 34);
+  assert.equal(score.winningTeamBonus, 4);
+  assert.equal(score.jerseyScore, 0);
+});
+
+test("TTT official yellow pick scores without a winning-team bonus", () => {
+  const score = scoreTtt({
+    predictedTopFive: rotatedTeamTopFive,
+    predictedJerseys: { yellow: "official-yellow-rider" },
+    actualJerseys: { yellow: "official-yellow-rider" },
+    activeJerseys: ["yellow"]
+  });
+
+  assert.equal(score.winningTeamBonus, 0);
+  assert.equal(score.jerseyScore, 5);
+});
+
+test("TTT missing official jersey results remain pending instead of resolved at zero", () => {
+  const score = scoreTtt({ actualJerseys: {} });
+
+  assert.equal(score.teamStageScore, 34);
+  assert.equal(score.jerseyScore, 0);
+  assert.equal(score.jerseyPending, true);
+  assert.ok(score.jerseys.every(({ pending, points }) => pending && points === null));
+});
+
+test("TTT missing official team result does not score the team component", () => {
+  const score = scoreTtt({ actualTopFive: null });
+
+  assert.equal(score.teamResultPending, true);
+  assert.equal(score.topFiveScore, 0);
+  assert.equal(score.winningTeamBonus, 0);
+  assert.equal(score.teamStageScore, 0);
+  assert.ok(score.topFive.every(({ points }) => points === null));
 });

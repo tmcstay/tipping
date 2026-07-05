@@ -38,7 +38,9 @@ tables.
 | Riders | `grandtour_riders` |
 | Race startlist | expanded into `grandtour_stage_startlists` |
 | Tips | `grandtour_tips` and `grandtour_tip_selections` |
-| Results | `grandtour_stage_results` and result-line/jersey tables |
+| Rider stage results | `grandtour_stage_results` and `grandtour_stage_result_lines` |
+| TTT team stage results | `grandtour_stage_team_result_lines` |
+| Jersey holders | `grandtour_stage_jersey_holders` (individual riders only) |
 | Leaderboards | `grandtour_leaderboard_snapshots` |
 | Source audit | `data_audit` |
 
@@ -66,7 +68,7 @@ Never place the service-role key in Expo, Vercel public variables, or any
 
 The import uses deterministic IDs and atomic upserts, so it is safe to rerun.
 It logs created, updated, and skipped counts. It imports 21 stages, 23 teams,
-173 riders, seven audit records, and expands the race roster to 3,633
+184 riders, eight audit records, and expands the race roster to 3,864
 stage-roster records.
 
 Exact stage start times were not present in the source snapshot. The importer
@@ -78,6 +80,12 @@ are available:
 TDF_DEFAULT_STAGE_START_TIME_UTC=12:00:00Z
 TDF_LOCK_LEAD_MINUTES=10
 ```
+
+TTT imports set `ttt_timing_rule`. For the 2026 opening TTT, the individual
+classification timing rule is `individual_time`: the official stage result is
+the team ranking, while yellow, green, KOM, and white are taken only from the
+official post-stage individual holders. Never infer yellow from the winning
+team.
 
 ## Provisional startlist refresh
 
@@ -126,14 +134,18 @@ foundations are in `apps/mobile/hooks/useCyclingData.ts`:
 - `useCyclingRace`
 - `useTdf2026Stages`
 - `useStageStartlist`
-- `useSubmitCyclingTip`
+- `useStageResult`
+- `useStageTipDraft`
+- `useSaveTipDraft`
+- `useSubmitTip`
+- `useClearTip`
 - `useCyclingLeaderboard`
 
 GrandTour is now the active mobile configuration and uses the `/stages` route
-tree. The previous F1 query and route code remains available but is no longer
-linked from primary navigation. The initial submit hook saves the stage-winner
-selection as position 1 of a draft GrandTour entry; a completed submission flow
-remains a follow-up.
+tree. The canonical stage form supports ordered rider Top 5 selections for
+normal stages and ordered team Top 5 selections for TTT stages. Save Draft and
+Submit Tips are separate atomic RPC operations. The previous F1 query and route
+code remains available but is no longer linked from primary navigation.
 
 ## Dummy data
 
@@ -151,12 +163,10 @@ role weighting when roles are known, and never creates official results.
 
 ## Known limitations
 
-- The snapshot contains 173 provisional riders rather than a final 184-rider
-  startlist.
-- Three team rosters remain incomplete in the source snapshot.
-- Twenty-two rider nationalities are missing.
+- The official 184-rider start list, bibs, team assignments, and nationality
+  codes were captured from the race organiser on 2026-07-05.
 - Dates of birth are absent and rider roles are `unknown`.
-- Exact start times and bib numbers are absent.
+- Exact stage start times remain provisional.
 - One source disagreement about the Uno-X selection is recorded in the audit.
 - A local database reset requires Docker Desktop; it cannot run while the
   Docker engine is stopped.

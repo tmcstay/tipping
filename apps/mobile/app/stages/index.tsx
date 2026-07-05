@@ -23,7 +23,7 @@ export default function StageListScreen() {
       {race.error ? <ErrorState error={race.error} onRetry={race.reload} /> : null}
       {stages.error ? <ErrorState error={stages.error} onRetry={stages.reload} /> : null}
       {!loading && !race.error && !stages.error && stages.data?.length === 0 ? (
-        <EmptyState message="No stages are available. Run the 2026 TDF import after applying the Supabase migration." />
+        <EmptyState message="No active stages are available yet. Check back when the next race schedule is published." />
       ) : null}
       {!loading && !race.error && !stages.error && stages.data?.map((stage) => {
         const locked = new Date(stage.locks_at).getTime() <= Date.now();

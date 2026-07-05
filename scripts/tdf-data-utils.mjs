@@ -40,6 +40,15 @@ export function normalizeRiderName(name) {
 
 export const normalizeTeamName = normalizeRiderName;
 
+export function parseOptionalBibNumber(value) {
+  if (value === undefined || value === null || String(value).trim() === "") return null;
+  const bibNumber = Number(value);
+  if (!Number.isInteger(bibNumber) || bibNumber <= 0) {
+    throw new Error(`Bib number must be a positive integer: ${value}`);
+  }
+  return bibNumber;
+}
+
 function duplicateValues(rows, valueForRow) {
   const seen = new Map();
   for (const row of rows) {
@@ -113,11 +122,26 @@ export function chunk(items, size) {
 }
 
 export function parseArgs(argv) {
-  const options = { dryRun: false, dataDir: DEFAULT_TDF_DATA_DIR };
+  const options = {
+    approveRiderConflicts: false,
+    dryRun: false,
+    reviewOnly: false,
+    dataDir: DEFAULT_TDF_DATA_DIR,
+    reviewReport: null,
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--dry-run") {
       options.dryRun = true;
+    } else if (argument === "--review") {
+      options.reviewOnly = true;
+    } else if (argument === "--approve-rider-conflicts") {
+      options.approveRiderConflicts = true;
+    } else if (argument === "--review-report") {
+      const value = argv[index + 1];
+      if (!value) throw new Error("--review-report requires a path");
+      options.reviewReport = path.resolve(value);
+      index += 1;
     } else if (argument === "--data-dir") {
       const value = argv[index + 1];
       if (!value) throw new Error("--data-dir requires a path");
@@ -195,7 +219,7 @@ export async function readTdfDataset(dataDir = DEFAULT_TDF_DATA_DIR) {
 
   if (stages.length !== 21) throw new Error(`Expected 21 stages, found ${stages.length}`);
   if (teams.length !== 23) throw new Error(`Expected 23 teams, found ${teams.length}`);
-  if (riders.length !== 173) throw new Error(`Expected 173 riders, found ${riders.length}`);
+  if (riders.length !== 184) throw new Error(`Expected 184 riders, found ${riders.length}`);
   if (startlist.length !== riders.length) {
     throw new Error(`Expected one race startlist row per rider, found ${startlist.length}`);
   }

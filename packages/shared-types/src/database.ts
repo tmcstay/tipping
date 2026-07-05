@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -7,6 +7,31 @@
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       ad_placements: {
@@ -700,6 +725,7 @@ export type Database = {
       }
       grandtour_riders: {
         Row: {
+          bib_number: number | null
           country: string | null
           created_at: string
           data_confidence: string
@@ -716,6 +742,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bib_number?: number | null
           country?: string | null
           created_at?: string
           data_confidence?: string
@@ -732,6 +759,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bib_number?: number | null
           country?: string | null
           created_at?: string
           data_confidence?: string
@@ -1014,6 +1042,45 @@ export type Database = {
           },
         ]
       }
+      grandtour_stage_team_result_lines: {
+        Row: {
+          actual_position: number
+          created_at: string
+          id: string
+          stage_result_id: string
+          team_id: string
+        }
+        Insert: {
+          actual_position: number
+          created_at?: string
+          id?: string
+          stage_result_id: string
+          team_id: string
+        }
+        Update: {
+          actual_position?: number
+          created_at?: string
+          id?: string
+          stage_result_id?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grandtour_stage_team_result_lines_stage_result_id_fkey"
+            columns: ["stage_result_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_stage_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_stage_team_result_lines_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grandtour_stages: {
         Row: {
           created_at: string
@@ -1033,6 +1100,9 @@ export type Database = {
           start_location: string | null
           start_time_is_estimated: boolean
           starts_at: string
+          ttt_timing_rule:
+            | Database["public"]["Enums"]["grandtour_ttt_timing_rule"]
+            | null
           updated_at: string
         }
         Insert: {
@@ -1053,6 +1123,9 @@ export type Database = {
           start_location?: string | null
           start_time_is_estimated?: boolean
           starts_at: string
+          ttt_timing_rule?:
+            | Database["public"]["Enums"]["grandtour_ttt_timing_rule"]
+            | null
           updated_at?: string
         }
         Update: {
@@ -1073,6 +1146,9 @@ export type Database = {
           start_location?: string | null
           start_time_is_estimated?: boolean
           starts_at?: string
+          ttt_timing_rule?:
+            | Database["public"]["Enums"]["grandtour_ttt_timing_rule"]
+            | null
           updated_at?: string
         }
         Relationships: [
@@ -1154,24 +1230,27 @@ export type Database = {
           created_at: string
           id: string
           predicted_position: number | null
-          rider_id: string
+          rider_id: string | null
           selection_type: Database["public"]["Enums"]["grandtour_tip_selection_type"]
+          team_id: string | null
           tip_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           predicted_position?: number | null
-          rider_id: string
+          rider_id?: string | null
           selection_type: Database["public"]["Enums"]["grandtour_tip_selection_type"]
+          team_id?: string | null
           tip_id: string
         }
         Update: {
           created_at?: string
           id?: string
           predicted_position?: number | null
-          rider_id?: string
+          rider_id?: string | null
           selection_type?: Database["public"]["Enums"]["grandtour_tip_selection_type"]
+          team_id?: string | null
           tip_id?: string
         }
         Relationships: [
@@ -1180,6 +1259,13 @@ export type Database = {
             columns: ["rider_id"]
             isOneToOne: false
             referencedRelation: "grandtour_riders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_tip_selections_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_teams"
             referencedColumns: ["id"]
           },
           {
@@ -1864,6 +1950,10 @@ export type Database = {
         | "individual_time_trial"
         | "team_time_trial"
         | "rest_day"
+        | "road"
+        | "itt"
+        | "ttt"
+        | "sprint"
       grandtour_tip_mode: "preselection" | "daily"
       grandtour_tip_scope: "stage" | "overall_jerseys"
       grandtour_tip_selection_type:
@@ -1885,6 +1975,7 @@ export type Database = {
         | "corrected"
         | "missed"
         | "deleted"
+      grandtour_ttt_timing_rule: "team_time" | "individual_time"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2010,6 +2101,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       grandtour_jersey_type: ["yellow", "green", "kom", "white"],
@@ -2020,6 +2114,10 @@ export const Constants = {
         "individual_time_trial",
         "team_time_trial",
         "rest_day",
+        "road",
+        "itt",
+        "ttt",
+        "sprint",
       ],
       grandtour_tip_mode: ["preselection", "daily"],
       grandtour_tip_scope: ["stage", "overall_jerseys"],
@@ -2044,6 +2142,7 @@ export const Constants = {
         "missed",
         "deleted",
       ],
+      grandtour_ttt_timing_rule: ["team_time", "individual_time"],
     },
   },
 } as const

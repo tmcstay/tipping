@@ -5,7 +5,7 @@ export type TipDisplayStatus = GrandTourTipStatus | "not_started" | "missed" | "
 
 const labels: Record<TipDisplayStatus, string> = {
   not_started: "Not started",
-  draft: "Draft saved",
+  draft: "Draft only",
   submitted: "Submitted",
   locked: "Locked",
   scored: "Scored",

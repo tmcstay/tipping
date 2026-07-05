@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { ui } from "./theme";
+
 type DataStateProps = {
   error?: string | null;
   loading?: boolean;
@@ -9,8 +11,8 @@ type DataStateProps = {
 export function LoadingState() {
   return (
     <View style={styles.panel}>
-      <Text style={styles.title}>Loading</Text>
-      <Text style={styles.copy}>Fetching the latest cycling data.</Text>
+      <View style={styles.loadingDot} />
+      <View style={styles.stateCopy}><Text style={styles.title}>Loading</Text><Text style={styles.copy}>Fetching the latest cycling data.</Text></View>
     </View>
   );
 }
@@ -41,8 +43,8 @@ export function EmptyState({ message }: { message: string }) {
 const styles = StyleSheet.create({
   button: {
     alignSelf: "flex-start",
-    backgroundColor: "#111111",
-    borderRadius: 8,
+    backgroundColor: ui.colors.primary,
+    borderRadius: ui.radius.medium,
     marginTop: 12,
     paddingHorizontal: 14,
     paddingVertical: 10
@@ -52,19 +54,24 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   copy: {
-    color: "#666666",
+    color: ui.colors.muted,
     fontSize: 15,
     lineHeight: 21,
     marginTop: 4
   },
   panel: {
-    backgroundColor: "#F4F4F4",
-    borderRadius: 8,
-    padding: 16
+    backgroundColor: ui.colors.surface,
+    borderColor: ui.colors.border,
+    borderRadius: ui.radius.large,
+    borderWidth: 1,
+    padding: 16,
+    ...ui.shadow
   },
   title: {
-    color: "#111111",
+    color: ui.colors.ink,
     fontSize: 16,
     fontWeight: "800"
-  }
+  },
+  loadingDot: { backgroundColor: ui.colors.accent, borderRadius: 8, height: 12, marginBottom: 8, width: 12 },
+  stateCopy: { flex: 1 }
 });

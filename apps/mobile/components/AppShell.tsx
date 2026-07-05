@@ -3,7 +3,7 @@ import type { PropsWithChildren } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { activeAppConfig } from "../lib/appConfig";
-import { useGrandTourTipEntryAvailability } from "../hooks/useGrandTourTips";
+import { ui } from "./theme";
 
 type AppShellProps = PropsWithChildren<{
   title: string;
@@ -11,35 +11,33 @@ type AppShellProps = PropsWithChildren<{
 }>;
 
 const navItems = [
-  { href: "/", label: "Dashboard" },
-  { href: "/stages", label: "Tips" },
-  { href: "/overall-jerseys", label: "Jerseys" },
-  { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/profile", label: "More" }
+  { href: "/", icon: "⌂", label: "Dashboard" },
+  { href: "/stages", icon: "✓", label: "Tips" },
+  { href: "/leaderboard", icon: "#", label: "Leaders" },
+  { href: "/results", icon: "◆", label: "Results" },
+  { href: "/profile", icon: "•••", label: "More" }
 ] as const;
 
 export function AppShell({ children, subtitle, title }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const theme = activeAppConfig.theme;
-  const tipEntryAvailability = useGrandTourTipEntryAvailability();
-  const visibleNavItems = navItems.filter(
-    (item) => item.href !== "/overall-jerseys" || tipEntryAvailability.data === true
-  );
 
   return (
     <View style={[styles.page, { backgroundColor: theme.backgroundColor }]}> 
       <View style={styles.header}>
+        <View style={styles.headerInner}>
         <Text style={styles.appName}>{activeAppConfig.appName}</Text>
         <Text style={styles.title}>{title}</Text>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>{children}</ScrollView>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}><View style={styles.contentInner}>{children}</View></ScrollView>
 
       <View style={styles.navWrap}>
         <View style={styles.nav}>
-          {visibleNavItems.map((item) => {
+          {navItems.map((item) => {
             const active =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 
@@ -52,6 +50,7 @@ export function AppShell({ children, subtitle, title }: AppShellProps) {
                   active && { backgroundColor: theme.secondaryColor }
                 ]}
               >
+                <Text style={[styles.navIcon, active && styles.navTextActive]}>{item.icon}</Text>
                 <Text style={[styles.navText, active && styles.navTextActive]}>
                   {item.label}
                 </Text>
@@ -73,29 +72,31 @@ const styles = StyleSheet.create({
     textTransform: "uppercase"
   },
   content: {
-    gap: 14,
+    alignItems: "center",
     padding: 16,
     paddingBottom: 104
   },
+  contentInner: { gap: 14, maxWidth: 760, width: "100%" },
   header: {
-    backgroundColor: "#FFFFFF",
-    borderBottomColor: "#E5ECE7",
+    backgroundColor: ui.colors.surface,
+    borderBottomColor: ui.colors.border,
     borderBottomWidth: 1,
     padding: 16,
     paddingTop: 30
   },
+  headerInner: { alignSelf: "center", maxWidth: 760, width: "100%" },
   nav: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "#DCE6DF",
+    alignSelf: "center",
+    backgroundColor: ui.colors.surface,
+    borderColor: ui.colors.border,
     borderRadius: 22,
     borderWidth: 1,
     flexDirection: "row",
     gap: 6,
     padding: 6,
-    shadowColor: "#0F241A",
-    shadowOffset: { height: 4, width: 0 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16
+    maxWidth: 760,
+    width: "100%",
+    ...ui.shadow
   },
   navItem: {
     alignItems: "center",
@@ -107,14 +108,16 @@ const styles = StyleSheet.create({
   },
   navText: {
     color: "#4D5A52",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "900",
     textAlign: "center"
   },
+  navIcon: { color: ui.colors.muted, fontSize: 15, fontWeight: "900", lineHeight: 17 },
   navTextActive: {
     color: "#FFFFFF"
   },
   navWrap: {
+    alignSelf: "center",
     bottom: 0,
     left: 0,
     padding: 12,
