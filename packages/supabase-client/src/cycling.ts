@@ -66,6 +66,7 @@ export type CyclingRider = {
   normalized_name: string;
   nationality: string | null;
   rider_type: string | null;
+  specialities: string[] | null;
   data_confidence: string;
 };
 
@@ -74,12 +75,15 @@ export type CyclingStartlistRider = {
   status: string;
   bib_number: number | null;
   rider_role: string | null;
+  status_changed_at: string | null;
+  status_reason: string | null;
   rider: {
     id: string;
     bib_number: number | null;
     display_name: string;
     nationality: string | null;
     rider_type: string | null;
+    specialities: string[] | null;
   };
   team: {
     id: string;
@@ -213,7 +217,7 @@ export async function listCyclingTeams(raceId: string): Promise<CyclingTeam[]> {
 export async function listCyclingRiders(raceId: string): Promise<CyclingRider[]> {
   const { data, error } = await getSupabaseClient()
     .from("grandtour_riders")
-    .select("id,team_id,bib_number,display_name,normalized_name,nationality,rider_type,data_confidence")
+    .select("id,team_id,bib_number,display_name,normalized_name,nationality,rider_type,specialities,data_confidence")
     .eq("grand_tour_id", raceId)
     .eq("is_active", true)
     .order("display_name", { ascending: true });
@@ -253,9 +257,8 @@ export async function listCyclingCompetitions(raceId: string): Promise<CyclingCo
 export async function listStageStartlist(stageId: string): Promise<CyclingStartlistRider[]> {
   const { data, error } = await getSupabaseClient()
     .from("grandtour_stage_startlists")
-    .select("id,status,bib_number,rider_role,grandtour_riders!inner(id,bib_number,display_name,nationality,rider_type),grandtour_teams(id,name,code)")
+    .select("id,status,bib_number,rider_role,status_changed_at,status_reason,grandtour_riders!inner(id,bib_number,display_name,nationality,rider_type,specialities),grandtour_teams(id,name,code)")
     .eq("stage_id", stageId)
-    .in("status", ["provisional", "confirmed"])
     .order("status", { ascending: true });
 
   if (error) throw error;

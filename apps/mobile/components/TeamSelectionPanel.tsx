@@ -27,7 +27,7 @@ export function TeamSelectionPanel({ excludedTeamIds = [], teams, title, onSelec
     <View style={styles.panel}>
       <View style={styles.handle} />
       <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>Team Time Trial stage result picks use teams. Jersey picks still use riders.</Text>
+      <Text style={styles.subtitle}>Team Time Trial stage result picks use teams.</Text>
       <TextInput
         accessibilityLabel="Search teams"
         onChangeText={setSearch}

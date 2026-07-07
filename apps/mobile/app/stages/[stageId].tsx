@@ -12,7 +12,6 @@ import {
 import { AppShell } from "../../components/AppShell";
 import { EmptyState, ErrorState, LoadingState } from "../../components/DataState";
 import { InfoCard } from "../../components/InfoCard";
-import { JerseyHolderPicker, type JerseyKey } from "../../components/JerseyHolderPicker";
 import { OrderedTopFivePicker } from "../../components/OrderedTopFivePicker";
 import { RiderSelectionPanel } from "../../components/RiderSelectionPanel";
 import { ScoreBreakdown } from "../../components/ScoreBreakdown";
@@ -38,14 +37,7 @@ import { formatDurationUntil, formatRiderDisplayName, formatShortDate, formatTim
 import { getStageTipExperience } from "../../lib/stageExperience";
 import { getMissingTipFields } from "../../lib/tipEntryExperience";
 
-type ActivePicker = { type: "top5"; position: number } | { type: "jersey"; jersey: JerseyKey } | null;
-
-const jerseySelectionType: Record<JerseyKey, "yellow_holder" | "green_holder" | "kom_holder" | "white_holder"> = {
-  yellow: "yellow_holder",
-  green: "green_holder",
-  kom: "kom_holder",
-  white: "white_holder"
-};
+type ActivePicker = { type: "top5"; position: number } | null;
 
 export default function StageTipScreen() {
   const params = useLocalSearchParams<{ stageId: string }>();
@@ -65,28 +57,20 @@ export default function StageTipScreen() {
   const clear = useClearTip();
   const tipEntryAvailability = useGrandTourTipEntryAvailability();
   const [topFive, setTopFive] = useState<(string | null)[]>([null, null, null, null, null]);
-  const [jerseys, setJerseys] = useState<Partial<Record<JerseyKey, string>>>({});
   const [activePicker, setActivePicker] = useState<ActivePicker>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const tip = currentTip.data;
     const nextTopFive: (string | null)[] = [null, null, null, null, null];
-    const nextJerseys: Partial<Record<JerseyKey, string>> = {};
     tip?.selections.forEach((selection) => {
       if (selection.selection_type === "stage_top_5" && selection.predicted_position) {
         nextTopFive[selection.predicted_position - 1] = isTtt
           ? selection.team_id ?? null
           : selection.rider_id ?? null;
       }
-      (Object.keys(jerseySelectionType) as JerseyKey[]).forEach((jersey) => {
-        if (selection.selection_type === jerseySelectionType[jersey] && selection.rider_id) {
-          nextJerseys[jersey] = selection.rider_id;
-        }
-      });
     });
     setTopFive(nextTopFive);
-    setJerseys(nextJerseys);
     setActivePicker(null);
     setMessage(null);
   }, [currentTip.data?.id, currentTip.data?.updated_at, isTtt, tipMode]);
@@ -106,12 +90,9 @@ export default function StageTipScreen() {
       .map((entry) => [entry.team!.id, entry.team!] as const)
   ).values()) as StageTeam[], [startlist.data]);
   const teamNames = useMemo(() => new Map(stageTeams.map((team) => [team.id, team.name])), [stageTeams]);
-  const jerseySelections = useMemo(() => Object.fromEntries(
-    Object.entries(jerseys).map(([key, riderId]) => [jerseySelectionType[key as JerseyKey], riderId])
-  ), [jerseys]);
   const selections = useMemo(() => isTtt
-    ? buildTeamTimeTrialTipSelections(topFive, jerseySelections)
-    : buildStageTipSelections(topFive, jerseySelections), [isTtt, jerseySelections, topFive]);
+    ? buildTeamTimeTrialTipSelections(topFive)
+    : buildStageTipSelections(topFive), [isTtt, topFive]);
   const lockTime = tipMode === "preselection" ? race.data?.preselection_locks_at : stage?.locks_at;
   const clientLocked = Boolean(stage?.manual_locked_at)
     || Boolean(lockTime && new Date(lockTime).getTime() <= Date.now());
@@ -129,18 +110,15 @@ export default function StageTipScreen() {
   const tipEntryEnabled = tipEntryAvailability.data === true;
   const tipEntryUnavailable = !tipEntryAvailability.loading && !tipEntryEnabled;
   const completedTopFive = topFive.filter(Boolean).length;
-  const completedJerseys = Object.keys(jerseys).length;
   const complete = isTtt
     ? isCompleteTeamTimeTrialTip(selections)
     : isCompleteStageTip(selections);
-  const missingFields = getMissingTipFields(topFive, jerseys, isTtt);
+  const missingFields = getMissingTipFields(topFive, undefined, isTtt);
 
   const selectItem = (itemId: string) => {
     if (!tipEntryEnabled || !activePicker) return;
     if (activePicker.type === "top5") {
       setTopFive((current) => current.map((value, index) => index === activePicker.position - 1 ? itemId : value));
-    } else {
-      setJerseys((current) => ({ ...current, [activePicker.jersey]: itemId }));
     }
     setActivePicker(null);
     setMessage(null);
@@ -184,7 +162,6 @@ export default function StageTipScreen() {
     try {
       await clear.clearTip(currentTip.data.id);
       setTopFive([null, null, null, null, null]);
-      setJerseys({});
       setMessage("Tip cleared.");
       currentTip.reload();
     } catch {
@@ -213,7 +190,7 @@ export default function StageTipScreen() {
             <Text style={styles.summaryDistance}>{stage.distance_km ? `${stage.distance_km} km` : "Distance TBC"}</Text>
           </View>
           <Text style={styles.summaryRoute}>{stage.start_location ?? "TBC"} → {stage.finish_location ?? "TBC"}</Text>
-          <Text style={styles.summaryCopy}>{experience.isTtt ? "Team Time Trial stage: pick the top 5 teams for the stage result. Jersey tips are still individual riders." : "Pick your top 5 riders for the stage result, then select the jersey holders."}</Text>
+          <Text style={styles.summaryCopy}>{experience.topFiveCopy}</Text>
           <View style={styles.summaryStatusRow}>
             <TipStatusBadge status={displayStatus} />
             <Text style={styles.summaryLock}>{locked ? "Tips are locked for this stage." : `Locks ${formatTime(lockTime ?? null)} · ${formatDurationUntil(lockTime ?? null)}`}</Text>
@@ -242,34 +219,14 @@ export default function StageTipScreen() {
         />
       </InfoCard>
 
-      <InfoCard title="Jersey picks" meta={`${completedJerseys}/4 selected`}>
-        <Text style={styles.copy}>{isTtt ? "Jersey points are based on the official individual jersey holders after the stage." : "The same rider may be selected for more than one jersey."}</Text>
-        <JerseyHolderPicker
-          activeJersey={activePicker?.type === "jersey" ? activePicker.jersey : null}
-          disabled={locked || busy || !tipEntryEnabled}
-          onActivate={(jersey) => setActivePicker({ type: "jersey", jersey })}
-          riderName={(id) => riderNames.get(id) ?? "Unknown rider"}
-          selections={jerseys}
-        />
-      </InfoCard>
-
       <InfoCard title="Review and submit" meta={complete ? "Ready" : "Incomplete"}>
-        <Text style={styles.copy}>{isTtt ? "Stage result picks are teams. Jersey picks are individual riders." : "Check your ordered Top 5 and jersey picks before submitting."}</Text>
-        <Text style={styles.reviewHeading}>Stage Result Picks</Text>
+        <Text style={styles.copy}>{isTtt ? "Check your ordered team picks before submitting." : "Check your ordered Top 5 before submitting."}</Text>
+        <Text style={styles.reviewHeading}>{experience.reviewTitle}</Text>
         <View style={styles.reviewList}>
           {topFive.map((id, index) => (
             <View key={`review-top5-${index}`} style={styles.reviewRow}>
               <Text style={styles.reviewLabel}>{index + 1}. {isTtt ? "Team" : "Rider"}</Text>
               <Text style={id ? styles.reviewValue : styles.reviewMissing}>{id ? (isTtt ? teamNames.get(id) ?? "Unknown team" : riderNames.get(id) ?? "Unknown rider") : "Missing"}</Text>
-            </View>
-          ))}
-        </View>
-        <Text style={styles.reviewHeading}>Jersey Picks</Text>
-        <View style={styles.reviewList}>
-          {(["yellow", "green", "kom", "white"] as JerseyKey[]).map((jersey) => (
-            <View key={`review-${jersey}`} style={styles.reviewRow}>
-              <Text style={styles.reviewLabel}>{jersey === "kom" ? "Polka Dot" : `${jersey.charAt(0).toUpperCase()}${jersey.slice(1)}`}</Text>
-              <Text style={jerseys[jersey] ? styles.reviewValue : styles.reviewMissing}>{jerseys[jersey] ? riderNames.get(jerseys[jersey]!) ?? "Unknown rider" : "Missing"}</Text>
             </View>
           ))}
         </View>
@@ -284,12 +241,14 @@ export default function StageTipScreen() {
           title={`Choose team for position ${activePicker.position}`}
         />
       ) : null}
-      {tipEntryEnabled && activePicker && startlist.data && (!isTtt || activePicker.type === "jersey") ? (
+      {tipEntryEnabled && activePicker?.type === "top5" && startlist.data && !isTtt ? (
         <RiderSelectionPanel
-          excludedRiderIds={activePicker.type === "top5" ? topFive.filter((id): id is string => Boolean(id)) : []}
+          excludedRiderIds={topFive.filter((id): id is string => Boolean(id))}
+          onClose={() => setActivePicker(null)}
           onSelect={selectItem}
           riders={startlist.data}
-          title={activePicker.type === "top5" ? `Choose rider for position ${activePicker.position}` : `Choose ${activePicker.jersey} jersey holder`}
+          stageContext={stage ? `Stage ${stage.stage_number}` : undefined}
+          title="Select rider"
         />
       ) : null}
       {startlist.loading ? <LoadingState /> : null}

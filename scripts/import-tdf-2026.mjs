@@ -47,6 +47,22 @@ function nonEmptyArray(value) {
   return value?.trim() ? [value.trim()] : [];
 }
 
+function riderSpecialities(role) {
+  const normalized = role?.trim().toLocaleLowerCase().replaceAll("-", "_").replaceAll(" ", "_");
+  if (!normalized || normalized === "unknown") return null;
+  const map = {
+    climber: ["mountain"],
+    gc: ["gc"],
+    puncheur: ["classics"],
+    sprinter: ["sprint"],
+    sprint: ["sprint"],
+    time_trial: ["time_trial"],
+    rouleur: ["classics", "time_trial"],
+    domestique: ["domestique"],
+  };
+  return map[normalized] ?? [normalized];
+}
+
 function buildRows(dataset) {
   const firstStageTiming = stageTiming(dataset.stages[0].stage_date);
   const lastStageTiming = stageTiming(dataset.stages.at(-1).stage_date);
@@ -120,6 +136,8 @@ function buildRows(dataset) {
       nationality: rider.nationality || null,
       date_of_birth: rider.date_of_birth || null,
       rider_type: rider.rider_role || "unknown",
+      specialities: riderSpecialities(rider.rider_role),
+      status: "active",
       is_active: true,
       source_url: rider.source_url,
       data_confidence: rider.data_confidence,
@@ -165,6 +183,7 @@ function buildRows(dataset) {
         // stage-scoped source may overwrite a stage startlist bib.
         ...stageSpecificBibPatch(entry, stage.id),
         rider_role: rider?.rider_role || "unknown",
+        specialities: riderSpecialities(rider?.rider_role),
         source_url: entry.source_url,
         data_confidence: entry.data_confidence,
         created_at: entry.created_at,
@@ -290,7 +309,7 @@ async function reconcileExistingEntities(client, rows) {
     client.from("grandtour_teams").select("id,name").eq("grand_tour_id", raceId),
     client
       .from("grandtour_riders")
-      .select("id,grand_tour_id,team_id,display_name,normalized_name,bib_number,nationality,country")
+      .select("id,grand_tour_id,team_id,display_name,normalized_name,bib_number,nationality,country,specialities,status")
       .eq("grand_tour_id", raceId),
     client.from("grandtour_stages").select("id,stage_number").eq("grand_tour_id", raceId),
     client.from("data_audit").select("id,source_url,date_accessed").eq("grand_tour_id", raceId),

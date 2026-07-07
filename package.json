@@ -9,14 +9,16 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "npm --workspace packages/tipping-core test",
-    "test:data": "node --test scripts/tdf-data-utils.test.mjs scripts/grandtour-rider-reconciliation.test.mjs scripts/letour-official-riders.test.mjs",
+    "test:data": "node --test scripts/tdf-data-utils.test.mjs scripts/grandtour-rider-reconciliation.test.mjs scripts/letour-official-riders.test.mjs scripts/grandtour-feed-provider.test.mjs",
     "test:auth": "node scripts/test-auth.mjs",
     "import:tdf:2026": "node scripts/import-tdf-2026.mjs",
     "import:tdf:2026:dry-run": "node scripts/import-tdf-2026.mjs --dry-run",
     "import:tdf:2026:review": "node scripts/import-tdf-2026.mjs --review",
     "refresh:tdf:2026:riders": "node scripts/refresh-tdf-2026-official-riders.mjs",
     "seed:tdf:dummy": "node scripts/generate-tdf-dummy-tips.mjs",
-    "seed:tdf:dummy:dry-run": "node scripts/generate-tdf-dummy-tips.mjs --dry-run"
+    "seed:tdf:dummy:dry-run": "node scripts/generate-tdf-dummy-tips.mjs --dry-run",
+    "grandtour:feed:dry-run": "node scripts/grandtour-feed-import.mjs --dry-run",
+    "grandtour:feed:apply": "node scripts/grandtour-feed-import.mjs --apply"
   },
   "devDependencies": {
     "supabase": "^2.107.0",

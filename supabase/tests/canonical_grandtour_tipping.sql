@@ -31,7 +31,8 @@ values
   ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'member-b@example.test', '', now(), now()),
   ('10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'outsider@example.test', '', now(), now()),
   ('10000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'dummy@example.test', '', now(), now()),
-  ('10000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'admin@example.test', '', now(), now());
+  ('10000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'admin@example.test', '', now(), now()),
+  ('10000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'top-five-only@example.test', '', now(), now());
 
 update public.profiles
 set is_dummy = true, display_name = 'Demo User'
@@ -90,7 +91,8 @@ insert into public.competition_memberships (
 values
   ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'player', 'active', now()),
   ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', 'player', 'active', now()),
-  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000004', 'player', 'active', now());
+  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000004', 'player', 'active', now()),
+  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000006', 'player', 'active', now());
 
 insert into public.grandtour_teams (id, grand_tour_id, name)
 values (
@@ -216,6 +218,46 @@ select pg_temp.assert_true(
      and tip_mode = 'daily'),
   'a complete top-five and jersey tip must submit'
 );
+
+select pg_temp.authenticate('10000000-0000-0000-0000-000000000006');
+
+select public.save_grandtour_tip_draft(
+  '40000000-0000-0000-0000-000000000001',
+  '70000000-0000-0000-0000-000000000001',
+  'daily',
+  'stage',
+  '[
+    {"selection_type":"stage_top_5","rider_id":"60000000-0000-0000-0000-000000000001","predicted_position":1},
+    {"selection_type":"stage_top_5","rider_id":"60000000-0000-0000-0000-000000000002","predicted_position":2},
+    {"selection_type":"stage_top_5","rider_id":"60000000-0000-0000-0000-000000000003","predicted_position":3},
+    {"selection_type":"stage_top_5","rider_id":"60000000-0000-0000-0000-000000000004","predicted_position":4},
+    {"selection_type":"stage_top_5","rider_id":"60000000-0000-0000-0000-000000000005","predicted_position":5}
+  ]'::jsonb,
+  'test-top-five-only-draft'
+);
+
+select public.submit_grandtour_tip(
+  (select id from public.grandtour_tips
+   where user_id = '10000000-0000-0000-0000-000000000006'
+     and tip_mode = 'daily'),
+  'test-top-five-only-submit'
+);
+
+select pg_temp.assert_true(
+  (select status = 'submitted'
+   from public.grandtour_tips
+   where user_id = '10000000-0000-0000-0000-000000000006'
+     and tip_mode = 'daily'),
+  'top-five-only stage tip must submit while jersey tipping is parked'
+);
+
+reset role;
+
+update public.grandtour_tips
+set status = 'draft', submitted_at = null
+where user_id = '10000000-0000-0000-0000-000000000006'
+  and tip_mode = 'daily'
+  and tip_scope = 'stage';
 
 reset role;
 update public.apps

@@ -5,6 +5,8 @@ const TRACKED_FIELDS = [
   "bib_number",
   "nationality",
   "country",
+  "specialities",
+  "status",
 ];
 
 export function stageSpecificBibPatch(sourceEntry, stageId) {
@@ -21,6 +23,13 @@ export function stageSpecificBibPatch(sourceEntry, stageId) {
 
 function hasValue(value) {
   return value !== null && value !== undefined && value !== "";
+}
+
+function sameValue(left, right) {
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+  }
+  return left === right;
 }
 
 function key(...parts) {
@@ -116,7 +125,7 @@ export function planRiderReconciliation(incomingRiders, existingRiders) {
     }
 
     const fieldChanges = TRACKED_FIELDS
-      .filter((field) => incoming[field] !== match[field])
+      .filter((field) => !sameValue(incoming[field], match[field]))
       .map((field) => ({ field, existing: match[field] ?? null, incoming: incoming[field] ?? null }));
     const fieldConflicts = fieldChanges.filter(
       ({ existing, incoming: incomingValue }) => hasValue(existing) && hasValue(incomingValue),

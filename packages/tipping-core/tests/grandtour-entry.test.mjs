@@ -48,6 +48,18 @@ test("incomplete drafts remain valid to build but cannot be submitted", () => {
   assert.equal(isCompleteStageTip(selections), false);
 });
 
+test("stage entries are complete with top five only while jersey competition is parked", () => {
+  const selections = buildStageTipSelections(["r1", "r2", "r3", "r4", "r5"]);
+  assert.equal(selections.length, 5);
+  assert.equal(isCompleteStageTip(selections), true);
+});
+
+test("TTT entries are complete with team top five only while jersey competition is parked", () => {
+  const selections = buildTeamTimeTrialTipSelections(["t1", "t2", "t3", "t4", "t5"]);
+  assert.equal(selections.length, 5);
+  assert.equal(isCompleteTeamTimeTrialTip(selections), true);
+});
+
 test("builds TTT Top 5 selections with teams and rider-only jerseys", () => {
   const selections = buildTeamTimeTrialTipSelections(
     ["t1", "t2", "t3", "t4", "t5"],
