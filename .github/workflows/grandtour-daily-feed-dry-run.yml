@@ -3,7 +3,19 @@ name: GrandTour Daily Feed Dry Run
 on:
   schedule:
     - cron: '30 19 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: 'Feed provider name'
+        required: false
+        default: 'manual-json'
+      source_file:
+        description: 'Optional source file path relative to the repo root'
+        required: false
+      report_file:
+        description: 'Optional report file name in the report directory'
+        required: false
+        default: 'grandtour-feed-dry-run.json'
 
 jobs:
   dry-run:
@@ -24,11 +36,20 @@ jobs:
         run: npm ci
 
       - name: Run GrandTour feed dry run
+        env:
+          FEED_PROVIDER: ${{ github.event.inputs.provider || 'manual-json' }}
+          FEED_SOURCE_FILE: ${{ github.event.inputs.source_file || '' }}
+          REPORT_FILE: ${{ github.event.inputs.report_file || 'grandtour-feed-dry-run.json' }}
         run: |
-          npm run grandtour:feed:dry-run -- --report report/grandtour-feed-dry-run.json
+          mkdir -p report
+          if [ -n "$FEED_SOURCE_FILE" ]; then
+            npm run grandtour:feed:dry-run -- --provider "$FEED_PROVIDER" --source-file "$FEED_SOURCE_FILE" --report "report/$REPORT_FILE"
+          else
+            npm run grandtour:feed:dry-run -- --provider "$FEED_PROVIDER" --report "report/$REPORT_FILE"
+          fi
 
       - name: Upload feed report artifact
         uses: actions/upload-artifact@v4
         with:
           name: grandtour-feed-dry-run-report
-          path: report/grandtour-feed-dry-run.json
+          path: report/${{ env.REPORT_FILE }}

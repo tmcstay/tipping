@@ -9,6 +9,10 @@ import {
 
 async function main() {
   const options = parseFeedArgs(process.argv.slice(2));
+  if (options.provider !== "manual-json") {
+    throw new Error(`Unsupported provider: ${options.provider}`);
+  }
+
   const provider = new ManualJsonGrandTourFeedProvider({ sourceFile: options.sourceFile });
   const payload = await provider.readPayload();
   const mode = options.apply ? "apply" : "dry-run";

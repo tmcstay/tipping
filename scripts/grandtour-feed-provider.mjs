@@ -120,6 +120,7 @@ export function parseFeedArgs(argv) {
   const options = {
     ...parseBaseArgs([]),
     apply: false,
+    provider: "manual-json",
     sourceFile: null,
     reportPath: path.resolve("data", "cycling", "grandtour_feed_review.json")
   };
@@ -127,6 +128,9 @@ export function parseFeedArgs(argv) {
     const argument = argv[index];
     if (argument === "--apply") {
       options.apply = true;
+    } else if (argument === "--provider") {
+      options.provider = argv[++index] ?? "";
+      if (!options.provider) throw new Error("--provider requires a value");
     } else if (argument === "--source-file") {
       options.sourceFile = path.resolve(argv[++index] ?? "");
       if (!options.sourceFile) throw new Error("--source-file requires a path");
