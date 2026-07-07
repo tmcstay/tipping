@@ -1,0 +1,34 @@
+name: GrandTour Daily Feed Dry Run
+
+on:
+  schedule:
+    - cron: '30 19 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  dry-run:
+    name: Daily feed dry run
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run GrandTour feed dry run
+        run: |
+          npm run grandtour:feed:dry-run -- --report report/grandtour-feed-dry-run.json
+
+      - name: Upload feed report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: grandtour-feed-dry-run-report
+          path: report/grandtour-feed-dry-run.json

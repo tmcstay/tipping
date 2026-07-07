@@ -38,6 +38,33 @@ npm run grandtour:feed:apply
 
 `dry-run` writes a review report and does not mutate database tables. `apply` is currently guarded: it validates and writes the review report, then stops before mutation until an approved provider/source is selected.
 
+### Daily feed automation
+
+A GitHub Actions workflow is configured to run a dry-run every day at 5:00 AM Adelaide time (ACST) using the cron schedule `30 19 * * *` UTC.
+
+The workflow also supports manual execution via the `workflow_dispatch` event.
+
+This workflow:
+
+- checks out the repository
+- installs dependencies with `npm ci`
+- runs `npm run grandtour:feed:dry-run -- --report report/grandtour-feed-dry-run.json`
+- uploads `report/grandtour-feed-dry-run.json` as an artifact
+
+### Secrets required later
+
+Future production automation may require GitHub secrets such as:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `GRANDTOUR_FEED_SOURCE_KEY`
+
+These are not required for the current dry-run workflow.
+
+### Inspecting the report
+
+To inspect the generated report, download the `grandtour-feed-dry-run-report` artifact from the workflow run in GitHub Actions. The JSON file contains the review report and validation details.
+
 The provider foundation supports these segments:
 
 - stage metadata
