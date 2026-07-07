@@ -42,24 +42,70 @@ npm run grandtour:feed:apply
 
 A GitHub Actions workflow is configured to run a dry-run every day at 5:00 AM Adelaide time (ACST) using the cron schedule `30 19 * * *` UTC.
 
-The workflow also supports manual execution via the `workflow_dispatch` event.
+The workflow also supports manual execution via the `workflow_dispatch` event with inputs:
+
+- `provider` (default: `manual-json`)
+- `source_file` (optional)
+- `report_file` (default: `grandtour-feed-dry-run.json`)
 
 This workflow:
 
 - checks out the repository
 - installs dependencies with `npm ci`
-- runs `npm run grandtour:feed:dry-run -- --report report/grandtour-feed-dry-run.json`
-- uploads `report/grandtour-feed-dry-run.json` as an artifact
+- runs the dry-run feed review
+- uploads the JSON report artifact
 
-### Secrets required later
+### Manual workflow dispatch (GitHub UI)
 
-Future production automation may require GitHub secrets such as:
+To run the workflow manually via the GitHub UI:
 
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `GRANDTOUR_FEED_SOURCE_KEY`
+1. Go to the GitHub repository.
+2. Open the Actions tab.
+3. Select `GrandTour Daily Feed Dry Run`.
+4. Click `Run workflow`.
+5. Choose the branch to run against, typically `main`.
+6. Enter values for:
+   - `provider`: `manual-json`
+   - `source_file`: `data/feeds/tdf-2026/sample-stage-result.json`
+   - `report_file`: `grandtour-feed-dry-run.json`
+7. Click `Run workflow`.
+8. After completion, download the `grandtour-feed-dry-run-report` artifact.
 
-These are not required for the current dry-run workflow.
+Example manual dispatch inputs:
+
+- `provider: manual-json`
+- `source_file: data/feeds/tdf-2026/sample-stage-result.json`
+- `report_file: grandtour-feed-dry-run.json`
+
+Example GitHub CLI command:
+
+```bash
+gh workflow run "GrandTour Daily Feed Dry Run" --repo tmcstay/tipping --field provider=manual-json --field source_file=data/feeds/tdf-2026/sample-stage-result.json --field report_file=grandtour-feed-dry-run.json
+```
+
+### Running a dry run locally with a source file
+
+```bash
+npm run grandtour:feed:dry-run -- --provider manual-json --source-file data/feeds/tdf-2026/sample-stage-result.json --report C:\tmp\grandtour-feed-sample.json
+```
+
+Sample feed files live in `data/feeds/tdf-2026/`.
+
+Expected sample report summary for `data/feeds/tdf-2026/sample-stage-result.json`:
+
+- `summary.stageResultCandidates: 1`
+- `summary.tttResultCandidates: 1`
+- `summary.changedRiderStatuses: 1`
+- `validationErrors: []`
+- `importStatus: validated`
+
+### Safety notes
+
+- Scheduled workflow runs remain dry-run only.
+- Manual workflow dispatch remains dry-run only.
+- `apply` mode remains disabled.
+- No production mutation occurs during dry-run sample testing.
+- Do not add service-role credentials for dry-run sample testing unless future apply mode is explicitly designed and approved.
 
 ### Inspecting the report
 
