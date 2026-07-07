@@ -1,0 +1,65 @@
+{
+  "source_name": "manual-test-backfill",
+  "source_url": "https://example.test/backfill.json",
+  "fetched_at": "2026-07-07T06:00:00.000Z",
+  "confidence": "manual",
+  "stage_results": [
+    {
+      "stage_number": 2,
+      "type": "road",
+      "riders": [
+        { "rider_id": "r10", "position": 1 },
+        { "rider_id": "r11", "position": 2 },
+        { "rider_id": "r12", "position": 3 }
+      ]
+    },
+    {
+      "stage_number": 3,
+      "type": "road",
+      "riders": [
+        { "rider_id": "r13", "position": 1 },
+        { "rider_id": "r14", "position": 2 },
+        { "rider_id": "r15", "position": 3 }
+      ]
+    }
+  ],
+  "ttt_results": [
+    {
+      "stage_number": 1,
+      "type": "ttt",
+      "teams": [
+        { "team_id": "t1", "position": 1 },
+        { "team_id": "t2", "position": 2 }
+      ]
+    }
+  ],
+  "jersey_holders": [
+    {
+      "stage_number": 1,
+      "jerseys": [
+        { "category": "yellow", "rider_id": "r10" },
+        { "category": "green", "rider_id": "r11" }
+      ]
+    },
+    {
+      "stage_number": 2,
+      "jerseys": [
+        { "category": "yellow", "rider_id": "r10" },
+        { "category": "green", "rider_id": "r12" }
+      ]
+    },
+    {
+      "stage_number": 3,
+      "jerseys": [
+        { "category": "yellow", "rider_id": "r13" },
+        { "category": "green", "rider_id": "r14" }
+      ]
+    }
+  ],
+  "rider_statuses": [
+    { "rider_id": "r12", "status": "dnf" }
+  ],
+  "startlist": [],
+  "teams": [],
+  "stage_metadata": []
+}

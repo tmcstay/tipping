@@ -16,6 +16,20 @@ on:
         description: 'Optional report file name in the report directory'
         required: false
         default: 'grandtour-feed-dry-run.json'
+      backfill:
+        description: 'Run backfill mode instead of daily import'
+        required: false
+        default: 'false'
+      from_stage:
+        description: 'Start stage number for backfill range'
+        required: false
+      to_stage:
+        description: 'End stage number for backfill range'
+        required: false
+      all_completed:
+        description: 'Backfill all completed stages from the source file'
+        required: false
+        default: 'false'
 
 jobs:
   dry-run:
@@ -40,13 +54,29 @@ jobs:
           FEED_PROVIDER: ${{ github.event.inputs.provider || 'manual-json' }}
           FEED_SOURCE_FILE: ${{ github.event.inputs.source_file || '' }}
           REPORT_FILE: ${{ github.event.inputs.report_file || 'grandtour-feed-dry-run.json' }}
+          BACKFILL: ${{ github.event.inputs.backfill || 'false' }}
+          FROM_STAGE: ${{ github.event.inputs.from_stage || '' }}
+          TO_STAGE: ${{ github.event.inputs.to_stage || '' }}
+          ALL_COMPLETED: ${{ github.event.inputs.all_completed || 'false' }}
         run: |
           mkdir -p report
+          args=(--provider "$FEED_PROVIDER" --report "report/$REPORT_FILE")
           if [ -n "$FEED_SOURCE_FILE" ]; then
-            npm run grandtour:feed:dry-run -- --provider "$FEED_PROVIDER" --source-file "$FEED_SOURCE_FILE" --report "report/$REPORT_FILE"
-          else
-            npm run grandtour:feed:dry-run -- --provider "$FEED_PROVIDER" --report "report/$REPORT_FILE"
+            args+=(--source-file "$FEED_SOURCE_FILE")
           fi
+          if [ "$BACKFILL" = "true" ]; then
+            args+=(--backfill)
+          fi
+          if [ "$ALL_COMPLETED" = "true" ]; then
+            args+=(--all-completed)
+          fi
+          if [ -n "$FROM_STAGE" ]; then
+            args+=(--from-stage "$FROM_STAGE")
+          fi
+          if [ -n "$TO_STAGE" ]; then
+            args+=(--to-stage "$TO_STAGE")
+          fi
+          npm run grandtour:feed:dry-run -- "${args[@]}"
 
       - name: Upload feed report artifact
         uses: actions/upload-artifact@v4
