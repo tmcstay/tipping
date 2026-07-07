@@ -1,0 +1,42 @@
+{
+  "source_name": "manual-test-sample",
+  "source_url": "https://example.test/feed.json",
+  "fetched_at": "2026-07-07T05:00:00.000Z",
+  "confidence": "manual",
+  "stage_results": [
+    {
+      "stage_number": 3,
+      "type": "road",
+      "riders": [
+        { "rider_id": "r1", "position": 1 },
+        { "rider_id": "r2", "position": 2 },
+        { "rider_id": "r3", "position": 3 }
+      ]
+    }
+  ],
+  "ttt_results": [
+    {
+      "stage_number": 4,
+      "type": "ttt",
+      "teams": [
+        { "team_id": "t1", "position": 1 },
+        { "team_id": "t2", "position": 2 }
+      ]
+    }
+  ],
+  "jersey_holders": [
+    {
+      "stage_number": 3,
+      "jerseys": [
+        { "category": "yellow", "rider_id": "r1" },
+        { "category": "green", "rider_id": "r2" }
+      ]
+    }
+  ],
+  "rider_statuses": [
+    { "rider_id": "r10", "status": "dnf" }
+  ],
+  "startlist": [],
+  "teams": [],
+  "stage_metadata": []
+}

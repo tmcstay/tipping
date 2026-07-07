@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 
 import {
   buildFeedReview,
-  validateFeedPayload
+  parseFeedArgs,
+  validateFeedPayload,
+  ManualJsonGrandTourFeedProvider
 } from "./grandtour-feed-provider.mjs";
 
 test("dry-run feed import reports unmatched riders without mutating tables", () => {
@@ -68,4 +72,56 @@ test("import review includes source, fetched_at and validation outcome", () => {
   assert.equal(review.sourceUrl, "https://example.test/feed.json");
   assert.equal(review.fetchedAt, "2026-07-07T00:00:00.000Z");
   assert.equal(review.importStatus, "validated");
+});
+
+test("dry-run with sample source file produces non-zero candidates", async () => {
+  const samplePath = path.resolve("data", "feeds", "tdf-2026", "sample-stage-result.json");
+  const provider = new ManualJsonGrandTourFeedProvider({ sourceFile: samplePath });
+  const payload = await provider.readPayload();
+  const review = buildFeedReview({ mode: "dry-run", payload });
+
+  assert.equal(review.summary.stageResultCandidates, 1);
+  assert.equal(review.summary.tttResultCandidates, 1);
+  assert.equal(review.summary.changedRiderStatuses, 1);
+  assert.deepEqual(review.validationErrors, []);
+});
+
+test("backfill source file parses multiple stages and reports range metadata", async () => {
+  const samplePath = path.resolve("data", "feeds", "tdf-2026", "sample-backfill-stages-1-3.json");
+  const provider = new ManualJsonGrandTourFeedProvider({ sourceFile: samplePath });
+  const payload = await provider.readPayload();
+  const review = buildFeedReview({
+    mode: "dry-run",
+    payload,
+    options: { backfill: true, fromStage: 1, toStage: 3 }
+  });
+
+  assert.equal(review.importType, "backfill");
+  assert.equal(review.fromStage, 1);
+  assert.equal(review.toStage, 3);
+  assert.deepEqual(review.summary.stagesConsidered, [1, 2, 3]);
+  assert.deepEqual(review.summary.stagesWithResults.sort(), [1, 2, 3]);
+  assert.equal(review.summary.stageResultCandidates, 2);
+  assert.equal(review.summary.tttResultCandidates, 1);
+  assert.equal(review.summary.changedRiderStatuses, 1);
+  assert.equal(review.summary.candidateJerseyHolderRows, 3);
+  assert.equal(review.summary.candidateRiderStatusChanges, 1);
+  assert.deepEqual(review.validationErrors, []);
+});
+
+test("invalid source file reports validation errors", async () => {
+  const invalidPayload = {
+    source_name: "manual-invalid",
+    ttt_results: [{ stage_number: 1, type: "ttt", riders: [{ rider_id: "r1" }] }]
+  };
+  const tempFile = path.resolve("tmp", "invalid-feed.json");
+  await fs.mkdir(path.dirname(tempFile), { recursive: true });
+  await fs.writeFile(tempFile, `${JSON.stringify(invalidPayload, null, 2)}\n`, "utf8");
+
+  const provider = new ManualJsonGrandTourFeedProvider({ sourceFile: tempFile });
+  const payload = await provider.readPayload();
+  const review = buildFeedReview({ mode: "dry-run", payload });
+
+  assert.equal(review.validationErrors.length, 1);
+  assert.equal(review.validationErrors[0], "TTT stage result must use teams, not rider placings.");
 });

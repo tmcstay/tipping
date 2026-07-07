@@ -9,10 +9,23 @@ import {
 
 async function main() {
   const options = parseFeedArgs(process.argv.slice(2));
+  if (options.provider !== "manual-json") {
+    throw new Error(`Unsupported provider: ${options.provider}`);
+  }
+
   const provider = new ManualJsonGrandTourFeedProvider({ sourceFile: options.sourceFile });
   const payload = await provider.readPayload();
   const mode = options.apply ? "apply" : "dry-run";
-  const review = buildFeedReview({ payload, mode });
+  const review = buildFeedReview({
+    payload,
+    mode,
+    options: {
+      backfill: options.backfill,
+      allCompleted: options.allCompleted,
+      fromStage: options.fromStage,
+      toStage: options.toStage
+    }
+  });
 
   await fs.mkdir(path.dirname(options.reportPath), { recursive: true });
   await fs.writeFile(options.reportPath, `${JSON.stringify(review, null, 2)}\n`, "utf8");

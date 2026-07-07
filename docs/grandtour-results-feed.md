@@ -83,6 +83,53 @@ Example GitHub CLI command:
 gh workflow run "GrandTour Daily Feed Dry Run" --repo tmcstay/tipping --field provider=manual-json --field source_file=data/feeds/tdf-2026/sample-stage-result.json --field report_file=grandtour-feed-dry-run.json
 ```
 
+### Backfill dry run example
+
+Use a multi-stage manual JSON source file when backfilling completed results.
+
+Example GitHub UI inputs:
+
+- `provider`: `manual-json`
+- `source_file`: `data/feeds/tdf-2026/sample-backfill-stages-1-3.json`
+- `report_file`: `grandtour-feed-backfill.json`
+- `backfill`: `true`
+- `from_stage`: `1`
+- `to_stage`: `3`
+
+Example GitHub CLI command:
+
+```bash
+gh workflow run "GrandTour Daily Feed Dry Run" --repo tmcstay/tipping --field provider=manual-json --field source_file=data/feeds/tdf-2026/sample-backfill-stages-1-3.json --field report_file=grandtour-feed-backfill.json --field backfill=true --field from_stage=1 --field to_stage=3
+```
+
+Example local command:
+
+```bash
+npm run grandtour:feed:dry-run -- --backfill --from-stage 1 --to-stage 3 --provider manual-json --source-file data/feeds/tdf-2026/sample-backfill-stages-1-3.json --report C:\tmp\tdf-backfill-review.json
+```
+
+### Backfill report expectations
+
+A backfill dry run should include:
+
+- `mode: dry-run`
+- `importType: backfill`
+- `fromStage: 1`
+- `toStage: 3`
+- `stagesConsidered: [1,2,3]`
+- `stagesWithResults`
+- `stagesMissingResults`
+- `stageResultCandidates`
+- `tttResultCandidates`
+- `candidateJerseyHolderRows`
+- `candidateRiderStatusChanges`
+- `unmatchedRiders`
+- `unmatchedTeams`
+- `validationErrors: []`
+- `importStatus: validated`
+
+Scheduled workflow runs remain safe dry-runs and do not mutate production data. `apply` mode remains disabled until an approved provider/source is implemented.
+
 ### Running a dry run locally with a source file
 
 ```bash
