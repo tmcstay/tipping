@@ -41,7 +41,7 @@ export default function StageListScreen() {
               <Text style={styles.copy}>{formatDateTime(stage.starts_at)}</Text>
               <Text style={locked ? styles.locked : styles.lock}>Tips lock {formatDateTime(stage.locks_at)}</Text>
               {experience.isTtt ? (
-                <Text style={styles.tttNote}>TTT: pick teams for stage result. Jerseys stay as rider picks.</Text>
+                <Text style={styles.tttNote}>TTT: pick teams for the stage result.</Text>
               ) : null}
               {stage.start_time_is_estimated ? (
                 <Text style={styles.provisional}>Start time is provisional</Text>

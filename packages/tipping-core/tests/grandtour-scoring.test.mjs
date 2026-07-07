@@ -107,6 +107,20 @@ test("scores five points for each correct daily jersey and a maximum stage score
   assert.equal(score.totalScore, 50);
 });
 
+test("missing parked stage jersey picks score zero without crashing", () => {
+  const score = scoreGrandTourStageTip({
+    status: "submitted",
+    predictedTopFive: exactTopFive,
+    actualTopFive: exactTopFive,
+    predictedJerseys: {},
+    actualJerseys: jerseys
+  });
+
+  assert.equal(score.topFiveScore, 30);
+  assert.equal(score.jerseyScore, 0);
+  assert.equal(score.totalScore, 30);
+});
+
 test("scores 25 points for each correct overall jersey winner", () => {
   const score = scoreGrandTourOverallJerseys({
     status: "locked",
@@ -239,6 +253,14 @@ test("TTT missing official jersey results remain pending instead of resolved at 
   assert.equal(score.jerseyScore, 0);
   assert.equal(score.jerseyPending, true);
   assert.ok(score.jerseys.every(({ pending, points }) => pending && points === null));
+});
+
+test("TTT missing parked jersey picks do not block team scoring", () => {
+  const score = scoreTtt({ predictedJerseys: {} });
+
+  assert.equal(score.teamStageScore, 34);
+  assert.equal(score.jerseyScore, 0);
+  assert.equal(score.totalScore, 34);
 });
 
 test("TTT missing official team result does not score the team component", () => {

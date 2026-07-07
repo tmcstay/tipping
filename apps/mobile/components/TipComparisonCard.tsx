@@ -14,7 +14,6 @@ export function TipComparisonCard({ isTtt = false, tip, riderName, teamName }: {
   const topFive = tip.selections
     .filter((selection) => selection.selection_type === "stage_top_5")
     .sort((a, b) => (a.predicted_position ?? 0) - (b.predicted_position ?? 0));
-  const jerseys = tip.selections.filter((selection) => selection.selection_type !== "stage_top_5");
   return (
     <InfoCard title={tip.display_name} meta={tip.is_dummy ? "Dummy user · not prize eligible" : "League member"}>
       <TipStatusBadge status={tip.status} />
@@ -32,14 +31,6 @@ export function TipComparisonCard({ isTtt = false, tip, riderName, teamName }: {
           ))}
         </View>
       ) : null}
-      <View style={styles.section}>
-        <Text style={styles.heading}>Jerseys</Text>
-        {jerseys.map((selection) => (
-          <Text key={selection.id} style={styles.copy}>
-            {selection.selection_type.replace("overall_", "").replace("_holder", "").replace("_winner", "").replaceAll("_", " ")}: {selection.rider_id ? riderName(selection.rider_id) : "Pending"}
-          </Text>
-        ))}
-      </View>
       {tip.score ? <ScoreBreakdown score={tip.score} /> : null}
     </InfoCard>
   );

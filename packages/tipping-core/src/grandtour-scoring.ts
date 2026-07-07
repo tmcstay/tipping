@@ -114,6 +114,24 @@ function validateJerseys(
   }
 }
 
+function scoreJerseys(
+  predictedJerseys: GrandTourJerseySelections,
+  actualJerseys: GrandTourJerseySelections,
+  activeJerseys: readonly GrandTourJerseyType[],
+  pointsPerJersey: number
+) {
+  return activeJerseys.map((jersey) => {
+    const predictedRiderId = predictedJerseys[jersey] ?? null;
+    const actualRiderId = actualJerseys[jersey] ?? null;
+    return {
+      jersey,
+      predictedRiderId,
+      actualRiderId,
+      points: predictedRiderId !== null && predictedRiderId === actualRiderId ? pointsPerJersey : 0
+    };
+  });
+}
+
 export function scoreGrandTourStageTip(input: GrandTourStageScoreInput) {
   const activeJerseys = input.activeJerseys ?? [...GRANDTOUR_JERSEYS];
   const eligible = isScorable(input.status);
@@ -131,8 +149,6 @@ export function scoreGrandTourStageTip(input: GrandTourStageScoreInput) {
 
   validateTopFive(input.predictedTopFive, "Predicted top five");
   validateTopFive(input.actualTopFive, "Actual top five");
-  validateJerseys(input.predictedJerseys, activeJerseys, "Stage tip");
-  validateJerseys(input.actualJerseys, activeJerseys, "Stage result");
 
   const actualByRider = new Map(
     input.actualTopFive.map(({ riderId, position }) => [riderId, position])
@@ -149,16 +165,7 @@ export function scoreGrandTourStageTip(input: GrandTourStageScoreInput) {
       return { riderId, predictedPosition: position, actualPosition, points };
     });
 
-  const jerseys = activeJerseys.map((jersey) => {
-    const predictedRiderId = input.predictedJerseys[jersey] ?? null;
-    const actualRiderId = input.actualJerseys[jersey] ?? null;
-    return {
-      jersey,
-      predictedRiderId,
-      actualRiderId,
-      points: predictedRiderId === actualRiderId ? 5 : 0
-    };
-  });
+  const jerseys = scoreJerseys(input.predictedJerseys, input.actualJerseys, activeJerseys, 5);
 
   const topFiveScore = topFive.reduce((total, selection) => total + selection.points, 0);
   const jerseyScore = jerseys.reduce((total, selection) => total + selection.points, 0);
@@ -198,7 +205,6 @@ export function scoreGrandTourTeamTimeTrialTip(input: GrandTourTeamTimeTrialScor
   if (input.actualTopFive !== null) {
     validateTeamTopFive(input.actualTopFive, "Official TTT top five");
   }
-  validateJerseys(input.predictedJerseys, activeJerseys, "TTT stage tip");
 
   const actualByTeam = new Map(
     (input.actualTopFive ?? []).map(({ teamId, position }) => [teamId, position])

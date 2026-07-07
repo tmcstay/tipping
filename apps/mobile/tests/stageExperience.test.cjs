@@ -5,7 +5,8 @@ const {
   getStageTipExperience,
   TTT_RESULT_COPY,
   TTT_RESULT_SECTIONS,
-  TTT_STAGE_TIP_COPY
+  TTT_STAGE_TIP_COPY,
+  ROAD_STAGE_TIP_COPY
 } = require("../../../dist/mobile-tests/stageExperience.js");
 
 test("TTT stage uses a team picker for the stage Top 5", () => {
@@ -13,10 +14,6 @@ test("TTT stage uses a team picker for the stage Top 5", () => {
   assert.equal(experience.isTtt, true);
   assert.equal(experience.topFivePicker, "team");
   assert.equal(experience.topFiveTitle, "Team Time Trial Top 5");
-});
-
-test("TTT stage keeps rider pickers for jerseys", () => {
-  assert.equal(getStageTipExperience("ttt").jerseyPicker, "rider");
 });
 
 test("road stage keeps a rider picker for the stage Top 5", () => {
@@ -33,7 +30,11 @@ test("TTT result experience separates team and jersey results", () => {
 test("TTT explanatory copy remains exact", () => {
   assert.equal(
     TTT_STAGE_TIP_COPY,
-    "Team Time Trial stage: pick the top 5 teams for the stage result. Jersey tips are still individual riders and are scored from the official jersey holders after the stage."
+    "Pick your top 5 teams for the stage result."
+  );
+  assert.equal(
+    ROAD_STAGE_TIP_COPY,
+    "Pick your top 5 riders for the stage result."
   );
   assert.equal(
     TTT_RESULT_COPY,

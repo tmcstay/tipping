@@ -73,7 +73,7 @@ export default function HomeScreen() {
               <Text style={styles.heroDistance}>{stage.distance_km ? `${stage.distance_km} km` : "Distance TBC"}</Text>
             </View>
             {experience.isTtt ? <View style={styles.tttBanner}><Text style={styles.tttText}>Team Time Trial — pick teams for the stage result</Text></View> : null}
-            <Text style={styles.heroCopy}>{experience.isTtt ? "Jersey tips are still individual riders." : "Pick your top 5 riders, then choose the jersey holders."}</Text>
+            <Text style={styles.heroCopy}>{experience.topFiveCopy}</Text>
             <View style={styles.heroStatusRow}>
               <TipStatusBadge status={displayStatus} />
               <Text style={styles.heroLock}>{locked ? "Tips locked" : `Locks ${formatTime(stage.locks_at)}`}</Text>

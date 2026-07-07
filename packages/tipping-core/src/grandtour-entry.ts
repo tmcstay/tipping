@@ -20,7 +20,7 @@ export function isTeamTimeTrialStageType(stageType: string | null | undefined): 
 
 export function buildStageTipSelections(
   topFive: (string | null)[],
-  jerseys: Partial<Record<(typeof DAILY_JERSEY_SELECTIONS)[number], string>>
+  jerseys: Partial<Record<(typeof DAILY_JERSEY_SELECTIONS)[number], string>> = {}
 ): GrandTourTipSelectionInput[] {
   const selectedTopFive = topFive.filter((riderId): riderId is string => Boolean(riderId));
   if (new Set(selectedTopFive).size !== selectedTopFive.length) {
@@ -42,7 +42,7 @@ export function buildStageTipSelections(
 
 export function buildTeamTimeTrialTipSelections(
   topFive: (string | null)[],
-  jerseys: Partial<Record<(typeof DAILY_JERSEY_SELECTIONS)[number], string>>
+  jerseys: Partial<Record<(typeof DAILY_JERSEY_SELECTIONS)[number], string>> = {}
 ): GrandTourTipSelectionInput[] {
   const selectedTopFive = topFive.filter((teamId): teamId is string => Boolean(teamId));
   if (new Set(selectedTopFive).size !== selectedTopFive.length) {
@@ -74,30 +74,24 @@ export function buildOverallJerseySelections(
 
 export function isCompleteStageTip(selections: GrandTourTipSelectionInput[]) {
   const topFive = selections.filter((selection) => selection.selection_type === "stage_top_5");
-  const jerseys = DAILY_JERSEY_SELECTIONS.filter((type) =>
-    selections.some((selection) => selection.selection_type === type)
-  );
+  const nonTopFiveValid = selections
+    .filter((selection) => selection.selection_type !== "stage_top_5")
+    .every((selection) => Boolean(selection.rider_id) && !selection.team_id);
   return topFive.length === 5
     && topFive.every((selection) => Boolean(selection.rider_id) && !selection.team_id)
     && new Set(topFive.map((selection) => selection.rider_id)).size === 5
-    && jerseys.length === DAILY_JERSEY_SELECTIONS.length
-    && selections
-      .filter((selection) => selection.selection_type !== "stage_top_5")
-      .every((selection) => Boolean(selection.rider_id) && !selection.team_id);
+    && nonTopFiveValid;
 }
 
 export function isCompleteTeamTimeTrialTip(selections: GrandTourTipSelectionInput[]) {
   const topFive = selections.filter((selection) => selection.selection_type === "stage_top_5");
-  const jerseys = DAILY_JERSEY_SELECTIONS.filter((type) =>
-    selections.some((selection) => selection.selection_type === type)
-  );
+  const nonTopFiveValid = selections
+    .filter((selection) => selection.selection_type !== "stage_top_5")
+    .every((selection) => Boolean(selection.rider_id) && !selection.team_id);
   return topFive.length === 5
     && topFive.every((selection) => Boolean(selection.team_id) && !selection.rider_id)
     && new Set(topFive.map((selection) => selection.team_id)).size === 5
-    && jerseys.length === DAILY_JERSEY_SELECTIONS.length
-    && selections
-      .filter((selection) => selection.selection_type !== "stage_top_5")
-      .every((selection) => Boolean(selection.rider_id) && !selection.team_id);
+    && nonTopFiveValid;
 }
 
 export function isCompleteOverallJerseyTip(selections: GrandTourTipSelectionInput[]) {

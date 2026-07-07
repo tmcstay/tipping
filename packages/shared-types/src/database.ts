@@ -673,6 +673,106 @@ export type Database = {
           },
         ]
       }
+      grandtour_feed_import_runs: {
+        Row: {
+          applied_at: string | null
+          created_at: string
+          fetched_at: string
+          grand_tour_id: string | null
+          id: string
+          import_status: string
+          mode: string
+          provider_name: string
+          source_url: string | null
+          summary: Json
+          validation_errors: Json
+        }
+        Insert: {
+          applied_at?: string | null
+          created_at?: string
+          fetched_at?: string
+          grand_tour_id?: string | null
+          id?: string
+          import_status?: string
+          mode?: string
+          provider_name: string
+          source_url?: string | null
+          summary?: Json
+          validation_errors?: Json
+        }
+        Update: {
+          applied_at?: string | null
+          created_at?: string
+          fetched_at?: string
+          grand_tour_id?: string | null
+          id?: string
+          import_status?: string
+          mode?: string
+          provider_name?: string
+          source_url?: string | null
+          summary?: Json
+          validation_errors?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grandtour_feed_import_runs_grand_tour_id_fkey"
+            columns: ["grand_tour_id"]
+            isOneToOne: false
+            referencedRelation: "grand_tours"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grandtour_feed_snapshots: {
+        Row: {
+          confidence: string
+          created_at: string
+          fetched_at: string
+          id: string
+          import_run_id: string
+          normalized_payload: Json | null
+          raw_payload: Json
+          segment: string
+          source_name: string
+          source_url: string | null
+          validation_errors: Json
+        }
+        Insert: {
+          confidence?: string
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          import_run_id: string
+          normalized_payload?: Json | null
+          raw_payload: Json
+          segment: string
+          source_name: string
+          source_url?: string | null
+          validation_errors?: Json
+        }
+        Update: {
+          confidence?: string
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          import_run_id?: string
+          normalized_payload?: Json | null
+          raw_payload?: Json
+          segment?: string
+          source_name?: string
+          source_url?: string | null
+          validation_errors?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grandtour_feed_snapshots_import_run_id_fkey"
+            columns: ["import_run_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_feed_import_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grandtour_leaderboard_snapshots: {
         Row: {
           competition_id: string
@@ -738,6 +838,10 @@ export type Database = {
           normalized_name: string
           rider_type: string | null
           source_url: string | null
+          specialities: string[] | null
+          status: string
+          status_changed_at: string | null
+          status_reason: string | null
           team_id: string | null
           updated_at: string
         }
@@ -755,6 +859,10 @@ export type Database = {
           normalized_name: string
           rider_type?: string | null
           source_url?: string | null
+          specialities?: string[] | null
+          status?: string
+          status_changed_at?: string | null
+          status_reason?: string | null
           team_id?: string | null
           updated_at?: string
         }
@@ -772,6 +880,10 @@ export type Database = {
           normalized_name?: string
           rider_type?: string | null
           source_url?: string | null
+          specialities?: string[] | null
+          status?: string
+          status_changed_at?: string | null
+          status_reason?: string | null
           team_id?: string | null
           updated_at?: string
         }
@@ -987,8 +1099,11 @@ export type Database = {
           rider_id: string
           rider_role: string | null
           source_url: string | null
+          specialities: string[] | null
           stage_id: string
           status: string
+          status_changed_at: string | null
+          status_reason: string | null
           team_id: string | null
           updated_at: string
         }
@@ -1000,8 +1115,11 @@ export type Database = {
           rider_id: string
           rider_role?: string | null
           source_url?: string | null
+          specialities?: string[] | null
           stage_id: string
           status?: string
+          status_changed_at?: string | null
+          status_reason?: string | null
           team_id?: string | null
           updated_at?: string
         }
@@ -1013,8 +1131,11 @@ export type Database = {
           rider_id?: string
           rider_role?: string | null
           source_url?: string | null
+          specialities?: string[] | null
           stage_id?: string
           status?: string
+          status_changed_at?: string | null
+          status_reason?: string | null
           team_id?: string | null
           updated_at?: string
         }
