@@ -9,7 +9,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "web:build": "expo export -p web",
-    "test:ui": "tsc lib/stageExperience.ts lib/formatters.ts lib/tipEntryExperience.ts lib/riderSelectionExperience.ts lib/grandtourAdminExperience.ts lib/grandtourHistoryExperience.ts lib/grandtourCorrectionExperience.ts lib/riderDirectoryExperience.ts --outDir ../../dist/mobile-tests --target es2022 --module commonjs --moduleResolution node --skipLibCheck && node --test tests/*.test.cjs",
+    "test:ui": "tsc lib/stageExperience.ts lib/formatters.ts lib/tipEntryExperience.ts lib/riderSelectionExperience.ts lib/grandtourAdminExperience.ts lib/grandtourHistoryExperience.ts lib/grandtourCorrectionExperience.ts lib/riderDirectoryExperience.ts lib/grandtourOfficialCheckExperience.ts --outDir ../../dist/mobile-tests --target es2022 --module commonjs --moduleResolution node --skipLibCheck && node --test tests/*.test.cjs",
+    "test:api": "node --test api/admin/grandtour/*.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

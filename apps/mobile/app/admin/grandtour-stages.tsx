@@ -68,6 +68,8 @@ export default function GrandTourStagesAdminScreen() {
       {(summaries.data ?? []).map((summary) => (
         <GrandTourStageAdminCard
           currentUserId={user.id}
+          grandTourName={race.data?.name ?? "Tour de France"}
+          grandTourYear={race.data?.year ?? 2026}
           key={summary.stageId}
           onActionComplete={reloadSummaries}
           summary={summary}

@@ -9,7 +9,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "npm --workspace packages/tipping-core test",
-    "test:data": "node --test scripts/tdf-data-utils.test.mjs scripts/grandtour-rider-reconciliation.test.mjs scripts/letour-official-riders.test.mjs scripts/grandtour-feed-provider.test.mjs scripts/grandtour-stage-calendar.test.mjs scripts/grandtour-reconciliation.test.mjs scripts/grandtour-reconciliation-supabase.test.mjs scripts/grandtour-apply.test.mjs scripts/grandtour-feed-import.test.mjs scripts/grandtour-admin-stage.test.mjs",
+    "test:data": "node --test scripts/tdf-data-utils.test.mjs scripts/grandtour-rider-reconciliation.test.mjs scripts/letour-official-riders.test.mjs scripts/grandtour-feed-provider.test.mjs scripts/grandtour-stage-calendar.test.mjs scripts/grandtour-reconciliation.test.mjs scripts/grandtour-reconciliation-supabase.test.mjs scripts/grandtour-apply.test.mjs scripts/grandtour-feed-import.test.mjs scripts/grandtour-admin-stage.test.mjs scripts/grandtour-auto-dry-run.test.mjs",
     "test:auth": "node scripts/test-auth.mjs",
     "import:tdf:2026": "node scripts/import-tdf-2026.mjs",
     "import:tdf:2026:dry-run": "node scripts/import-tdf-2026.mjs --dry-run",
@@ -18,6 +18,7 @@
     "seed:tdf:dummy": "node scripts/generate-tdf-dummy-tips.mjs",
     "seed:tdf:dummy:dry-run": "node scripts/generate-tdf-dummy-tips.mjs --dry-run",
     "grandtour:feed:dry-run": "node scripts/grandtour-feed-import.mjs --dry-run",
+    "grandtour:auto-dry-run": "node scripts/grandtour-auto-dry-run.mjs",
     "grandtour:feed:apply": "node scripts/grandtour-feed-import.mjs --apply",
     "grandtour:reconcile:local-smoke": "node scripts/grandtour-reconciliation-local-smoke.mjs",
     "grandtour:apply:local-smoke": "node scripts/grandtour-apply-local-smoke.mjs",

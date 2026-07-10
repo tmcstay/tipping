@@ -22,6 +22,25 @@ export async function resolveGrandTourId(client, { name, year }) {
   return data?.id ?? null;
 }
 
+/**
+ * Reads every grandtour_stages row for a grand tour (id/stage_number/
+ * starts_at only), sorted by stage_number ascending. Used by the automatic
+ * dry-run collection wrapper (scripts/grandtour-auto-dry-run.mjs) to
+ * resolve "today's" stage from the live schedule instead of the static
+ * stage-calendar CSV — see resolveStageFromGrandTourStages in
+ * scripts/grandtour-stage-calendar.mjs. Read-only, anon key.
+ */
+export async function fetchAllGrandTourStages(client, { grandTourId }) {
+  const { data, error } = await client
+    .from("grandtour_stages")
+    .select("id, stage_number, starts_at")
+    .eq("grand_tour_id", grandTourId);
+  if (error) throw error;
+  return (data ?? [])
+    .map((row) => ({ stageNumber: row.stage_number, startsAt: row.starts_at }))
+    .sort((a, b) => a.stageNumber - b.stageNumber);
+}
+
 export async function fetchReconciliationContext(client, { grandTourId, stageNumber }) {
   const [
     { data: stage, error: stageError },

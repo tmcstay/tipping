@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { fetchReconciliationContext, resolveGrandTourId } from "./grandtour-reconciliation-supabase.mjs";
+import { fetchAllGrandTourStages, fetchReconciliationContext, resolveGrandTourId } from "./grandtour-reconciliation-supabase.mjs";
 import { reconcileStageResult } from "./grandtour-reconciliation.mjs";
 
 // A minimal fake Supabase query builder that only implements the read
@@ -51,6 +51,29 @@ test("resolveGrandTourId returns null when no matching grand tour exists", async
   const client = fakeSupabaseClient({ grand_tours: [] });
   const grandTourId = await resolveGrandTourId(client, { name: "Giro d'Italia", year: 2026 });
   assert.equal(grandTourId, null);
+});
+
+test("fetchAllGrandTourStages reads stage_number/starts_at scoped to the grand tour, sorted by stage_number ascending", async () => {
+  const client = fakeSupabaseClient({
+    grandtour_stages: [
+      { id: "stage-3", grand_tour_id: "tour-1", stage_number: 3, starts_at: "2026-07-06T10:00:00+00:00" },
+      { id: "stage-1", grand_tour_id: "tour-1", stage_number: 1, starts_at: "2026-07-04T10:00:00+00:00" },
+      { id: "stage-9", grand_tour_id: "tour-2", stage_number: 1, starts_at: "2026-05-01T10:00:00+00:00" }
+    ]
+  });
+
+  const stages = await fetchAllGrandTourStages(client, { grandTourId: "tour-1" });
+
+  assert.deepEqual(stages, [
+    { stageNumber: 1, startsAt: "2026-07-04T10:00:00+00:00" },
+    { stageNumber: 3, startsAt: "2026-07-06T10:00:00+00:00" }
+  ]);
+});
+
+test("fetchAllGrandTourStages returns an empty array when the grand tour has no stages", async () => {
+  const client = fakeSupabaseClient({ grandtour_stages: [] });
+  const stages = await fetchAllGrandTourStages(client, { grandTourId: "tour-1" });
+  assert.deepEqual(stages, []);
 });
 
 test("fetchReconciliationContext reads stage/riders/teams/startlist scoped to the grand tour and maps snake_case to camelCase", async () => {

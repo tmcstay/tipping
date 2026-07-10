@@ -5,9 +5,11 @@ import {
   finalizeGrandTourStage,
   getGrandTourStageAdminReviewDetails,
   markGrandTourStageChecked,
+  runGrandTourOfficialCheck,
   scoreGrandTourStage,
   type GrandTourAdminJerseyHolder,
   type GrandTourAdminResultLine,
+  type GrandTourOfficialCheckReport,
   type GrandTourStageAdminSummary
 } from "@tipping-suite/supabase-client";
 
@@ -31,6 +33,11 @@ import {
   type CorrectionDiff,
   type ParsedCorrectionReport
 } from "../lib/grandtourCorrectionExperience";
+import {
+  getOfficialCheckStatusMessage,
+  summarizeOfficialCheckReport,
+  type OfficialCheckSummary
+} from "../lib/grandtourOfficialCheckExperience";
 import { formatDateTime, formatShortDate, formatStageType } from "../lib/formatters";
 import { ui } from "./theme";
 
@@ -45,14 +52,21 @@ const JERSEY_LABELS: Record<(typeof JERSEY_ORDER)[number], string> = {
 type GrandTourStageAdminCardProps = {
   summary: GrandTourStageAdminSummary;
   currentUserId: string;
+  grandTourName: string;
+  grandTourYear: number;
   onActionComplete: () => void;
 };
 
-export function GrandTourStageAdminCard({ currentUserId, onActionComplete, summary }: GrandTourStageAdminCardProps) {
+export function GrandTourStageAdminCard({ currentUserId, grandTourName, grandTourYear, onActionComplete, summary }: GrandTourStageAdminCardProps) {
   const [pendingAction, setPendingAction] = useState<GrandTourAdminAction | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [rawResult, setRawResult] = useState<unknown>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const [checkPending, setCheckPending] = useState(false);
+  const [checkReport, setCheckReport] = useState<GrandTourOfficialCheckReport | null>(null);
+  const [checkError, setCheckError] = useState<string | null>(null);
+  const [checkExpanded, setCheckExpanded] = useState(false);
 
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -97,6 +111,34 @@ export function GrandTourStageAdminCard({ currentUserId, onActionComplete, summa
       void loadDetails();
     }
   }
+
+  // Preview-only: fetches + reconciles the official result for this stage
+  // via the server-side route (never runs in browser code) and displays it
+  // for review. Never writes result lines/jersey holders, never marks
+  // checked, never finalises, never scores - this is deliberately a
+  // read-only, separate action from every RPC-backed button below.
+  async function runOfficialCheck() {
+    setCheckPending(true);
+    setCheckError(null);
+    try {
+      const report = await runGrandTourOfficialCheck({
+        grandTourName,
+        grandTourYear,
+        stageNumber: summary.stageNumber
+      });
+      setCheckReport(report);
+      setCheckExpanded(true);
+    } catch (error) {
+      setCheckError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setCheckPending(false);
+    }
+  }
+
+  const checkSummary: OfficialCheckSummary | null = checkReport
+    ? summarizeOfficialCheckReport(checkReport, summary.stageNumber)
+    : null;
+  const checkStatusMessage = checkSummary ? getOfficialCheckStatusMessage(checkSummary.safeToApply) : null;
 
   async function runAction(action: GrandTourAdminAction) {
     setPendingAction(action);
@@ -245,6 +287,101 @@ export function GrandTourStageAdminCard({ currentUserId, onActionComplete, summa
         <View style={styles.readyBox}>
           <Text style={styles.readyText}>✓ Ready for admin check</Text>
         </View>
+      ) : null}
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: checkPending }}
+        disabled={checkPending}
+        onPress={() => void runOfficialCheck()}
+        style={[styles.button, styles.checkButton, checkPending && styles.buttonDisabled]}
+      >
+        {checkPending ? (
+          <ActivityIndicator color="#FFFFFF" size="small" />
+        ) : (
+          <Text style={styles.buttonText}>Run Official Check</Text>
+        )}
+      </Pressable>
+      {checkError ? <Text style={styles.errorText}>{checkError}</Text> : null}
+
+      {checkSummary ? (
+        <>
+          <Pressable accessibilityRole="button" onPress={() => setCheckExpanded((value) => !value)} style={styles.reviewToggle}>
+            <Text style={styles.reviewToggleText}>
+              {checkExpanded ? "Hide latest official check ▲" : "Latest official check ▼"}
+            </Text>
+          </Pressable>
+
+          {checkExpanded ? (
+            <View style={styles.reviewSection}>
+              <View style={styles.fieldsGrid}>
+                <Field label="Fetched at" value={checkSummary.fetchedAt ? formatDateTime(checkSummary.fetchedAt) : "—"} />
+                <Field label="Stage" value={String(checkSummary.stageNumber)} />
+                <Field label="Parser status" value={checkSummary.parserStatus ?? "—"} />
+                <Field label="Parser drift detected" value={String(checkSummary.parserDriftDetected)} />
+                <Field label="Safe to apply" value={checkSummary.safeToApply === null ? "—" : String(checkSummary.safeToApply)} />
+                <Field label="Result lines" value={String(checkSummary.resultLineCount)} />
+                <Field label="Jersey holders" value={String(checkSummary.jerseyHolderCount)} />
+              </View>
+
+              {checkStatusMessage ? (
+                <View style={styles.readyBox}>
+                  <Text style={styles.readyText}>✓ {checkStatusMessage}</Text>
+                </View>
+              ) : checkSummary.blockers.length > 0 ? (
+                <View style={styles.warningBox}>
+                  <Text style={styles.warningText}>⚠ Official check found blockers:</Text>
+                  {checkSummary.blockers.map((blocker) => (
+                    <Text key={blocker} style={styles.warningText}>• {blocker}</Text>
+                  ))}
+                </View>
+              ) : null}
+
+              <Text style={styles.reviewHeading}>Parsed top 10 result lines</Text>
+              {checkSummary.topResultLines.length === 0 ? (
+                <Text style={styles.emptyCopy}>No result lines parsed.</Text>
+              ) : (
+                <View style={styles.table}>
+                  {checkSummary.topResultLines.map((line) => (
+                    <View key={`check-${line.position}-${line.riderName}`} style={styles.tableRow}>
+                      <Text style={styles.tablePosition}>{line.position}</Text>
+                      <Text style={styles.tableBib}>{line.bibNumber !== null ? `#${line.bibNumber}` : "—"}</Text>
+                      <Text style={styles.tableRider}>{line.riderName}</Text>
+                      <Text style={styles.tableTeam}>{line.teamName}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              <Text style={styles.reviewHeading}>Parsed jersey holders</Text>
+              {checkSummary.jerseyHolders.length === 0 ? (
+                <Text style={styles.emptyCopy}>No jersey holders parsed.</Text>
+              ) : (
+                <View style={styles.table}>
+                  {checkSummary.jerseyHolders.map((holder) => (
+                    <View key={`check-jersey-${holder.jerseyType}`} style={styles.tableRow}>
+                      <Text style={styles.tableJersey}>{JERSEY_LABELS[holder.jerseyType as (typeof JERSEY_ORDER)[number]] ?? holder.jerseyType}</Text>
+                      <Text style={styles.tableBib}>{holder.bibNumber !== null ? `#${holder.bibNumber}` : "—"}</Text>
+                      <Text style={styles.tableRider}>{holder.riderName ?? "Not found"}</Text>
+                      <Text style={styles.tableTeam}>{holder.teamName ?? "—"}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              <Text style={styles.reviewHeading}>Jersey fetch metadata</Text>
+              {checkSummary.jerseyFetchMetadata.length === 0 ? (
+                <Text style={styles.emptyCopy}>No jersey fetch diagnostics.</Text>
+              ) : (
+                checkSummary.jerseyFetchMetadata.map((entry) => (
+                  <Text key={`jersey-status-${entry.jerseyType}`} style={styles.copy}>
+                    {entry.jerseyType}: {entry.status}
+                  </Text>
+                ))
+              )}
+            </View>
+          ) : null}
+        </>
       ) : null}
 
       <Pressable accessibilityRole="button" onPress={toggleDetails} style={styles.reviewToggle}>
@@ -549,6 +686,9 @@ const styles = StyleSheet.create({
   },
   buttonTextDisabled: {
     color: ui.colors.muted
+  },
+  checkButton: {
+    marginTop: 12
   },
   copy: {
     color: ui.colors.muted,

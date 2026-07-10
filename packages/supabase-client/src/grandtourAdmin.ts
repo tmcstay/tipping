@@ -1,5 +1,6 @@
 import type { Json } from "@tipping-suite/shared-types";
 
+import { getCurrentSession } from "./auth";
 import { getSupabaseClient } from "./client";
 
 /**
@@ -363,4 +364,115 @@ export async function correctGrandTourStageResult(input: {
   });
   if (error) throw error;
   return data;
+}
+
+export type GrandTourOfficialCheckParsedRider = {
+  position: number;
+  rider_name: string;
+  bib_number: number | null;
+  team_name: string;
+  time?: string | null;
+  gap?: string | null;
+};
+
+export type GrandTourOfficialCheckJerseyHolder = {
+  jerseyType: "yellow" | "green" | "kom" | "white";
+  sourceClassification: string | null;
+  parsedRiderName: string | null;
+  parsedTeamName: string | null;
+  bibNumber: number | null;
+  matchedRiderId: string | null;
+  matchedBy: string | null;
+  nameMismatch: boolean;
+  teamMismatch: boolean;
+  onStartlist: boolean;
+  status: string;
+};
+
+export type GrandTourOfficialCheckStageReconciliation = {
+  stageNumber: number;
+  safeToApply: boolean;
+  blockers: string[];
+  parsedRiders: GrandTourOfficialCheckParsedRider[];
+  matchedRiders: { riderName: string; bibNumber: number | null; riderId: string | null }[];
+  jerseyHolders: GrandTourOfficialCheckJerseyHolder[];
+};
+
+export type GrandTourOfficialCheckJerseyFetchMetadata = {
+  stageNumber: number;
+  classification: string;
+  jerseyType: string;
+  status: string;
+};
+
+export type GrandTourOfficialCheckStageFetchMetadata = {
+  stageNumber: number;
+  status: string;
+  rowsMatched: number;
+  ridersParsed: number;
+};
+
+export type GrandTourOfficialCheckReport = {
+  fetchedAt: string | null;
+  fromStage: number | null;
+  toStage: number | null;
+  provider: string;
+  parserDriftDetected: boolean;
+  stageFetchMetadata: GrandTourOfficialCheckStageFetchMetadata[];
+  jerseyFetchMetadata: GrandTourOfficialCheckJerseyFetchMetadata[];
+  reconciliation?: {
+    overallSafeToApply: boolean;
+    stages: GrandTourOfficialCheckStageReconciliation[];
+  };
+};
+
+/**
+ * Calls the server-side POST /api/admin/grandtour/run-official-check route
+ * (apps/mobile/api/admin/grandtour/run-official-check.mjs) - dry-run +
+ * reconcile only, preview-only, never applies/finalises/scores anything.
+ * The scraper never runs in browser code; this only ever sends the
+ * caller's own session access token (never a service-role key) so the
+ * server route can verify admin access before running the check.
+ *
+ * Only reachable on the web deployment (relative /api/... routes resolve
+ * against the current origin, i.e. the Vercel deployment) - native
+ * iOS/Android builds have no equivalent server route available to them.
+ */
+export async function runGrandTourOfficialCheck(input: {
+  grandTourName: string;
+  grandTourYear: number;
+  stageNumber: number;
+  provider?: string;
+}): Promise<GrandTourOfficialCheckReport> {
+  const session = await getCurrentSession();
+  if (!session?.access_token) {
+    throw new Error("You must be signed in to run an official check.");
+  }
+
+  const response = await fetch("/api/admin/grandtour/run-official-check", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`
+    },
+    body: JSON.stringify({
+      grandTourName: input.grandTourName,
+      grandTourYear: input.grandTourYear,
+      stageNumber: input.stageNumber,
+      provider: input.provider ?? "official-letour"
+    })
+  });
+
+  let body: { ok?: boolean; report?: GrandTourOfficialCheckReport; error?: string } | null = null;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+
+  if (!response.ok || !body?.ok) {
+    throw new Error(body?.error ?? `Official check failed (HTTP ${response.status}).`);
+  }
+
+  return body.report as GrandTourOfficialCheckReport;
 }

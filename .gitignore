@@ -48,5 +48,8 @@ db-push-dry-run.txt
 /data/cycling/tdf/2026/official_startlist_refresh_report.json
 /data/cycling/tdf/2026/rider_import_review.json
 
+# Automatic GrandTour dry-run collection reports (scripts/grandtour-auto-dry-run.mjs)
+/tmp/auto-dry-runs/
+
 # Local authenticated E2E fixture with predictable test credentials
 supabase/seeds/grandtour_e2e.sql

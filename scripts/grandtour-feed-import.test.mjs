@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { runApply } from "./grandtour-feed-import.mjs";
+import { runApply, runDryRunReconcile } from "./grandtour-feed-import.mjs";
 
 const STAGE_ID = "11111111-1111-4111-8111-111111111111";
 const REAL_SERVICE_ROLE_JWT = `header.${Buffer.from(JSON.stringify({ role: "service_role" })).toString("base64url")}.signature`;
@@ -356,5 +356,167 @@ test("runApply: a stage mismatch cannot be bypassed by editing only reconciliati
       );
       assert.equal(rpcCallCount, 0);
     });
+  });
+});
+
+// A minimal fake Supabase query builder covering only the read methods
+// runDryRunReconcile's reconciliation path calls (select/eq/limit/
+// maybeSingle, and plain awaited select via .then) — same shape as the fake
+// used in grandtour-reconciliation-supabase.test.mjs. If runDryRunReconcile
+// ever called .insert/.upsert/.update/.delete/.rpc, this fake would throw
+// "not a function" and fail the test.
+function fakeReadOnlySupabaseClient(tableData) {
+  return {
+    from(table) {
+      const rows = tableData[table] ?? [];
+      const filters = [];
+      const builder = {
+        select() { return builder; },
+        eq(column, value) { filters.push((row) => row[column] === value); return builder; },
+        limit() { return builder; },
+        async maybeSingle() {
+          const match = rows.filter((row) => filters.every((predicate) => predicate(row)))[0] ?? null;
+          return { data: match, error: null };
+        },
+        then(resolve) {
+          const matches = rows.filter((row) => filters.every((predicate) => predicate(row)));
+          return resolve({ data: matches, error: null });
+        }
+      };
+      return builder;
+    }
+  };
+}
+
+function buildManualJsonPayloadFixture() {
+  return {
+    source_name: "manual-json",
+    fetched_at: "2026-07-10T12:00:00.000Z",
+    stage_results: [
+      {
+        stage_number: 2,
+        riders: [{ position: 1, rider_name: "RIDER ONE", bib_number: 1, team_name: "Test Team", time: "1h 00' 00\"", gap: "-" }],
+        jersey_holders: [
+          { jerseyType: "yellow", sourceClassification: "individual", parsedRiderName: "RIDER ONE", parsedTeamName: "Test Team", bibNumber: 1 },
+          { jerseyType: "green", sourceClassification: "points", parsedRiderName: "RIDER TWO", parsedTeamName: "Test Team", bibNumber: 2 },
+          { jerseyType: "kom", sourceClassification: "climber", parsedRiderName: "RIDER THREE", parsedTeamName: "Test Team", bibNumber: 3 },
+          { jerseyType: "white", sourceClassification: "youth", parsedRiderName: "RIDER FOUR", parsedTeamName: "Test Team", bibNumber: 4 }
+        ]
+      }
+    ],
+    stage_fetch_metadata: [],
+    jersey_fetch_metadata: [],
+    warnings: []
+  };
+}
+
+function fourRiderFixtureRows() {
+  return {
+    grandtour_riders: [
+      { id: "rider-1", grand_tour_id: "tour-1", team_id: "team-1", display_name: "Rider One", normalized_name: "rider one", bib_number: 1 },
+      { id: "rider-2", grand_tour_id: "tour-1", team_id: "team-1", display_name: "Rider Two", normalized_name: "rider two", bib_number: 2 },
+      { id: "rider-3", grand_tour_id: "tour-1", team_id: "team-1", display_name: "Rider Three", normalized_name: "rider three", bib_number: 3 },
+      { id: "rider-4", grand_tour_id: "tour-1", team_id: "team-1", display_name: "Rider Four", normalized_name: "rider four", bib_number: 4 }
+    ],
+    grandtour_stage_startlists: [
+      { stage_id: "stage-2", rider_id: "rider-1", status: "confirmed" },
+      { stage_id: "stage-2", rider_id: "rider-2", status: "confirmed" },
+      { stage_id: "stage-2", rider_id: "rider-3", status: "confirmed" },
+      { stage_id: "stage-2", rider_id: "rider-4", status: "confirmed" }
+    ]
+  };
+}
+
+async function withManualJsonSourceFile(payload, fn) {
+  const filePath = path.resolve("tmp", `manual-json-fixture-${Math.random().toString(36).slice(2)}.json`);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, JSON.stringify(payload), "utf8");
+  try {
+    return await fn(filePath);
+  } finally {
+    await fs.rm(filePath, { force: true });
+  }
+}
+
+test("runDryRunReconcile (manual-json, reconcile: true) returns a review with a reconciled, safe-to-apply stage", async () => {
+  await withManualJsonSourceFile(buildManualJsonPayloadFixture(), async (sourceFile) => {
+    const fakeClient = fakeReadOnlySupabaseClient({
+      grand_tours: [{ id: "tour-1", name: "Tour de France", year: 2026 }],
+      grandtour_stages: [{ id: "stage-2", grand_tour_id: "tour-1", stage_number: 2, stage_type: "hilly", starts_at: "2026-07-05T10:00:00+00:00" }],
+      grandtour_teams: [{ id: "team-1", grand_tour_id: "tour-1", name: "Test Team", short_name: "TT", code: "TT" }],
+      ...fourRiderFixtureRows()
+    });
+
+    const review = await withEnv({ SUPABASE_URL: "http://127.0.0.1:54321", SUPABASE_ANON_KEY: ANON_JWT }, () => runDryRunReconcile({
+      provider: "manual-json",
+      sourceFile,
+      reconcile: true,
+      grandTourName: "Tour de France",
+      grandTourYear: 2026,
+      fromStage: 2,
+      toStage: 2
+    }, { createClient: () => fakeClient }));
+
+    assert.equal(review.mode, "dry-run");
+    assert.equal(review.dryRun, true);
+    assert.equal(review.applyEnabled, false);
+    assert.equal(review.fetchedAt, "2026-07-10T12:00:00.000Z");
+    assert.equal(review.reconciliation.overallSafeToApply, true);
+    assert.equal(review.reconciliation.stages[0].stageNumber, 2);
+    assert.equal(review.reconciliation.stages[0].safeToApply, true);
+    assert.deepEqual(review.reconciliation.stages[0].blockers, []);
+    assert.equal(review.reconciliation.stages[0].matchedRiders.length, 1);
+    assert.equal(review.reconciliation.stages[0].jerseyHolders.length, 4);
+  });
+});
+
+test("runDryRunReconcile (reconcile: false) never attaches a .reconciliation field and never touches Supabase", async () => {
+  await withManualJsonSourceFile(buildManualJsonPayloadFixture(), async (sourceFile) => {
+    const review = await runDryRunReconcile({
+      provider: "manual-json",
+      sourceFile,
+      reconcile: false,
+      fromStage: 2,
+      toStage: 2
+    }, { createClient: () => { throw new Error("should not be called when reconcile is false"); } });
+
+    assert.equal(review.reconciliation, undefined);
+  });
+});
+
+test("runDryRunReconcile rejects an unsupported provider", async () => {
+  await assert.rejects(
+    () => runDryRunReconcile({ provider: "some-other-feed", fromStage: 2, toStage: 2, reconcile: false }),
+    /Unsupported provider: some-other-feed/
+  );
+});
+
+test("runDryRunReconcile has no apply-related option: passing an apply flag does nothing and no apply RPC is ever called", async () => {
+  await withManualJsonSourceFile(buildManualJsonPayloadFixture(), async (sourceFile) => {
+    let rpcCallCount = 0;
+    const fakeClient = Object.assign(
+      fakeReadOnlySupabaseClient({
+        grand_tours: [{ id: "tour-1", name: "Tour de France", year: 2026 }],
+        grandtour_stages: [],
+        grandtour_riders: [],
+        grandtour_teams: [],
+        grandtour_stage_startlists: []
+      }),
+      { async rpc() { rpcCallCount += 1; return { data: null, error: null }; } }
+    );
+
+    const review = await withEnv({ SUPABASE_URL: "http://127.0.0.1:54321", SUPABASE_ANON_KEY: ANON_JWT }, () => runDryRunReconcile({
+      provider: "manual-json",
+      sourceFile,
+      reconcile: true,
+      apply: true, // deliberately set — runDryRunReconcile has no code path that reads this.
+      grandTourName: "Tour de France",
+      grandTourYear: 2026,
+      fromStage: 2,
+      toStage: 2
+    }, { createClient: () => fakeClient }));
+
+    assert.equal(review.applyEnabled, false);
+    assert.equal(rpcCallCount, 0, "runDryRunReconcile must never call client.rpc(...) — it only ever runs .select() reads");
   });
 });

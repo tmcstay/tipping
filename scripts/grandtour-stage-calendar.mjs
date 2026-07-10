@@ -48,3 +48,31 @@ export function resolveScheduledStage(calendarRows, asOfDateISO) {
     reason: null
   };
 }
+
+/**
+ * Same intent as resolveScheduledStage above, but sourced from live
+ * grandtour_stages rows (id/stage_number/starts_at, read via
+ * fetchAllGrandTourStages) instead of the static stage-calendar CSV — used
+ * by the automatic dry-run collection wrapper (scripts/grandtour-auto-dry-run.mjs)
+ * so it tracks whatever schedule is actually loaded in Supabase rather than
+ * a separately-maintained file. `stageRows` entries are
+ * `{ stageNumber, startsAt }`; `startsAt` is compared by its Paris calendar
+ * date (parisDateISO), matching resolveScheduledStage's date-only semantics.
+ */
+export function resolveStageFromGrandTourStages(stageRows, asOfDateISO) {
+  const stage = (stageRows ?? []).find(
+    (row) => row.startsAt && parisDateISO(new Date(row.startsAt)) === asOfDateISO
+  );
+  if (!stage) {
+    return {
+      stageNumber: null,
+      stageDate: null,
+      reason: `No grandtour_stages row starts on ${asOfDateISO} (rest day, outside the race window, or stages not yet loaded).`
+    };
+  }
+  return {
+    stageNumber: stage.stageNumber,
+    stageDate: asOfDateISO,
+    reason: null
+  };
+}

@@ -2165,6 +2165,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      is_current_user_cycling_admin: { Args: never; Returns: boolean }
       lock_grandtour_stage_tips: {
         Args: { p_reason: string; p_request_id?: string; p_stage_id: string }
         Returns: number

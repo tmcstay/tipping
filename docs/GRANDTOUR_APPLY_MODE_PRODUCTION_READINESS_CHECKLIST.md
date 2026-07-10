@@ -989,6 +989,84 @@ modal ("I have reviewed the top 10 result lines and four jersey holders
 for Stage N, at &lt;ISO timestamp&gt;.") — only confirming there actually
 calls `mark_grandtour_stage_result_checked`.
 
+### 14.0.3 Per-stage "Run Official Check" (preview-only, from the admin UI)
+
+Each stage card on `/admin/grandtour-stages` also has a **"Run Official
+Check"** button, above "Review Results" — a UI-triggered equivalent of
+`scripts/grandtour-feed-import.mjs --dry-run --reconcile` for that one
+stage, scoped by the currently-loaded grand tour's name/year. It answers
+"what does the official feed currently say for this stage, and is it safe
+to apply?" without leaving the admin screen.
+
+**This is preview-only.** It never writes `grandtour_stage_result_lines`,
+never writes `grandtour_stage_jersey_holders`, never calls
+`mark_grandtour_stage_result_checked`, never calls
+`finalize_grandtour_stage_result`, never calls
+`recalculate_grandtour_stage_scores`. Applying is still §7 (CLI, from a
+`--from-report` file), and Mark Checked/Finalise/Score below remain gated
+purely on what's actually been applied in the database
+(`canMarkChecked`/`canFinalise`/`canScore` in
+`apps/mobile/lib/grandtourAdminExperience.ts`) — a check result, safe or
+not, is never wired into those gates.
+
+**Architecture** — the scraper never runs in browser code:
+
+1. Clicking the button calls `runGrandTourOfficialCheck()`
+   (`packages/supabase-client/src/grandtourAdmin.ts`), which reads the
+   caller's own session (`getCurrentSession()`) and `POST`s to
+   `/api/admin/grandtour/run-official-check` with the access token as
+   `Authorization: Bearer <token>`, plus `{ grandTourName, grandTourYear,
+   stageNumber, provider: "official-letour" }`.
+2. That route (`apps/mobile/api/admin/grandtour/run-official-check.mjs`)
+   is a Vercel Node serverless function (auto-detected from `apps/mobile/api/`
+   alongside the static Expo web export — see `apps/mobile/vercel.json`).
+   It verifies the session token (`auth.getUser`), then calls the new
+   `public.is_current_user_cycling_admin()` RPC (a public wrapper around
+   the already-fixed `grandtour_private.is_cycling_admin()` check — see
+   `supabase/migrations/20260713010000_grandtour_is_current_user_cycling_admin_rpc.sql`)
+   to authorize. Anonymous requests get 401; authenticated non-admins get
+   403; only `provider: "official-letour"` is accepted (anything else is
+   400).
+3. Once authorized, it calls the shared `runDryRunReconcile()` function
+   (`scripts/grandtour-feed-import.mjs`) — the same dry-run+reconcile core
+   the CLI's `--dry-run`/`--reconcile` flags and
+   `scripts/grandtour-auto-dry-run.mjs` both use. `runDryRunReconcile` has
+   **no apply capability at all**: it never accepts a service-role key and
+   never calls `apply_grandtour_official_stage_result` — writing a report
+   to disk (`writeReport`) is a separate, explicit step only the CLI's
+   `main()` does, and this route never does it.
+4. The report JSON is returned to the browser (`{ ok: true, report }`) and
+   rendered in a collapsible "Latest official check ▼" panel:
+   fetched-at, parser status, `parserDriftDetected`, `safeToApply`, result
+   line count, jersey holder count, the parsed top-10 result lines, the
+   four parsed jersey holders, and jersey fetch metadata per classification.
+   If `safeToApply` is true: **"Official check passed. Review result
+   details before applying."** If false, the blockers list is shown
+   prominently instead.
+
+**Security**: `SUPABASE_SERVICE_ROLE_KEY` is never read by this route —
+only `SUPABASE_URL` plus `SUPABASE_ANON_KEY`/`SUPABASE_PUBLISHABLE_KEY`
+(the same public credentials already embedded in the browser bundle as
+`EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — no new
+Vercel environment variables are required for this feature). No
+service-role key is ever sent to or used by the browser.
+
+**Known limitation**: this button only works on the web deployment. The
+route is a Vercel serverless function reachable at a relative `/api/...`
+path against the current origin; native iOS/Android builds (Codemagic)
+have no equivalent server route bundled with them, so "Run Official
+Check" is a web-admin-only feature for now (unlike the RLS/RPC-backed
+Mark Checked/Finalise/Score buttons, which already work cross-platform).
+
+Tests: `apps/mobile/api/admin/grandtour/run-official-check.test.mjs`
+(`npm run test:api` from `apps/mobile`) covers anonymous/non-admin/admin
+authorization, provider/stageNumber validation, that no `apply` key is
+ever passed to `runDryRunReconcile`, and response shaping.
+`scripts/grandtour-feed-import.test.mjs` covers `runDryRunReconcile`
+itself. `apps/mobile/tests/grandtourOfficialCheckExperience.test.cjs`
+(`npm run test:ui`) covers the report-to-panel summarization and the exact
+safe-case status copy.
+
 ### 14.7 User-facing: My Tips & score history (`/my-tips`)
 
 Reachable from Profile → "My Tips & score history" or Results → "View My
@@ -1227,7 +1305,106 @@ purpose, and can be cross-checked against each other.
    with only 3 jersey holders, and confirm all three are refused with a
    clear message, before anything is written.
 
-## 16. Sign-off
+## 17. Automatic dry-run collection (scheduled + manual)
+
+Separate from everything above: `.github/workflows/grandtour-auto-dry-run.yml`
+runs `scripts/grandtour-auto-dry-run.mjs` (a thin wrapper around
+`scripts/grandtour-feed-import.mjs --dry-run --reconcile`) to fetch and
+reconcile official results into a report **for admin review only**. It
+never applies, finalises, or scores — those remain the separate, manually
+gated steps in §7 and §14. It never reads `SUPABASE_SERVICE_ROLE_KEY`; it
+only uses `SUPABASE_URL` plus `SUPABASE_ANON_KEY` or
+`SUPABASE_PUBLISHABLE_KEY` (the same read-only reconciliation key as
+`--reconcile` everywhere else in this pipeline).
+
+There are now three independent ways to run a dry-run/reconcile check,
+all sharing the same `runDryRunReconcile()` core
+(`scripts/grandtour-feed-import.mjs`) and none of them ever applying,
+finalising, or scoring: (1) the scheduled GitHub Action below, for the
+automatically-resolved current stage, daily; (2) `workflow_dispatch` on
+that same Action, for an ad hoc stage/range; (3) the admin UI's per-stage
+**"Run Official Check"** button on `/admin/grandtour-stages` (§14.0.3),
+for a one-off check of a specific stage without leaving the app.
+
+### 17.1 Schedule
+
+Runs daily at **5:00pm GMT/UTC** (`0 17 * * *`), which is **2:30am Adelaide
+time during July** (ACST is UTC+9:30, and July is outside Australian
+daylight saving, so this does not shift with DST).
+
+GitHub Actions' `schedule:` cron cannot be changed dynamically from
+workflow inputs — the only way to change the recurring time is to edit the
+single `cron: '0 17 * * *'` line in
+`.github/workflows/grandtour-auto-dry-run.yml`. That line is documented
+in-place in the workflow file with the same note as here.
+
+### 17.2 Altering a single run without editing code
+
+Use **Actions → GrandTour Automatic Results Collection (Dry Run) → Run
+workflow** (`workflow_dispatch`) for an ad hoc run with different
+behaviour, without touching the schedule or any code:
+
+| Input | Default | Notes |
+|---|---|---|
+| `grand_tour_name` | `Tour de France` | Must match `grand_tours.name`. |
+| `grand_tour_year` | `2026` | Must match `grand_tours.year`. |
+| `provider` | `official-letour` | Feed provider name. |
+| `stage_number` | (empty) | Run a single stage; takes priority over `from_stage`/`to_stage`. |
+| `from_stage` | (empty) | Start of a stage range; requires `to_stage` too. |
+| `to_stage` | (empty) | End of a stage range; requires `from_stage` too. |
+| `fail_on_unsafe` | `true` | If `true`, the workflow fails when the report is unsafe (parser drift and/or `safeToApply: false`); if `false`, it completes with a warning instead. |
+
+If none of `stage_number`/`from_stage`/`to_stage` are given (as on every
+scheduled run), `scripts/grandtour-auto-dry-run.mjs` resolves the current
+stage itself from `grandtour_stages.starts_at` (matched against today's
+Paris calendar date, via the new `resolveStageFromGrandTourStages` helper
+in `scripts/grandtour-stage-calendar.mjs` — a live-Supabase analogue of the
+existing CSV-based `resolveScheduledStage`). If no stage starts that day
+(rest day, outside the race window, or the grand tour/stages aren't loaded
+yet), the run is skipped cleanly — exit 0, no report written, no failure.
+
+### 17.3 Where to find the report artifact
+
+Every non-skipped run uploads the generated JSON report as the
+`grandtour-auto-dry-run-report` GitHub Actions artifact (Actions → the run
+→ Artifacts), even if the workflow step itself failed (unsafe +
+`fail_on_unsafe: true`) — the artifact upload step runs with `if: always()`
+specifically so a failing run still leaves the report behind for review.
+
+The report filename encodes the provider, grand tour name/year, stage
+number or range, and a UTC timestamp, e.g.
+`official-letour_tour-de-france-2026_stage-6_2026-07-10t17-00-00-000z.json`
+or `..._stages-3-to-6_...json` for a range — see
+`buildReportFileName` in `scripts/grandtour-auto-dry-run.mjs`. Locally, the
+same reports land under `tmp/auto-dry-runs/` (gitignored).
+
+The workflow log also prints a readable summary before completing: stage
+number(s), parser status per stage, `parserDriftDetected`,
+`safeToApply`/`overallSafeToApply`, any blockers, result line count, jersey
+holder count, and jersey fetch metadata statuses per classification — see
+`summarizeAutoDryRunReport` in `scripts/grandtour-auto-dry-run.mjs`.
+
+### 17.4 What to check before applying results from an auto-collected report
+
+An auto-collected report is a starting point for admin review, not
+something to apply directly:
+
+1. Open the downloaded report artifact and re-read it in full — the same
+   §6 report review checklist applies here.
+2. Confirm `parserDriftDetected` is `false` and `overallSafeToApply` (or
+   the relevant stage's `safeToApply`) is `true`. If either is false, do
+   **not** apply from this report; investigate the blockers first.
+3. Confirm the stage number and stage range in the report match what you
+   actually intend to apply — auto-resolution picks "today's" stage by
+   date, which can be wrong if the race schedule changed since the last
+   `grandtour_stages` load.
+4. Once satisfied, apply exactly as in §7, passing this report's path as
+   `--from-report` — `scripts/grandtour-auto-dry-run.mjs` never applies
+   anything itself, so applying from its output is a fully separate,
+   manually-triggered command with its own gates (`--confirm-provider`,
+   `--confirm-stage`, and `--confirm-production` against a production URL).
+
+## 18. Sign-off
 
 Before running §7's command in production, record (in whatever change-log
 mechanism this team uses for production changes):

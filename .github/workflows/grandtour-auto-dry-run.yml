@@ -1,0 +1,109 @@
+name: GrandTour Automatic Results Collection (Dry Run)
+
+# Automatic GrandTour results collection: fetch + reconcile official results
+# and produce a report for admin review. This workflow NEVER applies,
+# finalises, or scores production data - see scripts/grandtour-auto-dry-run.mjs
+# and scripts/grandtour-feed-import.mjs. Apply/finalise/score remain
+# separate, manually-gated admin actions (docs/GRANDTOUR_APPLY_MODE_PRODUCTION_READINESS_CHECKLIST.md).
+#
+# Schedule: 5:00pm GMT/UTC daily = 2:30am Adelaide time during July (ACST is
+# UTC+9:30, and July is outside Australian daylight saving). To change the
+# schedule, edit the single `cron:` line below - GitHub Actions cron cannot
+# be altered from workflow_dispatch inputs at run time, so this is the only
+# way to change the recurring time. Ad hoc/one-off runs with different
+# behaviour (a specific stage, a stage range, a different provider, etc.)
+# should use "Run workflow" (workflow_dispatch) instead of editing this file.
+on:
+  schedule:
+    # 17:00 UTC daily. See the note above before changing this.
+    - cron: '0 17 * * *'
+  workflow_dispatch:
+    inputs:
+      grand_tour_name:
+        description: 'Grand tour name (must match grand_tours.name)'
+        required: false
+        default: 'Tour de France'
+      grand_tour_year:
+        description: 'Grand tour year (must match grand_tours.year)'
+        required: false
+        default: '2026'
+      provider:
+        description: 'Feed provider name'
+        required: false
+        default: 'official-letour'
+      stage_number:
+        description: 'Optional: run a single stage number (takes priority over from/to_stage)'
+        required: false
+      from_stage:
+        description: 'Optional: start stage number for a range'
+        required: false
+      to_stage:
+        description: 'Optional: end stage number for a range'
+        required: false
+      fail_on_unsafe:
+        description: 'Fail the workflow if the report is unsafe (parser drift and/or safeToApply=false)'
+        required: false
+        default: 'true'
+
+jobs:
+  auto-dry-run:
+    name: Automatic dry-run collection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run GrandTour automatic dry-run collection
+        id: auto_dry_run
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          GRAND_TOUR_NAME: ${{ github.event.inputs.grand_tour_name || 'Tour de France' }}
+          GRAND_TOUR_YEAR: ${{ github.event.inputs.grand_tour_year || '2026' }}
+          FEED_PROVIDER: ${{ github.event.inputs.provider || 'official-letour' }}
+          STAGE_NUMBER: ${{ github.event.inputs.stage_number || '' }}
+          FROM_STAGE: ${{ github.event.inputs.from_stage || '' }}
+          TO_STAGE: ${{ github.event.inputs.to_stage || '' }}
+          FAIL_ON_UNSAFE: ${{ github.event.inputs.fail_on_unsafe || 'true' }}
+        run: |
+          # NOTE: --apply is never passed here, and this script never
+          # finalises or scores - see scripts/grandtour-auto-dry-run.mjs.
+          # Only SUPABASE_URL + SUPABASE_ANON_KEY/SUPABASE_PUBLISHABLE_KEY
+          # are used; SUPABASE_SERVICE_ROLE_KEY is never read by this workflow.
+          args=(
+            --grand-tour-name "$GRAND_TOUR_NAME"
+            --grand-tour-year "$GRAND_TOUR_YEAR"
+            --provider "$FEED_PROVIDER"
+            --fail-on-unsafe "$FAIL_ON_UNSAFE"
+            --report-dir tmp/auto-dry-runs
+          )
+          if [ -n "$STAGE_NUMBER" ]; then
+            args+=(--stage-number "$STAGE_NUMBER")
+          elif [ -n "$FROM_STAGE" ] && [ -n "$TO_STAGE" ]; then
+            args+=(--from-stage "$FROM_STAGE" --to-stage "$TO_STAGE")
+          fi
+          # Stage resolution/report path decisions happen inside the script;
+          # its own stdout already includes the readable summary required
+          # by this workflow (stage number, parser status, parserDriftDetected,
+          # safeToApply/overallSafeToApply, blockers, result line count,
+          # jersey holder count, jersey fetch metadata statuses).
+          node scripts/grandtour-auto-dry-run.mjs "${args[@]}"
+
+      - name: Upload auto dry-run report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grandtour-auto-dry-run-report
+          path: tmp/auto-dry-runs/*.json
+          if-no-files-found: ignore

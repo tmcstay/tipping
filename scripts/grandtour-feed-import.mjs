@@ -50,14 +50,20 @@ async function resolveAutoStage(options) {
 // once final — see scripts/grandtour-reconciliation-supabase.mjs. It is only
 // invoked when the caller explicitly passes --reconcile; the scheduled
 // GitHub Actions workflow never sets these env vars or this flag.
-async function runReconciliation(options, payload) {
+//
+// `deps.createClient` is injectable for tests; defaults to the real
+// @supabase/supabase-js import (same convention as runApply below).
+async function runReconciliation(options, payload, deps = {}) {
   const url = process.env.SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.SUPABASE_ANON_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  const anonKey = process.env.SUPABASE_ANON_KEY
+    ?? process.env.SUPABASE_PUBLISHABLE_KEY
+    ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+    ?? process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !anonKey) {
-    throw new Error("--reconcile requires SUPABASE_URL (or EXPO_PUBLIC_SUPABASE_URL) and SUPABASE_ANON_KEY (or EXPO_PUBLIC_SUPABASE_ANON_KEY). Reconciliation only ever reads with the public anon key; it never uses a service-role key.");
+    throw new Error("--reconcile requires SUPABASE_URL (or EXPO_PUBLIC_SUPABASE_URL) and SUPABASE_ANON_KEY or SUPABASE_PUBLISHABLE_KEY (or their EXPO_PUBLIC_ equivalents). Reconciliation only ever reads with the public anon/publishable key; it never uses a service-role key.");
   }
 
-  const { createClient } = await import("@supabase/supabase-js");
+  const createClient = deps.createClient ?? (await import("@supabase/supabase-js")).createClient;
   const client = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
   const grandTourId = options.grandTourId
@@ -177,6 +183,60 @@ export async function runApply(options, deps = {}) {
   }
 }
 
+/**
+ * The shared dry-run core: fetches results for an explicit stage range
+ * (manual-json or official-letour) and, when `options.reconcile` is true,
+ * reconciles them against Supabase. This is reused by the CLI (`main()`
+ * below, after it resolves --dry-run's auto-stage/stage-date concerns) and
+ * by any other caller — notably the admin UI's server-side "Run Official
+ * Check" route (apps/mobile/api/admin/grandtour/run-official-check.mjs).
+ *
+ * This function has NO apply capability at all: it never accepts a
+ * service-role key, never calls apply_grandtour_official_stage_result, and
+ * never writes to Supabase or disk — writing the report (writeReport) is
+ * always the caller's separate, explicit responsibility. `options.fromStage`/
+ * `options.toStage` must already be resolved to concrete stage numbers
+ * (auto-stage-resolution, if any, is the caller's job — see
+ * resolveAutoStage below for the CLI's CSV-based version and
+ * scripts/grandtour-auto-dry-run.mjs for the Supabase-based one).
+ *
+ * `deps.createClient` is injectable for tests (passed through to
+ * runReconciliation).
+ */
+export async function runDryRunReconcile(options, deps = {}) {
+  let provider;
+  if (options.provider === "manual-json") {
+    provider = new ManualJsonGrandTourFeedProvider({ sourceFile: options.sourceFile ?? null });
+  } else if (options.provider === "official-letour") {
+    provider = new OfficialLetourGrandTourFeedProvider({
+      fromStage: options.fromStage,
+      toStage: options.toStage,
+      allCompleted: options.allCompleted ?? false
+    });
+  } else {
+    throw new Error(`Unsupported provider: ${options.provider}`);
+  }
+
+  const payload = await provider.readPayload();
+  const review = buildFeedReview({
+    payload,
+    mode: "dry-run",
+    options: {
+      backfill: options.backfill ?? false,
+      allCompleted: options.allCompleted ?? false,
+      fromStage: options.fromStage,
+      toStage: options.toStage,
+      stageDate: options.stageDate ?? null
+    }
+  });
+
+  if (options.reconcile) {
+    review.reconciliation = await runReconciliation(options, payload, deps);
+  }
+
+  return review;
+}
+
 async function main() {
   const options = parseFeedArgs(process.argv.slice(2));
 
@@ -215,37 +275,7 @@ async function main() {
     }
   }
 
-  let provider;
-  if (options.provider === "manual-json") {
-    provider = new ManualJsonGrandTourFeedProvider({ sourceFile: options.sourceFile });
-  } else if (options.provider === "official-letour") {
-    provider = new OfficialLetourGrandTourFeedProvider({
-      fromStage: options.fromStage,
-      toStage: options.toStage,
-      allCompleted: options.allCompleted
-    });
-  } else {
-    throw new Error(`Unsupported provider: ${options.provider}`);
-  }
-
-  const payload = await provider.readPayload();
-  const mode = "dry-run";
-  const review = buildFeedReview({
-    payload,
-    mode,
-    options: {
-      backfill: options.backfill,
-      allCompleted: options.allCompleted,
-      fromStage: options.fromStage,
-      toStage: options.toStage,
-      stageDate: options.stageDate ?? null
-    }
-  });
-
-  if (options.reconcile) {
-    review.reconciliation = await runReconciliation(options, payload);
-  }
-
+  const review = await runDryRunReconcile(options);
   await writeReport(review, options.reportPath);
 }
 

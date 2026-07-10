@@ -7,7 +7,8 @@ import {
   lookupStageDate,
   parisDateISO,
   parseStageCalendarCsv,
-  resolveScheduledStage
+  resolveScheduledStage,
+  resolveStageFromGrandTourStages
 } from "./grandtour-stage-calendar.mjs";
 
 const SAMPLE_CSV = [
@@ -64,6 +65,37 @@ test("parisDateISO formats a fixed instant as a YYYY-MM-DD calendar date", () =>
 
   assert.match(result, /^\d{4}-\d{2}-\d{2}$/);
   assert.equal(result, "2026-07-09");
+});
+
+test("resolveStageFromGrandTourStages matches a grandtour_stages row by its Paris calendar date", () => {
+  const rows = [
+    { stageNumber: 5, startsAt: "2026-07-08T10:00:00+00:00" },
+    { stageNumber: 6, startsAt: "2026-07-09T10:00:00+00:00" }
+  ];
+  const resolved = resolveStageFromGrandTourStages(rows, "2026-07-09");
+
+  assert.equal(resolved.stageNumber, 6);
+  assert.equal(resolved.stageDate, "2026-07-09");
+  assert.equal(resolved.reason, null);
+});
+
+test("resolveStageFromGrandTourStages returns no stage when nothing starts on that date", () => {
+  const rows = [{ stageNumber: 5, startsAt: "2026-07-08T10:00:00+00:00" }];
+  const resolved = resolveStageFromGrandTourStages(rows, "2026-07-13");
+
+  assert.equal(resolved.stageNumber, null);
+  assert.equal(resolved.stageDate, null);
+  assert.match(resolved.reason, /No grandtour_stages row starts on 2026-07-13/);
+});
+
+test("resolveStageFromGrandTourStages ignores rows with a missing starts_at and returns no stage for an empty list", () => {
+  const rows = [{ stageNumber: 7, startsAt: null }];
+  const resolved = resolveStageFromGrandTourStages(rows, "2026-07-10");
+  assert.equal(resolved.stageNumber, null);
+
+  const empty = resolveStageFromGrandTourStages([], "2026-07-10");
+  assert.equal(empty.stageNumber, null);
+  assert.match(empty.reason, /No grandtour_stages row starts on 2026-07-10/);
 });
 
 test("loadStageCalendar reads the real TDF 2026 stage calendar and resolves stage 6 for 2026-07-09", async () => {
