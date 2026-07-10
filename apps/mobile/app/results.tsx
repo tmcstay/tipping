@@ -1,8 +1,10 @@
 import { useRouter } from "expo-router";
+import { Pressable, StyleSheet, Text } from "react-native";
 
 import { AppShell } from "../components/AppShell";
 import { EmptyState, ErrorState, LoadingState } from "../components/DataState";
 import { StageResultCard } from "../components/StageResultCard";
+import { ui } from "../components/theme";
 import { useCyclingStageResults, useTdf2026Stages } from "../hooks/useCyclingData";
 
 export default function ResultsScreen() {
@@ -18,6 +20,9 @@ export default function ResultsScreen() {
 
   return (
     <AppShell title="Stage results" subtitle="Official stage placings, jersey holders, and your scoring context.">
+      <Pressable accessibilityRole="button" onPress={() => router.push("/my-tips")} style={myTipsLinkStyles.link}>
+        <Text style={myTipsLinkStyles.linkText}>View My Tips & score history →</Text>
+      </Pressable>
       {loading ? <LoadingState /> : null}
       {race.error ? <ErrorState error={race.error} onRetry={race.reload} /> : null}
       {stages.error ? <ErrorState error={stages.error} onRetry={stages.reload} /> : null}
@@ -34,3 +39,19 @@ export default function ResultsScreen() {
     </AppShell>
   );
 }
+
+const myTipsLinkStyles = StyleSheet.create({
+  link: {
+    alignItems: "center",
+    backgroundColor: ui.colors.primarySoft,
+    borderRadius: ui.radius.medium,
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: 14
+  },
+  linkText: {
+    color: ui.colors.primary,
+    fontSize: 14,
+    fontWeight: "800"
+  }
+});

@@ -1,3 +1,5 @@
+import type { Json } from "@tipping-suite/shared-types";
+
 import { getSupabaseClient } from "./client";
 
 /**
@@ -22,6 +24,8 @@ import { getSupabaseClient } from "./client";
 export type GrandTourStageAdminSummary = {
   stageId: string;
   stageNumber: number;
+  stageType: string;
+  stageDate: string | null;
   stageResultId: string | null;
   isFinal: boolean;
   reviewStatus: string | null;
@@ -32,6 +36,28 @@ export type GrandTourStageAdminSummary = {
   top5ScoreAwarded: number;
   jerseyScoreAwarded: number;
   bonusScoreAwarded: number;
+  lastAppliedAt: string | null;
+};
+
+export type GrandTourAdminResultLine = {
+  position: number;
+  riderId: string;
+  bibNumber: number | null;
+  riderName: string;
+  teamName: string | null;
+};
+
+export type GrandTourAdminJerseyHolder = {
+  jerseyType: "yellow" | "green" | "kom" | "white";
+  riderId: string;
+  bibNumber: number | null;
+  riderName: string;
+  teamName: string | null;
+};
+
+export type GrandTourStageReviewDetails = {
+  lines: GrandTourAdminResultLine[];
+  jerseyHolders: GrandTourAdminJerseyHolder[];
 };
 
 /**
@@ -70,7 +96,7 @@ export async function listGrandTourStageAdminSummaries(raceId: string): Promise<
 
   const { data: stages, error: stagesError } = await client
     .from("grandtour_stages")
-    .select("id, stage_number")
+    .select("id, stage_number, stage_type, starts_at")
     .eq("grand_tour_id", raceId)
     .order("stage_number");
   if (stagesError) throw stagesError;
@@ -123,12 +149,36 @@ export async function listGrandTourStageAdminSummaries(raceId: string): Promise<
     scoreAggByStageId.set(row.stage_id, agg);
   }
 
+  // "Last applied/imported timestamp" comes from grandtour_feed_import_runs
+  // (mode='apply'), the same audit trail apply_grandtour_official_stage_result
+  // already writes to - grandtour_stage_results.updated_at isn't used for
+  // this because it also changes on admin-check/finalise, which aren't
+  // imports. The stage id isn't a real column on that table (only embedded
+  // in its jsonb `summary`), so this is filtered via a jsonb containment
+  // query rather than a plain `.eq`, but it's still a single, un-joined
+  // table read.
+  const { data: importRuns, error: importRunsError } = await client
+    .from("grandtour_feed_import_runs")
+    .select("applied_at, summary")
+    .eq("mode", "apply")
+    .order("applied_at", { ascending: false });
+  if (importRunsError) throw importRunsError;
+  const lastAppliedAtByStageId = new Map<string, string | null>();
+  for (const run of importRuns ?? []) {
+    const runStageId = (run.summary as { stage_id?: string } | null)?.stage_id;
+    if (runStageId && !lastAppliedAtByStageId.has(runStageId)) {
+      lastAppliedAtByStageId.set(runStageId, run.applied_at);
+    }
+  }
+
   return stageRows.map((stage) => {
     const result = resultByStageId.get(stage.id) ?? null;
     const agg = scoreAggByStageId.get(stage.id) ?? { count: 0, total: 0, top5: 0, jersey: 0, bonus: 0 };
     return {
       stageId: stage.id,
       stageNumber: stage.stage_number,
+      stageType: stage.stage_type,
+      stageDate: stage.starts_at,
       stageResultId: result?.id ?? null,
       isFinal: result?.is_final ?? false,
       reviewStatus: result?.review_status ?? null,
@@ -138,9 +188,98 @@ export async function listGrandTourStageAdminSummaries(raceId: string): Promise<
       totalScoreAwarded: agg.total,
       top5ScoreAwarded: agg.top5,
       jerseyScoreAwarded: agg.jersey,
-      bonusScoreAwarded: agg.bonus
+      bonusScoreAwarded: agg.bonus,
+      lastAppliedAt: lastAppliedAtByStageId.get(stage.id) ?? null
     };
   });
+}
+
+/**
+ * Fetches the reviewable detail an admin needs to actually look at before
+ * mark-checking a stage: the top-10 result lines and four jersey holders,
+ * with rider/team names resolved. Draft (not-yet-final) rows are only
+ * readable by an admin session under RLS ("Admins can manage GrandTour
+ * result lines"/"jersey holders" `for all` policies) - this deliberately
+ * does not filter on is_final, so it works before finalisation too, which
+ * is the whole point of a pre-action review step.
+ *
+ * Every query here is scoped to a single table (grandtour_stage_results,
+ * grandtour_stage_result_lines, grandtour_stage_jersey_holders,
+ * grandtour_riders, grandtour_teams), resolved and joined client-side -
+ * the same no-join-multiplication approach as listGrandTourStageAdminSummaries
+ * and the CLI's fetchStageState.
+ */
+export async function getGrandTourStageAdminReviewDetails(stageId: string): Promise<GrandTourStageReviewDetails> {
+  const client = getSupabaseClient();
+
+  const { data: result, error: resultError } = await client
+    .from("grandtour_stage_results")
+    .select("id")
+    .eq("stage_id", stageId)
+    .maybeSingle();
+  if (resultError) throw resultError;
+
+  const { data: lineRows, error: lineError } = result
+    ? await client
+      .from("grandtour_stage_result_lines")
+      .select("actual_position, rider_id")
+      .eq("stage_result_id", result.id)
+      .order("actual_position")
+    : { data: [] as { actual_position: number; rider_id: string }[], error: null };
+  if (lineError) throw lineError;
+
+  const { data: jerseyRows, error: jerseyError } = await client
+    .from("grandtour_stage_jersey_holders")
+    .select("jersey_type, rider_id")
+    .eq("stage_id", stageId)
+    .order("jersey_type");
+  if (jerseyError) throw jerseyError;
+
+  const riderIds = [...new Set([
+    ...(lineRows ?? []).map((row) => row.rider_id),
+    ...(jerseyRows ?? []).map((row) => row.rider_id)
+  ])];
+
+  const { data: riders, error: ridersError } = riderIds.length > 0
+    ? await client.from("grandtour_riders").select("id, display_name, bib_number, team_id").in("id", riderIds)
+    : { data: [] as { id: string; display_name: string; bib_number: number | null; team_id: string | null }[], error: null };
+  if (ridersError) throw ridersError;
+
+  // The stage-day bib is grandtour_stage_startlists.bib_number for this
+  // specific stage when present, not the rider's canonical
+  // grandtour_riders.bib_number - the two can genuinely differ (same rule
+  // apps/mobile/lib/formatters.ts's preferStageBibNumber already applies
+  // for tip entry/comparison screens). An admin reviewing "the top 10
+  // result lines" needs to see the bib that was actually raced with.
+  const { data: startlistRows, error: startlistError } = riderIds.length > 0
+    ? await client.from("grandtour_stage_startlists").select("rider_id, bib_number").eq("stage_id", stageId).in("rider_id", riderIds)
+    : { data: [] as { rider_id: string; bib_number: number | null }[], error: null };
+  if (startlistError) throw startlistError;
+
+  const teamIds = [...new Set((riders ?? []).flatMap((rider) => rider.team_id ? [rider.team_id] : []))];
+  const { data: teams, error: teamsError } = teamIds.length > 0
+    ? await client.from("grandtour_teams").select("id, name").in("id", teamIds)
+    : { data: [] as { id: string; name: string }[], error: null };
+  if (teamsError) throw teamsError;
+
+  const riderById = new Map((riders ?? []).map((rider) => [rider.id, rider]));
+  const teamNameById = new Map((teams ?? []).map((team) => [team.id, team.name]));
+  const stageBibByRiderId = new Map((startlistRows ?? []).map((row) => [row.rider_id, row.bib_number]));
+
+  const resolveRider = (riderId: string) => {
+    const rider = riderById.get(riderId);
+    const stageBib = stageBibByRiderId.get(riderId);
+    return {
+      bibNumber: stageBib ?? rider?.bib_number ?? null,
+      riderName: rider?.display_name ?? "Unknown rider",
+      teamName: rider?.team_id ? teamNameById.get(rider.team_id) ?? null : null
+    };
+  };
+
+  return {
+    lines: (lineRows ?? []).map((row) => ({ position: row.actual_position, riderId: row.rider_id, ...resolveRider(row.rider_id) })),
+    jerseyHolders: (jerseyRows ?? []).map((row) => ({ jerseyType: row.jersey_type, riderId: row.rider_id, ...resolveRider(row.rider_id) }))
+  };
 }
 
 function buildGrandTourAdminRequestId(action: string, stageNumber: number): string {
@@ -191,6 +330,36 @@ export async function scoreGrandTourStage(input: {
     p_stage_id: input.stageId,
     p_reason: input.reason ?? undefined,
     p_request_id: input.requestId ?? buildGrandTourAdminRequestId("score", input.stageNumber)
+  });
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Corrects an EXISTING stage result (draft or already finalised/scored)
+ * from a freshly reviewed report - calls
+ * correct_grandtour_stage_result_from_reviewed_report, never writes to any
+ * table directly. p_reason is required by the RPC itself (refuses a blank
+ * reason); this wrapper does not duplicate that check, it just passes
+ * whatever the caller supplied straight through so the RPC's own error
+ * message is what the UI surfaces.
+ */
+export async function correctGrandTourStageResult(input: {
+  stageId: string;
+  stageNumber: number;
+  resultLines: { rider_id: string; actual_position: number }[];
+  jerseyHolders: { jersey_type: "yellow" | "green" | "kom" | "white"; rider_id: string }[];
+  reconciliation: Json;
+  reason: string;
+  requestId?: string | null;
+}): Promise<unknown> {
+  const { data, error } = await getSupabaseClient().rpc("correct_grandtour_stage_result_from_reviewed_report", {
+    p_stage_id: input.stageId,
+    p_result_lines: input.resultLines,
+    p_jersey_holders: input.jerseyHolders,
+    p_reconciliation: input.reconciliation,
+    p_reason: input.reason,
+    p_request_id: input.requestId ?? buildGrandTourAdminRequestId("update-results", input.stageNumber)
   });
   if (error) throw error;
   return data;

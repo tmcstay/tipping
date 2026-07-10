@@ -50,6 +50,9 @@ export default function ProfileScreen() {
         <Pressable disabled={saving || !displayName.trim()} onPress={save} style={styles.primaryButton}>
           <Text style={styles.primaryButtonText}>{saving ? "Saving…" : "Save profile"}</Text>
         </Pressable>
+        <Pressable onPress={() => router.push("/my-tips")} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>My Tips & score history</Text>
+        </Pressable>
         <Pressable onPress={() => void signOut()} style={styles.secondaryButton}>
           <Text style={styles.secondaryButtonText}>Log out</Text>
         </Pressable>

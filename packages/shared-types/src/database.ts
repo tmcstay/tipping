@@ -2090,6 +2090,17 @@ export type Database = {
         Args: { p_reason?: string; p_request_id?: string; p_tip_id: string }
         Returns: boolean
       }
+      correct_grandtour_stage_result_from_reviewed_report: {
+        Args: {
+          p_jersey_holders: Json
+          p_reason: string
+          p_reconciliation: Json
+          p_request_id?: string
+          p_result_lines: Json
+          p_stage_id: string
+        }
+        Returns: Json
+      }
       finalize_grandtour_stage_result: {
         Args: {
           p_finalized_by: string

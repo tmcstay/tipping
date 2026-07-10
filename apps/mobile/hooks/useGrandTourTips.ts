@@ -9,6 +9,7 @@ import {
   getGrandTourTipEntryAvailability,
   getCurrentUserGrandTourTip,
   listLeagueTipsAfterLock,
+  listMyGrandTourStageTips,
   saveGrandTourTipDraft,
   submitGrandTourTip
 } from "@tipping-suite/supabase-client";
@@ -128,4 +129,12 @@ export function useLeagueTipsAfterLock(input: TipIdentity) {
     input.tipMode,
     input.tipScope
   ]);
+}
+
+export function useMyGrandTourStageTips(competitionId: string | null | undefined) {
+  const loadTips = useCallback(
+    () => (competitionId ? listMyGrandTourStageTips(competitionId) : Promise.resolve([])),
+    [competitionId]
+  );
+  return useAsyncData(loadTips, [competitionId]);
 }

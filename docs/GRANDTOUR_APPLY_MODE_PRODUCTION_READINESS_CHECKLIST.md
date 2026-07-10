@@ -10,7 +10,10 @@
 This checklist covers the full stage lifecycle: `apply_grandtour_official_stage_result`
 (`scripts/grandtour-feed-import.mjs --apply`, §1–§13), then
 `finalize_grandtour_stage_result` and `recalculate_grandtour_stage_scores`
-(§14). It assumes familiarity with:
+(§14), and the controlled correction/re-import path,
+`correct_grandtour_stage_result_from_reviewed_report` (§15), for when an
+already-applied (or already-finalised/scored) result needs fixing. It
+assumes familiarity with:
 
 - [docs/grandtour-results-feed.md](grandtour-results-feed.md) — CLI usage,
   the "Applying an official result" section, and the "Known-safe operator
@@ -954,7 +957,277 @@ has no operational effect beyond the flag and audit row themselves — it is
 safe to exercise in production ahead of time if desired, but there is
 nothing else to verify afterward until §14.5 is built.
 
-## 15. Sign-off
+### 14.0.2 Review-before-action detail section
+
+Each stage card on `/admin/grandtour-stages` has a "Review Results ▼"
+toggle. Expanding it calls `getGrandTourStageAdminReviewDetails(stageId)`
+(`packages/supabase-client/src/grandtourAdmin.ts`) — a read-only query
+(four single-table reads: `grandtour_stage_results`,
+`grandtour_stage_result_lines`, `grandtour_stage_jersey_holders`,
+`grandtour_riders`/`grandtour_teams`/`grandtour_stage_startlists` for name
+resolution, all resolved client-side, no join) — and renders the top-10
+result lines (position, bib, rider, team) and all four jersey holders
+(yellow/green/kom/white). Draft (not-yet-final) rows are readable here
+because the admin's own session already satisfies the "Admins can manage
+GrandTour result lines/jersey holders" `for all` RLS policies — no new
+grant or migration was needed for this read.
+
+Bib numbers prefer the stage-specific `grandtour_stage_startlists.bib_number`
+override when present, falling back to the rider's canonical
+`grandtour_riders.bib_number` otherwise — the same rule the tip-entry
+screens already use. **Mark Checked stays disabled until this section has
+been expanded and successfully loaded at least once** (`detailsLoaded`
+local state in `GrandTourStageAdminCard.tsx`), on top of the unchanged RPC
+gate (`canMarkChecked`) — a stale/never-reviewed stage cannot be
+mark-checked from the UI even if the counts alone would allow it.
+
+A warning banner ("⚠ Only N of 10 result lines loaded." / "⚠ Only N of 4
+jersey holders loaded.") appears whenever the counts are incomplete; a
+"✓ Ready for admin check" banner appears when the stage is complete and
+still eligible for Mark Checked. Clicking Mark Checked opens a confirmation
+modal ("I have reviewed the top 10 result lines and four jersey holders
+for Stage N, at &lt;ISO timestamp&gt;.") — only confirming there actually
+calls `mark_grandtour_stage_result_checked`.
+
+### 14.7 User-facing: My Tips & score history (`/my-tips`)
+
+Reachable from Profile → "My Tips & score history" or Results → "View My
+Tips & score history". Shows, per stage: status, ordered top-5 picks (and
+jersey picks, when the tip includes them), submitted/locked timestamps,
+and total score once scored; a cumulative-totals card at the top (total
+score, top5/jersey/bonus point totals, scored-stage count, best stage,
+average per scored stage); and, for any scored stage, an expandable score
+breakdown plus a predicted-vs-official comparison (exact match / top-5
+wrong position / outside top 5 / not picked, and jersey match / miss /
+pending).
+
+Data layer: `listMyGrandTourStageTips` (`packages/supabase-client/src/cycling.ts`)
+reads the current user's own `grandtour_tips` rows directly — RLS already
+lets an owner read their own tips/selections/scores unconditionally
+(`user_id = auth.uid()`), regardless of status or lock state, so no new
+RPC or view was needed. Cumulative totals and the comparison classification
+are pure client-side functions (`apps/mobile/lib/grandtourHistoryExperience.ts`,
+unit-tested) over already-fetched rows — no aggregation happens in SQL, so
+there's no join-multiplication risk to begin with.
+
+### 14.8 Manual QA: review detail + My Tips smoke steps
+
+1. **Admin opens Stage 5 review details before action.** Sign in as a
+   cycling admin → `/admin/grandtour-stages` → find the Stage 5 card →
+   click "Review Results ▼".
+2. **Admin can see top 10 result lines and 4 jersey holders.** Confirm the
+   expanded section lists exactly 10 rows (position 1–10, bib, rider name,
+   team name, no blanks) and all four jersey rows (Yellow/Green/KOM/White,
+   each with a rider and team) — not "Not loaded". Confirm the "✓ Ready for
+   admin check" banner is showing (or a specific "⚠ Only N of …" warning if
+   not) and that Mark Checked only just became enabled once this section
+   finished loading.
+3. **User opens My Tips and sees selected riders.** Sign in as a regular
+   user with at least one submitted stage tip → Profile → "My Tips & score
+   history" (or Results → "View My Tips & score history") → confirm that
+   stage's card shows the correct ordered top-5 riders (and jersey picks,
+   if the tip includes them) and the correct submitted/locked timestamps.
+4. **User opens a scored stage and sees the points breakdown.** On
+   `/my-tips`, find a stage already scored in this environment → click
+   "Show score details ▼" → confirm `top5_score`/`jersey_score`/`bonus_score`/
+   `total_score` match the admin panel's summary for that same stage, and
+   that the predicted-vs-official comparison shows a badge (Exact / Top 5,
+   wrong spot / Outside top 5 / Not picked) for each of the 5 picks.
+5. **Cumulative total equals the sum of stage scores.** On `/my-tips`, add
+   up every visible stage's own `total_score` for scored stages and confirm
+   it equals the cumulative-totals card's top-line total score, and that
+   each stage card's own "Cumulative: N pts" meta line only increases on
+   stages that are actually scored (unscored stages repeat the previous
+   cumulative value, never advance it).
+
+## 15. Result update / correction workflow (Part C)
+
+A controlled path for when a stage was missed, the official feed was wrong
+or incomplete, the parser was fixed after a bad/missing import, jersey
+holder information was wrong, or an admin finds an error after review,
+finalisation, or scoring. **Never silently overwrites finalised or scored
+data** - every correction is explicit (requires a non-blank reason),
+audited (one `result_corrected` row in `grandtour_result_audit_log`, plus
+the pre-existing generic `grandtour_game_audit` trail), and visible (the
+stage always returns to `review_status = correction_required`,
+`is_final = false`, and `score_count = 0`, forcing a fresh mark-checked ->
+finalise -> score pass - never auto-finalised, never auto-scored).
+
+### 16.1 The four workflows, side by side
+
+```
+Normal daily flow:
+  dry-run (--reconcile) -> apply (draft) -> mark-checked -> finalise -> score
+
+Missed-stage import flow (no existing result at all):
+  same as normal daily flow, whenever it's run - apply refuses to touch an
+  existing result, so a genuinely missed stage is just a late apply, not a
+  correction. --update-results itself refuses a stage with no existing
+  result ("use apply_grandtour_official_stage_result for a first import").
+
+Correction flow (an existing result - draft OR already finalised/scored -
+needs fixing):
+  fresh dry-run (--reconcile) -> review the report yourself -> --update-results
+  (or the UI's Update Results panel) -> preview diff -> confirm with a
+  reason -> stage becomes correction_required/is_final=false/score_count=0
+  -> mark-checked -> finalise -> score, again, from scratch
+
+Manual result entry (feed unusable for a stage):
+  separate, not-yet-implemented path - see §14.5. Not what this section
+  covers.
+```
+
+### 16.2 Schema/RPC: `public.correct_grandtour_stage_result_from_reviewed_report`
+
+Added by `supabase/migrations/20260711010000_grandtour_correct_stage_result_rpc.sql`.
+`security definer`, same `service_role`-or-`is_cycling_admin()` guard as
+`mark_grandtour_stage_result_checked`/`finalize_grandtour_stage_result`
+(§14.0). Takes `(p_stage_id, p_result_lines, p_jersey_holders,
+p_reconciliation, p_reason, p_request_id)` - the same reviewed-report shape
+`apply_grandtour_official_stage_result` takes, minus `p_dry_run_status`/
+`p_source`/`p_finalize` (a correction is never itself a finalize action).
+
+Refuses unless: `p_reason` is non-blank; `p_reconciliation.safeToApply =
+true` and every other apply-style gate (stageNumber match, not TTT, not
+missing, startlist validation passed, no unmatched/ambiguous
+riders/teams); exactly 10 result lines and 4 jersey holders, each vouched
+for by `p_reconciliation.matchedRiders`/`jerseyHolders`; and a result must
+**already exist** for the stage (use apply for a first import instead).
+
+On a genuine content change: snapshots the current lines/jerseys/
+review_status/is_final/score_count as `before_payload`; unfinalises first
+if needed (`is_final -> false`, clears `finalised_at`/`finalised_by`/
+`finalisation_reason`) - required before the trigger-guarded line/jersey
+deletes can succeed at all; always lands on `review_status =
+correction_required` regardless of prior state; if any score rows exist,
+deletes them and moves the affected tips from `scored` to `corrected`
+(`grandtour_tip_status` already has this value, and
+`recalculate_grandtour_stage_scores` already keeps a `corrected` tip's
+status as `corrected` rather than reverting it to `scored` on rescoring -
+see `supabase/migrations/20260703041335_implement_grandtour_ttt_scoring.sql`);
+replaces the result lines and jersey holders; writes one `result_corrected`
+row to `grandtour_result_audit_log`. On byte-identical content: returns
+`{"status": "no_change", ...}` and touches nothing - no review-status
+reset, no score clearing, no audit row.
+
+Never finalises, never scores - both explicitly excluded from what this
+RPC touches, so requirement "admin must re-check, re-finalise, re-score
+after any real correction" always holds.
+
+### 16.3 CLI: `--update-results`
+
+```powershell
+node scripts/grandtour-admin-stage.mjs --update-results `
+  --stage <N> `
+  --admin-user <ADMIN_USER_UUID> `
+  --reason "<why - required>" `
+  --from-report <path to a fresh --reconcile report> `
+  --confirm-production   # only for production
+```
+
+`--reason` and `--from-report` are both required for this command
+specifically (unlike `--finalise`/`--score`, where `--reason` is
+optional). The report is validated with the exact same gates `--apply`
+uses (`validateReportForApply`, including the 6-hour max-age rule) - a
+report too stale or unsafe to apply is equally too stale or unsafe to
+correct with. **Never fetches letour.fr itself** - generate the fresh
+report first with the normal dry-run command:
+
+```powershell
+node scripts/grandtour-feed-import.mjs --provider official-letour --from-stage <N> --to-stage <N> --reconcile --report tmp/stage-<N>-recheck.json
+```
+
+Before calling the RPC, the CLI fetches the currently-stored result,
+computes a diff (`computeResultDiff`), classifies it
+(`new_apply`/`no_change`/`correction_available`/`unsafe`, via
+`classifyUpdateStatus`), and prints it - so an operator sees exactly what
+will change before it changes. After the RPC call it prints the full
+response (`status`, `was_finalised`, `scores_cleared`, `review_status`,
+`is_final`) and a reminder that the stage now needs `--mark-checked ->
+--finalise -> --score` again.
+
+### 16.4 UI: "Update Results / Re-run Official Import"
+
+On each stage card in `/admin/grandtour-stages`, below "Review Results".
+Since the browser can't fetch letour.fr itself (no server-side scraping
+endpoint exists in this project - see CLAUDE.md), the flow is: **generate
+the fresh report on the CLI** (the same `--reconcile` command as §16.3),
+then paste that report's JSON into the panel's text box. The panel then,
+entirely client-side:
+
+1. Loads the currently-stored result (reusing "Review Results"' own fetch).
+2. Parses and lightly validates the pasted report (`parseCorrectionReport`
+   in `apps/mobile/lib/grandtourCorrectionExperience.ts` - a lighter-weight
+   TypeScript mirror of the CLI's/RPC's own gates; the RPC remains the real
+   authority regardless of what this preview computes).
+3. Shows a diff (`computeCorrectionDiff`): changed positions, changed
+   jersey holders.
+4. Shows warnings if the stage `is_final` or already has scores ("This
+   stage has already been finalised.", "This stage has existing scores.",
+   "Applying a correction will mark the result as correction_required and
+   unfinalise it if needed; scores must be recalculated afterward.").
+5. Requires a reason (text field) before "Apply Correction" enables
+   (`canApplyCorrection`: `safeToApply` + an actual difference + a
+   non-blank reason - all three, not just one).
+6. Opens a confirmation modal - "I understand this will update an existing
+   result for Stage N and may require rescoring, at &lt;timestamp&gt;." -
+   before actually calling `correct_grandtour_stage_result_from_reviewed_report`.
+7. After a successful correction, refetches both the stage summary and the
+   review-detail section, and shows the raw RPC response.
+
+### 16.5 When to use the CLI vs the UI
+
+Both call the exact same RPC with the exact same gates - neither is more
+"correct" than the other. Prefer the CLI when scripting/batching multiple
+stages or when it's more convenient to keep the fresh report as a file for
+the audit trail; prefer the UI when an admin wants a visual diff before
+committing, without a terminal.
+
+### 16.6 How to verify the audit log after a correction
+
+```sql
+select action, changed_by, reason, created_at,
+  before_payload -> 'result_lines' as before_lines,
+  after_payload -> 'result_lines' as after_lines,
+  before_payload ->> 'score_count' as scores_before,
+  after_payload ->> 'score_count' as scores_after
+from public.grandtour_result_audit_log
+where stage_id = '<STAGE_UUID>' and action = 'result_corrected'
+order by created_at desc
+limit 1;
+-- expect: exactly one recent row, changed_by = the acting admin's id (or
+-- null if run via the CLI's service-role key), reason matching what was
+-- entered, before/after lines showing the actual change, scores_before/
+-- scores_after showing 0 unless the stage had score rows to clear
+```
+
+The pre-existing generic `grandtour_game_audit` trail also logs the same
+mutation independently (action `result_corrected` there too, for a
+different, row-level-diff purpose - see CLAUDE.md) - both exist, on
+purpose, and can be cross-checked against each other.
+
+### 16.7 Manual QA: correction smoke steps
+
+1. Apply a stage as normal (§7), then correct it while still a draft
+   (never finalised): generate a fresh report with one row deliberately
+   swapped, run `--update-results` (or the UI equivalent), confirm
+   `review_status` becomes `correction_required` and the swapped position
+   is reflected in the stored result lines.
+2. Take a different stage all the way to finalised and scored (§14), then
+   correct it: confirm the stage un-finalises (`is_final -> false`), any
+   score rows are deleted, any previously-`scored` tip for that stage moves
+   to `corrected` (not deleted, not reverted to `submitted`/`locked`), and
+   `review_status` becomes `correction_required`.
+3. Re-run `--mark-checked -> --finalise -> --score` (or the UI buttons) on
+   the corrected stage from step 2 and confirm the full chain succeeds
+   again, exactly as it would for a stage that had never been corrected.
+4. Reapply the identical corrected content a second time and confirm it
+   returns `no_change` with no new audit row and no state change.
+5. Attempt a correction with a blank reason, with `safeToApply: false`, and
+   with only 3 jersey holders, and confirm all three are refused with a
+   clear message, before anything is written.
+
+## 16. Sign-off
 
 Before running §7's command in production, record (in whatever change-log
 mechanism this team uses for production changes):

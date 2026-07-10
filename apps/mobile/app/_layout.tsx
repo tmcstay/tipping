@@ -31,6 +31,7 @@ function RootNavigator() {
         <Stack.Screen name="profile" />
         <Stack.Screen name="leaderboard" />
         <Stack.Screen name="results" />
+        <Stack.Screen name="my-tips" />
         <Stack.Screen name="overall-jerseys" />
         <Stack.Screen name="stages/index" />
         <Stack.Screen name="stages/[stageId]" />

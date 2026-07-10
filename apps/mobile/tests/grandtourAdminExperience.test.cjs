@@ -2,12 +2,15 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  buildMarkCheckedConfirmationMessage,
   canFinalise,
   canMarkChecked,
   canScore,
   formatGrandTourAdminActionMessage,
   getGrandTourAdminActionAvailability,
-  getGrandTourAdminActionLabel
+  getGrandTourAdminActionLabel,
+  getStageReviewWarnings,
+  isStageDataComplete
 } = require("../../../dist/mobile-tests/grandtourAdminExperience.js");
 
 function baseSummary(overrides = {}) {
@@ -79,4 +82,32 @@ test("formatGrandTourAdminActionMessage reports the tip count for score's numeri
 test("formatGrandTourAdminActionMessage falls back to a plain success message for an unrecognized shape", () => {
   const message = formatGrandTourAdminActionMessage("finalise", 5, null);
   assert.equal(message, "Finalise succeeded for stage 5.");
+});
+
+test("isStageDataComplete is true only at exactly 10 lines and 4 jerseys", () => {
+  assert.equal(isStageDataComplete(baseSummary()), true);
+  assert.equal(isStageDataComplete(baseSummary({ resultLineCount: 9 })), false);
+  assert.equal(isStageDataComplete(baseSummary({ jerseyHolderCount: 3 })), false);
+  assert.equal(isStageDataComplete(baseSummary({ resultLineCount: 11, jerseyHolderCount: 5 })), false);
+});
+
+test("getStageReviewWarnings is empty when 10 lines + 4 jerseys are loaded", () => {
+  assert.deepEqual(getStageReviewWarnings(baseSummary()), []);
+});
+
+test("getStageReviewWarnings reports missing lines and jerseys with exact counts", () => {
+  const warnings = getStageReviewWarnings(baseSummary({ resultLineCount: 7, jerseyHolderCount: 2 }));
+  assert.deepEqual(warnings, [
+    "Only 7 of 10 result lines loaded.",
+    "Only 2 of 4 jersey holders loaded."
+  ]);
+});
+
+test("buildMarkCheckedConfirmationMessage includes the stage number and an ISO timestamp", () => {
+  const now = new Date("2026-07-12T09:30:00.000Z");
+  const message = buildMarkCheckedConfirmationMessage(5, now);
+  assert.equal(
+    message,
+    "I have reviewed the top 10 result lines and four jersey holders for Stage 5, at 2026-07-12T09:30:00.000Z."
+  );
 });

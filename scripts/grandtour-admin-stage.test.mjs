@@ -4,6 +4,8 @@ import { test } from "node:test";
 import {
   buildRequestId,
   buildSummary,
+  classifyUpdateStatus,
+  computeResultDiff,
   fetchStageState,
   parseAdminStageArgs,
   validateFinalisePreflight,
@@ -313,4 +315,108 @@ test("fetchStageState reports resultExists=false and zero counts when no result 
   assert.equal(state.lineCount, 0, "result_line_count must stay 0 without ever querying grandtour_stage_result_lines when no result row exists");
   assert.equal(state.jerseyCount, 0);
   assert.equal(state.scoreCount, 0);
+});
+
+test("parseAdminStageArgs requires --reason and --from-report for --update-results", () => {
+  assert.throws(
+    () => parseAdminStageArgs(["--update-results", "--stage", "5", "--admin-user", ADMIN_UUID]),
+    /--update-results requires --reason/
+  );
+  assert.throws(
+    () => parseAdminStageArgs(["--update-results", "--stage", "5", "--admin-user", ADMIN_UUID, "--reason", "fixing a bad import"]),
+    /--update-results requires --from-report/
+  );
+  const options = parseAdminStageArgs([
+    "--update-results", "--stage", "5", "--admin-user", ADMIN_UUID,
+    "--reason", "fixing a bad import", "--from-report", "tmp/report.json"
+  ]);
+  assert.equal(options.command, "update-results");
+  assert.equal(options.reason, "fixing a bad import");
+  assert.equal(options.fromReportPath, "tmp/report.json");
+});
+
+test("parseAdminStageArgs does not require --reason/--from-report for other commands", () => {
+  const options = parseAdminStageArgs(["--mark-checked", "--stage", "5", "--admin-user", ADMIN_UUID]);
+  assert.equal(options.reason, null);
+  assert.equal(options.fromReportPath, null);
+});
+
+function baseDetail(overrides = {}) {
+  return {
+    hasExistingResult: true,
+    lines: [
+      { position: 1, riderId: "rider-1", riderName: "Rider One", bibNumber: 1 },
+      { position: 2, riderId: "rider-2", riderName: "Rider Two", bibNumber: 2 }
+    ],
+    jerseyHolders: [
+      { jerseyType: "yellow", riderId: "rider-1", riderName: "Rider One", bibNumber: 1 },
+      { jerseyType: "green", riderId: "rider-2", riderName: "Rider Two", bibNumber: 2 },
+      { jerseyType: "kom", riderId: "rider-3", riderName: "Rider Three", bibNumber: 3 },
+      { jerseyType: "white", riderId: "rider-4", riderName: "Rider Four", bibNumber: 4 }
+    ],
+    ...overrides
+  };
+}
+
+test("computeResultDiff reports no changes for byte-identical current/incoming", () => {
+  const current = baseDetail();
+  const incoming = {
+    lines: current.lines.map(({ position, riderId }) => ({ position, riderId })),
+    jerseyHolders: current.jerseyHolders.map(({ jerseyType, riderId }) => ({ jerseyType, riderId }))
+  };
+  const diff = computeResultDiff(current, incoming);
+  assert.equal(diff.resultLinesChanged, false);
+  assert.equal(diff.jerseyHoldersChanged, false);
+  assert.deepEqual(diff.changedPositions, []);
+  assert.deepEqual(diff.changedJerseyTypes, []);
+});
+
+test("computeResultDiff detects a changed position, an added position, and a changed jersey", () => {
+  const current = baseDetail();
+  const incoming = {
+    lines: [
+      { position: 1, riderId: "rider-9" }, // changed
+      { position: 2, riderId: "rider-2" }, // unchanged
+      { position: 3, riderId: "rider-3" } // added
+    ],
+    jerseyHolders: [
+      { jerseyType: "yellow", riderId: "rider-9" }, // changed
+      { jerseyType: "green", riderId: "rider-2" },
+      { jerseyType: "kom", riderId: "rider-3" },
+      { jerseyType: "white", riderId: "rider-4" }
+    ]
+  };
+  const diff = computeResultDiff(current, incoming);
+  assert.equal(diff.resultLinesChanged, true);
+  assert.equal(diff.jerseyHoldersChanged, true);
+  assert.deepEqual(diff.changedPositions, [1]);
+  assert.deepEqual(diff.addedPositions, [3]);
+  assert.deepEqual(diff.removedPositions, []);
+  assert.deepEqual(diff.changedJerseyTypes, ["yellow"]);
+});
+
+test("computeResultDiff detects a removed position", () => {
+  const current = baseDetail();
+  const incoming = { lines: [{ position: 1, riderId: "rider-1" }], jerseyHolders: current.jerseyHolders.map(({ jerseyType, riderId }) => ({ jerseyType, riderId })) };
+  const diff = computeResultDiff(current, incoming);
+  assert.deepEqual(diff.removedPositions, [2]);
+  assert.equal(diff.resultLinesChanged, true);
+});
+
+test("classifyUpdateStatus returns unsafe when safeToApply is false, regardless of other flags", () => {
+  assert.equal(classifyUpdateStatus({ hasExistingResult: true, resultLinesChanged: true, jerseyHoldersChanged: true, safeToApply: false }), "unsafe");
+  assert.equal(classifyUpdateStatus({ hasExistingResult: false, resultLinesChanged: false, jerseyHoldersChanged: false, safeToApply: false }), "unsafe");
+});
+
+test("classifyUpdateStatus returns new_apply when no existing result and the report is safe", () => {
+  assert.equal(classifyUpdateStatus({ hasExistingResult: false, resultLinesChanged: true, jerseyHoldersChanged: true, safeToApply: true }), "new_apply");
+});
+
+test("classifyUpdateStatus returns no_change when an existing result matches the incoming report exactly", () => {
+  assert.equal(classifyUpdateStatus({ hasExistingResult: true, resultLinesChanged: false, jerseyHoldersChanged: false, safeToApply: true }), "no_change");
+});
+
+test("classifyUpdateStatus returns correction_available when an existing, safe report differs", () => {
+  assert.equal(classifyUpdateStatus({ hasExistingResult: true, resultLinesChanged: true, jerseyHoldersChanged: false, safeToApply: true }), "correction_available");
+  assert.equal(classifyUpdateStatus({ hasExistingResult: true, resultLinesChanged: false, jerseyHoldersChanged: true, safeToApply: true }), "correction_available");
 });

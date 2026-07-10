@@ -81,3 +81,38 @@ export function formatGrandTourAdminActionMessage(
   }
   return `${label} succeeded for stage ${stageNumber}.`;
 }
+
+/**
+ * Whether the loaded result-line/jersey-holder detail is complete (10
+ * lines, 4 jersey holders) - the same shape check canMarkChecked applies,
+ * factored out so the review-detail warning banner and the button gate can
+ * both use it without duplicating the "10"/"4" literals.
+ */
+export function isStageDataComplete(summary: GrandTourStageAdminSummaryLike): boolean {
+  return summary.resultLineCount === 10 && summary.jerseyHolderCount === 4;
+}
+
+/**
+ * Warning strings for the review-detail section, e.g. "Only 7 of 10 result
+ * lines loaded." Empty array means nothing to warn about (not necessarily
+ * "ready" - a complete-but-already-scored stage has no warnings either).
+ */
+export function getStageReviewWarnings(summary: GrandTourStageAdminSummaryLike): string[] {
+  const warnings: string[] = [];
+  if (summary.resultLineCount !== 10) {
+    warnings.push(`Only ${summary.resultLineCount} of 10 result lines loaded.`);
+  }
+  if (summary.jerseyHolderCount !== 4) {
+    warnings.push(`Only ${summary.jerseyHolderCount} of 4 jersey holders loaded.`);
+  }
+  return warnings;
+}
+
+/**
+ * The exact confirmation-modal copy shown before Mark Checked, including
+ * the stage number and an ISO timestamp the admin is implicitly attesting
+ * to at the moment of confirming.
+ */
+export function buildMarkCheckedConfirmationMessage(stageNumber: number, now: Date = new Date()): string {
+  return `I have reviewed the top 10 result lines and four jersey holders for Stage ${stageNumber}, at ${now.toISOString()}.`;
+}
