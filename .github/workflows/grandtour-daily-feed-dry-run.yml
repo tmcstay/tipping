@@ -9,6 +9,14 @@ on:
         description: 'Feed provider name'
         required: false
         default: 'manual-json'
+      import_type:
+        description: 'Import type for the workflow run'
+        required: false
+        default: 'daily'
+      backfill:
+        description: 'Legacy backfill toggle for compatibility'
+        required: false
+        default: 'false'
       source_file:
         description: 'Optional source file path relative to the repo root'
         required: false
@@ -16,10 +24,6 @@ on:
         description: 'Optional report file name in the report directory'
         required: false
         default: 'grandtour-feed-dry-run.json'
-      backfill:
-        description: 'Run backfill mode instead of daily import'
-        required: false
-        default: 'false'
       from_stage:
         description: 'Start stage number for backfill range'
         required: false
@@ -51,20 +55,30 @@ jobs:
 
       - name: Run GrandTour feed dry run
         env:
-          FEED_PROVIDER: ${{ github.event.inputs.provider || 'manual-json' }}
+          # Scheduled (cron) runs always use the official-letour provider with no
+          # explicit stage range, so the script auto-resolves "today's" completed
+          # stage from the TDF 2026 stage calendar (data/cycling/tdf/2026/stages_2026_tdf.csv).
+          # Manual workflow_dispatch runs keep explicit control over provider/stage inputs.
+          FEED_PROVIDER: ${{ github.event_name == 'schedule' && 'official-letour' || (github.event.inputs.provider || 'manual-json') }}
+          IMPORT_TYPE: ${{ github.event.inputs.import_type || 'daily' }}
+          BACKFILL: ${{ github.event.inputs.backfill || 'false' }}
           FEED_SOURCE_FILE: ${{ github.event.inputs.source_file || '' }}
           REPORT_FILE: ${{ github.event.inputs.report_file || 'grandtour-feed-dry-run.json' }}
-          BACKFILL: ${{ github.event.inputs.backfill || 'false' }}
-          FROM_STAGE: ${{ github.event.inputs.from_stage || '' }}
-          TO_STAGE: ${{ github.event.inputs.to_stage || '' }}
+          FROM_STAGE: ${{ github.event_name == 'schedule' && '' || (github.event.inputs.from_stage || '') }}
+          TO_STAGE: ${{ github.event_name == 'schedule' && '' || (github.event.inputs.to_stage || '') }}
           ALL_COMPLETED: ${{ github.event.inputs.all_completed || 'false' }}
         run: |
           mkdir -p report
+          # Persist REPORT_FILE beyond this step; a step-level `env:` value does not
+          # carry over to the later upload-artifact step's ${{ env.REPORT_FILE }} lookup.
+          echo "REPORT_FILE=$REPORT_FILE" >> "$GITHUB_ENV"
+          # NOTE: --apply is never passed here. Scheduled and manual runs are dry-run only;
+          # apply mode remains guarded/disabled in grandtour-feed-import.mjs regardless.
           args=(--provider "$FEED_PROVIDER" --report "report/$REPORT_FILE")
           if [ -n "$FEED_SOURCE_FILE" ]; then
             args+=(--source-file "$FEED_SOURCE_FILE")
           fi
-          if [ "$BACKFILL" = "true" ]; then
+          if [ "$IMPORT_TYPE" = "backfill" ] || [ "$BACKFILL" = "true" ]; then
             args+=(--backfill)
           fi
           if [ "$ALL_COMPLETED" = "true" ]; then

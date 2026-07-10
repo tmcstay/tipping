@@ -37,6 +37,7 @@ function RootNavigator() {
         <Stack.Screen name="stages/[stageId]/compare" />
         <Stack.Screen name="races/index" />
         <Stack.Screen name="races/[raceId]" />
+        <Stack.Screen name="admin/grandtour-stages" />
       </Stack.Protected>
     </Stack>
   );

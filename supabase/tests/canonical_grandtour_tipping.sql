@@ -632,7 +632,7 @@ values
   ('70000000-0000-0000-0000-000000000001', 'white', '60000000-0000-0000-0000-000000000004');
 
 update public.grandtour_stage_results
-set is_final = true
+set is_final = true, review_status = 'finalised'
 where id = '80000000-0000-0000-0000-000000000001';
 
 set local role authenticated;

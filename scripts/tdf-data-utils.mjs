@@ -38,7 +38,23 @@ export function normalizeRiderName(name) {
     .toLocaleLowerCase("en");
 }
 
-export const normalizeTeamName = normalizeRiderName;
+// Team names vary far more in punctuation/hyphenation across sources than
+// rider names do (e.g. official-letour's compact "LIDL-TREK" vs our
+// canonical "Lidl - Trek"), so team-name comparison additionally folds
+// every run of punctuation (hyphens, pipes, periods, ampersands, etc.) down
+// to a single space before comparing tokens. This intentionally does not
+// share normalizeRiderName's exact behavior — collapsing punctuation to
+// whitespace is correct for sponsor-string team names but would be wrong
+// for rider names (e.g. a hyphenated surname).
+export function normalizeTeamName(name) {
+  return name
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("en");
+}
 
 export function parseOptionalBibNumber(value) {
   if (value === undefined || value === null || String(value).trim() === "") return null;

@@ -1,0 +1,55 @@
+{
+  "results": [
+    {
+      "name": "perfect match: all riders and teams matched, on the startlist, safe to apply",
+      "status": "pass"
+    },
+    {
+      "name": "unmatched rider: unknown bib and name blocks safe-to-apply",
+      "status": "pass"
+    },
+    {
+      "name": "startlist validation: a real matched rider (bib 3) removed from stage 2's startlist blocks safe-to-apply",
+      "status": "pass"
+    },
+    {
+      "name": "startlist validation: no startlist rows found blocks safe-to-apply",
+      "status": "pass"
+    },
+    {
+      "name": "ambiguous rider: bib 901 matches two real seeded riders",
+      "status": "pass"
+    },
+    {
+      "name": "duplicate bib conflict: two parsed rows share a bib number",
+      "status": "pass"
+    },
+    {
+      "name": "unmatched team: real rider, unrecognized team name",
+      "status": "pass"
+    },
+    {
+      "name": "missing stage: stage 999 has no grandtour_stages record",
+      "status": "pass"
+    },
+    {
+      "name": "TTT stage 4 is never safe to apply, even when rider matching and startlist validation both pass cleanly",
+      "status": "pass"
+    }
+  ],
+  "sampleReportMetadata": {
+    "provider": "official-letour-local-smoke",
+    "dryRun": true,
+    "applyEnabled": false,
+    "reconciliationOnly": true,
+    "stageDate": null,
+    "stageRangeRequested": {
+      "fromStage": 2,
+      "toStage": 4
+    },
+    "generatedAt": "2026-07-10T01:27:23.527Z",
+    "stages": [],
+    "overallSafeToApply": false,
+    "note": "Reconciliation-only dry run comparing official-letour parsed rows against existing Supabase GrandTour records. No Supabase writes occur; apply mode is not implemented."
+  }
+}

@@ -2,6 +2,12 @@
 
 > **NO-GO by default.** This document is a reviewed command plan, not authority to deploy. Do not run the production write command until every mandatory gate below is complete and both the operator and reviewer approve it.
 
+> See also
+> [docs/GRANDTOUR_TDF_2026_STARTLIST_PRODUCTION_LOAD.md](GRANDTOUR_TDF_2026_STARTLIST_PRODUCTION_LOAD.md)
+> for the record of the completed production Tour de France 2026 startlist
+> load (`scripts/load-tdf-2026-startlist.mjs`), including a known gap: that
+> load did not have a checklist like this one to follow.
+
 ## Pending GrandTour UI and TTT segment — 5 July 2026
 
 This branch prepares, but does not deploy, the next production segment. Read-only

@@ -498,6 +498,7 @@ export type Database = {
           manual_lock_reason: string | null
           manual_locked_at: string | null
           manual_locked_by: string | null
+          manual_result_entry_enabled: boolean
           name: string
           preselection_locks_at: string
           source_url: string | null
@@ -516,6 +517,7 @@ export type Database = {
           manual_lock_reason?: string | null
           manual_locked_at?: string | null
           manual_locked_by?: string | null
+          manual_result_entry_enabled?: boolean
           name: string
           preselection_locks_at: string
           source_url?: string | null
@@ -534,6 +536,7 @@ export type Database = {
           manual_lock_reason?: string | null
           manual_locked_at?: string | null
           manual_locked_by?: string | null
+          manual_result_entry_enabled?: boolean
           name?: string
           preselection_locks_at?: string
           source_url?: string | null
@@ -606,69 +609,6 @@ export type Database = {
             columns: ["grand_tour_id"]
             isOneToOne: false
             referencedRelation: "grand_tours"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      grandtour_game_audit: {
-        Row: {
-          action: string
-          actor_user_id: string | null
-          competition_id: string | null
-          created_at: string
-          entity_id: string | null
-          entity_type: string
-          id: string
-          new_value: Json | null
-          old_value: Json | null
-          reason: string | null
-          request_id: string | null
-          stage_id: string | null
-          tip_id: string | null
-        }
-        Insert: {
-          action: string
-          actor_user_id?: string | null
-          competition_id?: string | null
-          created_at?: string
-          entity_id?: string | null
-          entity_type: string
-          id?: string
-          new_value?: Json | null
-          old_value?: Json | null
-          reason?: string | null
-          request_id?: string | null
-          stage_id?: string | null
-          tip_id?: string | null
-        }
-        Update: {
-          action?: string
-          actor_user_id?: string | null
-          competition_id?: string | null
-          created_at?: string
-          entity_id?: string | null
-          entity_type?: string
-          id?: string
-          new_value?: Json | null
-          old_value?: Json | null
-          reason?: string | null
-          request_id?: string | null
-          stage_id?: string | null
-          tip_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "grandtour_game_audit_competition_id_fkey"
-            columns: ["competition_id"]
-            isOneToOne: false
-            referencedRelation: "grandtour_competitions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "grandtour_game_audit_stage_id_fkey"
-            columns: ["stage_id"]
-            isOneToOne: false
-            referencedRelation: "grandtour_stages"
             referencedColumns: ["id"]
           },
         ]
@@ -773,6 +713,69 @@ export type Database = {
           },
         ]
       }
+      grandtour_game_audit: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          competition_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          reason: string | null
+          request_id: string | null
+          stage_id: string | null
+          tip_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          competition_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          reason?: string | null
+          request_id?: string | null
+          stage_id?: string | null
+          tip_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          competition_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          reason?: string | null
+          request_id?: string | null
+          stage_id?: string | null
+          tip_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grandtour_game_audit_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_competitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_game_audit_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grandtour_leaderboard_snapshots: {
         Row: {
           competition_id: string
@@ -819,6 +822,57 @@ export type Database = {
             columns: ["competition_id"]
             isOneToOne: false
             referencedRelation: "grandtour_competitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grandtour_result_audit_log: {
+        Row: {
+          action: string
+          after_payload: Json | null
+          before_payload: Json | null
+          changed_by: string | null
+          created_at: string
+          id: string
+          reason: string | null
+          stage_id: string
+          stage_result_id: string | null
+        }
+        Insert: {
+          action: string
+          after_payload?: Json | null
+          before_payload?: Json | null
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          stage_id: string
+          stage_result_id?: string | null
+        }
+        Update: {
+          action?: string
+          after_payload?: Json | null
+          before_payload?: Json | null
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          stage_id?: string
+          stage_result_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grandtour_result_audit_log_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_result_audit_log_stage_result_id_fkey"
+            columns: ["stage_result_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_stage_results"
             referencedColumns: ["id"]
           },
         ]
@@ -987,23 +1041,47 @@ export type Database = {
       }
       grandtour_stage_results: {
         Row: {
+          admin_check_note: string | null
+          admin_checked_at: string | null
+          admin_checked_by: string | null
           created_at: string
+          finalisation_reason: string | null
+          finalised_at: string | null
+          finalised_by: string | null
           id: string
           is_final: boolean
+          review_status: Database["public"]["Enums"]["grandtour_stage_result_review_status"]
+          source_mode: Database["public"]["Enums"]["grandtour_stage_result_source_mode"]
           stage_id: string
           updated_at: string
         }
         Insert: {
+          admin_check_note?: string | null
+          admin_checked_at?: string | null
+          admin_checked_by?: string | null
           created_at?: string
+          finalisation_reason?: string | null
+          finalised_at?: string | null
+          finalised_by?: string | null
           id?: string
           is_final?: boolean
+          review_status?: Database["public"]["Enums"]["grandtour_stage_result_review_status"]
+          source_mode?: Database["public"]["Enums"]["grandtour_stage_result_source_mode"]
           stage_id: string
           updated_at?: string
         }
         Update: {
+          admin_check_note?: string | null
+          admin_checked_at?: string | null
+          admin_checked_by?: string | null
           created_at?: string
+          finalisation_reason?: string | null
+          finalised_at?: string | null
+          finalised_by?: string | null
           id?: string
           is_final?: boolean
+          review_status?: Database["public"]["Enums"]["grandtour_stage_result_review_status"]
+          source_mode?: Database["public"]["Enums"]["grandtour_stage_result_source_mode"]
           stage_id?: string
           updated_at?: string
         }
@@ -1994,9 +2072,32 @@ export type Database = {
       }
     }
     Functions: {
+      apply_grandtour_official_stage_result: {
+        Args: {
+          p_dry_run_status?: Json
+          p_finalize?: boolean
+          p_jersey_holders?: Json
+          p_reason?: string
+          p_reconciliation: Json
+          p_request_id?: string
+          p_result_lines: Json
+          p_source?: Json
+          p_stage_id: string
+        }
+        Returns: Json
+      }
       clear_grandtour_tip_draft: {
         Args: { p_reason?: string; p_request_id?: string; p_tip_id: string }
         Returns: boolean
+      }
+      finalize_grandtour_stage_result: {
+        Args: {
+          p_finalized_by: string
+          p_reason?: string
+          p_request_id?: string
+          p_stage_id: string
+        }
+        Returns: Json
       }
       get_grandtour_leaderboard: {
         Args: { p_competition_id: string; p_leaderboard_type?: string }
@@ -2018,6 +2119,15 @@ export type Database = {
         Args: { p_reason: string; p_request_id?: string; p_stage_id: string }
         Returns: number
       }
+      mark_grandtour_stage_result_checked: {
+        Args: {
+          p_checked_by: string
+          p_note?: string
+          p_request_id?: string
+          p_stage_id: string
+        }
+        Returns: Json
+      }
       recalculate_grandtour_stage_scores: {
         Args: { p_reason?: string; p_request_id?: string; p_stage_id: string }
         Returns: number
@@ -2036,6 +2146,15 @@ export type Database = {
       score_grandtour_stage: {
         Args: { p_request_id?: string; p_stage_id: string }
         Returns: number
+      }
+      set_grandtour_manual_result_entry_enabled: {
+        Args: {
+          p_changed_by: string
+          p_enabled: boolean
+          p_grand_tour_id: string
+          p_reason?: string
+        }
+        Returns: Json
       }
       submit_grandtour_tip: {
         Args: { p_request_id?: string; p_tip_id: string }
@@ -2064,6 +2183,18 @@ export type Database = {
     }
     Enums: {
       grandtour_jersey_type: "yellow" | "green" | "kom" | "white"
+      grandtour_stage_result_review_status:
+        | "draft"
+        | "imported"
+        | "review_required"
+        | "admin_checked"
+        | "finalised"
+        | "correction_required"
+      grandtour_stage_result_source_mode:
+        | "official_feed"
+        | "manual_admin"
+        | "mixed"
+        | "test"
       grandtour_stage_type:
         | "flat"
         | "hilly"
@@ -2228,6 +2359,20 @@ export const Constants = {
   public: {
     Enums: {
       grandtour_jersey_type: ["yellow", "green", "kom", "white"],
+      grandtour_stage_result_review_status: [
+        "draft",
+        "imported",
+        "review_required",
+        "admin_checked",
+        "finalised",
+        "correction_required",
+      ],
+      grandtour_stage_result_source_mode: [
+        "official_feed",
+        "manual_admin",
+        "mixed",
+        "test",
+      ],
       grandtour_stage_type: [
         "flat",
         "hilly",
@@ -2267,3 +2412,4 @@ export const Constants = {
     },
   },
 } as const
+

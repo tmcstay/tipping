@@ -425,7 +425,7 @@ from generate_series(1, 5) number;
 
 reset role;
 update public.grandtour_stage_results
-set is_final = true
+set is_final = true, review_status = 'finalised'
 where id = 'a8000000-0000-0000-0000-000000000002';
 
 set local role authenticated;
@@ -453,7 +453,7 @@ select pg_temp.assert_true(
 
 reset role;
 update public.grandtour_stage_results
-set is_final = false
+set is_final = false, review_status = 'draft'
 where id = 'a8000000-0000-0000-0000-000000000002';
 
 insert into public.grandtour_stage_jersey_holders (
@@ -466,7 +466,7 @@ values
   ('a7000000-0000-0000-0000-000000000002', 'white', 'a6000000-0000-0000-0000-000000000004');
 
 update public.grandtour_stage_results
-set is_final = true
+set is_final = true, review_status = 'finalised'
 where id = 'a8000000-0000-0000-0000-000000000002';
 
 set local role authenticated;

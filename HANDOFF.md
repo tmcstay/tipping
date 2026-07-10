@@ -1,0 +1,59 @@
+# HANDOFF.md
+
+Session handoff notes for the GrandTour official-letour feed pipeline work on branch `feature/grandtour-official-letour-provider`. Superseded by the next session's update — treat as a point-in-time snapshot, not a permanent record (see CLAUDE.md for durable architecture notes).
+
+## What was completed this session
+
+Roughly in order:
+
+1. **Fixed a migration bug reported from a production push attempt.** `20260709070000_grandtour_apply_jersey_holders_rpc.sql` had genuinely correct SQL (verified via fresh-state and existing-9-arg-signature replay tests), but production had already ended up with the 9-arg RPC live from an earlier manual SQL attempt, without the migration being recorded as applied — so `supabase db push` retried the whole file and hit `function "apply_grandtour_official_stage_result" already exists with same argument types`. Fixed by adding an explicit `drop function if exists` for *both* the old 8-arg and new 9-arg signatures at the top of the migration, so it's safe to (re)run regardless of which signature (if any) is currently live. Verified against local Supabase in both starting states. **Not re-pushed to production this session** — that's a next step.
+
+2. **Verified the jersey-holder classification parser against a real letour.fr page** (this was flagged as the biggest open risk from the prior session). Fetched the real stage-2 rankings page and its AJAX fragments directly. Found the actual structure is materially different from what was assumed:
+   - The four cumulative classifications that determine jersey holders (not the same as "today's stage result" placings) are **not present in the initial page HTML at all**.
+   - They live behind a "General ranking" tab, whose four sub-tab URLs are embedded as a `data-ajax-stack` JSON attribute (itg/ipg/img/ijg → yellow/green/kom/white).
+   - Each URL's trailing hash is a per-page-load token — must always be scraped fresh from the just-fetched main page, never hardcoded.
+   - The row markup within each fragment is identical to the existing stage-result table markup, so the existing row-parsing regex was reusable as-is.
+   - Rewrote the parser (`extractGeneralClassificationAjaxUrls`, `parseLetourClassificationLeader`, `fetchLetourJerseyHolders` — now async, performs real fetches) accordingly, replacing the old wrong `data-classification` attribute assumption. Added rich diagnostics (`status`: found/table_not_found/empty_table/fetch_error/unsupported_markup, `selector`, `url`, `rowsMatched`) surfaced into the dry-run report as `jerseyFetchMetadata`.
+   - Rebuilt all jersey-holder-related tests around the real structure. Ran a real production dry-run (`--reconcile`, no `--apply`) against Stage 2 with the fixed parser: all four jersey holders matched correctly (yellow=Vingegaard, green=Del Toro, kom=Molenaar, white=Del Toro), `safeToApply: true`. **This resolves last session's #1 flagged risk.**
+
+3. **Built the full admin review workflow** (apply → admin-check → finalize → score), the largest piece of this session, in response to a product requirement: admins need to review and explicitly approve a result before it can be finalized/scored, with a full audit trail and (designed) manual-entry override.
+   - Schema: `grandtour_stage_results.review_status`/`admin_checked_*`/`finalised_*`/`source_mode` columns, a consistency check (`is_final = (review_status = 'finalised')`), `grand_tours.manual_result_entry_enabled`, and a new append-only `grandtour_result_audit_log` table (RLS-read-gated to cycling admins).
+   - New RPC `mark_grandtour_stage_result_checked` — the missing "human confirms this is right" gate.
+   - **Redesigned** `finalize_grandtour_stage_result` (built last session, never used in production) to require `review_status='admin_checked'` first and take an explicit `p_finalized_by` — a genuine signature change, safe since it was never called against real data.
+   - Updated `apply_grandtour_official_stage_result` to tag new rows `review_status='imported'` and log to the new audit table.
+   - New optional RPC `set_grandtour_manual_result_entry_enabled` (the gate; no RPC reads it yet — manual entry itself is designed, not built, per the task's own explicit permission to skip full implementation).
+   - Extensive new/rewritten tests: SQL suites (`grandtour_finalize_stage_result.sql` rewritten to cover mark_checked+finalize+audit rows, new `grandtour_manual_result_entry_toggle.sql`), plus the JS local smoke test extended with the full real apply→check→finalize→score chain (16 scenarios, real writes, real Supabase auth session for the admin-gated scoring call, full cleanup).
+   - Updated `docs/GRANDTOUR_APPLY_MODE_PRODUCTION_READINESS_CHECKLIST.md` §14 with the full workflow, all four exact production commands, and the manual-entry design section.
+
+4. **This session-end task** — writing this file and CLAUDE.md.
+
+## Bugs/issues encountered and how they were resolved
+
+| Issue | Resolution |
+|---|---|
+| Production push of the jersey-holders migration failed: RPC "already exists with same argument types" | Production had the 9-arg RPC live from an earlier manual attempt, but the migration wasn't recorded as applied. Added `drop function if exists` for both possible prior signatures before recreating, so the migration is safe to run regardless of starting state. Verified locally both ways. |
+| The jersey-holder classification table assumption (`data-classification="..."` attribute) was completely wrong | Fetched the real page and its AJAX fragments directly to find the actual structure (a `data-ajax-stack` JSON of per-classification fragment URLs, fetched separately). Rewrote the parser around real, verified markup; confirmed with a real production dry-run. |
+| A pasted "production anon key" was actually the well-known local Supabase demo key (same as the local instance's own key), and a separately pasted key turned out to be `role: service_role`, not `anon` | Decoded and checked both JWTs' `role` claim before using either, caught both, asked for the correct key. Reinforces: never trust a credential's label — verify the actual JWT claim. |
+| Adding `p_jersey_holders`/`p_finalized_by` to existing RPCs via `create or replace function` risked leaving duplicate overloads (Postgres treats a changed arg list as a distinct function identity) | Explicit `drop function if exists ...(<old exact signature>)` before recreating, every time an RPC's parameter list changed. |
+| New `is_final = (review_status = 'finalised')` constraint broke two pre-existing SQL test fixtures (`canonical_grandtour_tipping.sql`, `grandtour_ttt.sql`) that directly `UPDATE ... SET is_final = true` without setting `review_status` | Updated both fixtures to set `review_status` alongside every direct `is_final` write, matching the new invariant. |
+| `grandtour_result_audit_log`'s append-only trigger blocked its own FK's `ON DELETE SET NULL` action (both `stage_result_id` and, separately, `changed_by`) whenever the referenced `grandtour_stage_results` row or `auth.users` row was deleted — breaking the documented apply-rollback path, since every applied draft immediately has an audit row | Two follow-up migrations: first allowed the `stage_result_id`-nulling case specifically, then generalized to also allow `changed_by`-nulling (found via the JS smoke test's own cleanup, which deletes its test admin user). |
+| `service_role` could not read `grandtour_result_audit_log` ("permission denied") | The table only had `select` granted to `authenticated` (RLS-gated); added an explicit grant to `service_role` too — RLS bypass and table-level grants are separate concerns. |
+| Several new JS smoke-test assertions failed against real data, but were assertion bugs, not RPC bugs | The audit log is append-only and keyed to the *same real stage* across every run of the smoke script, so unscoped queries return historical rows from earlier runs too (some with `changed_by` now null from a since-deleted test user). Fixed by scoping queries to `stage_result_id` (unique per run) or `created_at >= <workflow start time>`, not just `stage_id`. |
+
+## Exact next steps for the next session
+
+1. **Push the pending migrations to production**, in order, after a fresh backup: `20260709070000` (jersey holders — now confirmed-safe against the "already exists" state), then `20260710020000`/`030000`/`040000`/`050000` (schema + admin-check/finalize RPCs + the two audit-log fixes). Dry-run (`supabase db push --linked --dry-run`) first every time.
+2. Once pushed, re-run the production Stage 2 dry-run (`--reconcile`, no `--apply`) fresh — confirm `safeToApply: true` still holds (data may have moved since the last dry-run).
+3. Only after a clean, reviewed dry-run: apply Stage 2 in production (7-flag command, already documented), then walk it through the new workflow for real — verify counts (§10), `mark_grandtour_stage_result_checked` (§14.1), `finalize_grandtour_stage_result` (§14.2), `recalculate_grandtour_stage_scores` as an authenticated cycling-admin session — not service_role (§14.3), verify the leaderboard (§14.4). Exact commands for all of this are in `docs/GRANDTOUR_APPLY_MODE_PRODUCTION_READINESS_CHECKLIST.md` §14.
+4. Repeat for stages 3, 4, 5 (already applied in production per the task context this session started from — confirm their actual current `review_status`/`is_final` state before assuming they still need the full apply step, since apply may already be done for them; they likely just need admin-check → finalize → score).
+5. Decide whether to build the manual-result-entry RPC (design already written in §14.5) — no urgency unless the official feed actually fails for a stage.
+6. Consider whether `recalculate_grandtour_stage_scores` should eventually also log to `grandtour_result_audit_log` (action `'scored'`, already reserved) for a single unified stage-audit view, or whether keeping it on the separate pre-existing `grandtour_game_audit` trail is fine long-term.
+
+## Open questions / decisions that need revisiting
+
+- **Should the two "resolved" migrations (`20260710010000`'s original 3-arg finalize RPC) be squashed/removed from history now that they're immediately superseded within the same local timeline?** Left as-is this session (each migration is a real, reviewable step in how the design evolved) — but worth a call before this branch merges, since shipping a migration that creates something immediately dropped by the next one is a little unusual. Not a functional problem either way.
+- **Is `manual_result_entry_enabled` worth enabling ahead of time in production**, even with no RPC to act on it yet, just so the audit trail shows exactly when it was turned on relative to any future manual-entry work? No strong opinion — it's a no-op today either way.
+- **Should there be a CLI wrapper for admin-check/finalize/score**, matching `--apply`'s existing flag-gated pattern in `grandtour-feed-import.mjs`? Currently these three steps are SQL-only (no Node CLI flags), which is consistent with them being deliberately separate, slower, more manual gates — but worth revisiting once the workflow has been run for real a few times and any repetitive friction becomes clear.
+- **Previously-open question, now resolved:** the jersey-holder classification markup assumption was the single biggest risk flagged last session — it's now been verified against a real page and a real production dry-run. No longer open.
+- **Still open from last session, unchanged:** why production schema/migration-history drift was possible in the first place (DDL applied out-of-band). Still not root-caused; still worth understanding whether this recurs.
+- **Still open from last session, unchanged:** whether the legacy dummy fixture data (`supabase/seed.sql` + `supabase/seeds/grandtour_reconciliation_smoke.sql`) should be retired now that the real official startlist coexists with it in the same local grand tour.
