@@ -25,6 +25,7 @@ import {
   useStageStartlist,
   useTdf2026Stages
 } from "../../hooks/useCyclingData";
+import { useFavouriteRiderIds } from "../../hooks/useGrandTourFavourites";
 import {
   GRANDTOUR_TIPPING_UNAVAILABLE_MESSAGE,
   useClearTip,
@@ -50,6 +51,7 @@ export default function StageTipScreen() {
   const competition = useCyclingCompetition(race.data?.id);
   const startlist = useStageStartlist(stageId);
   const stageResult = useStageResult(stageId);
+  const favourites = useFavouriteRiderIds(race.data?.id);
   const [tipMode, setTipMode] = useState<GrandTourTipMode>("daily");
   const currentTip = useStageTipDraft({ competitionId: competition.data?.id, stageId, tipMode });
   const save = useSaveTipDraft();
@@ -244,6 +246,7 @@ export default function StageTipScreen() {
       {tipEntryEnabled && activePicker?.type === "top5" && startlist.data && !isTtt ? (
         <RiderSelectionPanel
           excludedRiderIds={topFive.filter((id): id is string => Boolean(id))}
+          favouriteRiderIds={favourites.favouriteRiderIds}
           onClose={() => setActivePicker(null)}
           onSelect={selectItem}
           riders={startlist.data}

@@ -226,6 +226,43 @@ export async function listCyclingRiders(raceId: string): Promise<CyclingRider[]>
   return data ?? [];
 }
 
+export type GrandTourDirectoryRider = {
+  id: string;
+  teamId: string | null;
+  bibNumber: number | null;
+  displayName: string;
+  isActive: boolean;
+  status: string | null;
+};
+
+/**
+ * Every rider for a grand tour, including inactive/scratched ones - unlike
+ * listCyclingRiders (which deliberately excludes inactive riders, since
+ * that function feeds stage tip-entry pickers where an inactive rider
+ * shouldn't be selectable at all). The rider directory and favourites
+ * screens need to keep showing a rider after they become inactive
+ * (Part D requirement: "still show them but label inactive"), so this is
+ * a separate function rather than a flag added to listCyclingRiders, to
+ * avoid ever accidentally loosening what's selectable for a stage tip.
+ */
+export async function listAllGrandTourRiders(raceId: string): Promise<GrandTourDirectoryRider[]> {
+  const { data, error } = await getSupabaseClient()
+    .from("grandtour_riders")
+    .select("id,team_id,bib_number,display_name,is_active,status")
+    .eq("grand_tour_id", raceId)
+    .order("display_name", { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    teamId: row.team_id,
+    bibNumber: row.bib_number,
+    displayName: row.display_name,
+    isActive: row.is_active,
+    status: row.status
+  }));
+}
+
 export async function getPublicCyclingCompetition(
   raceId: string
 ): Promise<CyclingCompetition | null> {

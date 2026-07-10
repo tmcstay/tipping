@@ -53,6 +53,9 @@ export default function ProfileScreen() {
         <Pressable onPress={() => router.push("/my-tips")} style={styles.secondaryButton}>
           <Text style={styles.secondaryButtonText}>My Tips & score history</Text>
         </Pressable>
+        <Pressable onPress={() => router.push("/riders")} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>Rider directory & favourites</Text>
+        </Pressable>
         <Pressable onPress={() => void signOut()} style={styles.secondaryButton}>
           <Text style={styles.secondaryButtonText}>Log out</Text>
         </Pressable>

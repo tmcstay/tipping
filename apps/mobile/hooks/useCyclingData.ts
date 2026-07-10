@@ -3,6 +3,7 @@ import {
   getCyclingRaceByYear,
   getCyclingStageResult,
   getPublicCyclingCompetition,
+  listAllGrandTourRiders,
   listCyclingCompetitions,
   listCyclingLeaderboard,
   listCyclingRiders,
@@ -55,6 +56,14 @@ export function useTdfRiders() {
   );
   const riders = useAsyncData(loadRiders, [raceId]);
   return { race, riders };
+}
+
+export function useAllGrandTourRiders(raceId: string | null | undefined) {
+  const loadRiders = useCallback(
+    () => (raceId ? listAllGrandTourRiders(raceId) : Promise.resolve([])),
+    [raceId]
+  );
+  return useAsyncData(loadRiders, [raceId]);
 }
 
 export function useStageStartlist(stageId: string | null | undefined) {

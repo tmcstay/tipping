@@ -4,14 +4,17 @@ import type { CyclingStartlistRider } from "@tipping-suite/supabase-client";
 
 import { formatRiderDisplayName, preferStageBibNumber } from "../lib/formatters";
 import {
-  groupSelectableRiders,
   isSelectableRiderStatus,
+  RIDER_SELECTION_TABS,
   RIDER_SPECIALITY_FILTERS,
+  selectRidersForTab,
+  type RiderSelectionTab,
   type RiderSpecialityFilter
 } from "../lib/riderSelectionExperience";
 
 type Props = {
   excludedRiderIds?: string[];
+  favouriteRiderIds?: ReadonlySet<string>;
   riders: CyclingStartlistRider[];
   stageContext?: string;
   title: string;
@@ -28,6 +31,7 @@ function statusLabel(status: string) {
 
 export function RiderSelectionPanel({
   excludedRiderIds = [],
+  favouriteRiderIds = new Set(),
   riders,
   stageContext,
   title,
@@ -37,10 +41,47 @@ export function RiderSelectionPanel({
 }: Props) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<RiderSpecialityFilter>("all");
-  const grouped = useMemo(
-    () => groupSelectableRiders(riders, search, filter),
-    [filter, riders, search]
+  const [tab, setTab] = useState<RiderSelectionTab>("teams");
+  const result = useMemo(
+    () => selectRidersForTab(riders, tab, search, filter, favouriteRiderIds),
+    [favouriteRiderIds, filter, riders, search, tab]
   );
+  const noFavourites = tab === "favourites" && favouriteRiderIds.size === 0;
+
+  function renderRider(entry: CyclingStartlistRider) {
+    const excluded = excludedRiderIds.includes(entry.rider.id);
+    const inactive = !isSelectableRiderStatus(entry.status);
+    const disabled = excluded || inactive;
+    const bib = preferStageBibNumber(entry.bib_number, entry.rider.bib_number);
+    const badges = [
+      ...(entry.rider.specialities ?? []),
+      entry.rider_role && entry.rider_role !== "unknown" ? entry.rider_role : null
+    ].filter((value): value is string => Boolean(value));
+    const currentStatus = statusLabel(entry.status);
+    const isFavourite = favouriteRiderIds.has(entry.rider.id);
+    return (
+      <Pressable
+        disabled={disabled}
+        key={entry.id}
+        onPress={() => onSelect(entry.rider.id)}
+        style={[styles.rider, disabled && styles.disabled, excluded && styles.excluded]}
+      >
+        <View style={styles.bibBadge}><Text style={styles.bibText}>{bib ? `#${bib}` : "—"}</Text></View>
+        <View style={styles.copy}>
+          <Text style={styles.name}>{isFavourite ? "★ " : ""}{formatRiderDisplayName(entry.rider.display_name, bib)}</Text>
+          <Text style={styles.team}>{entry.team?.code ?? entry.team?.name ?? "Team TBC"}</Text>
+          {badges.length ? (
+            <View style={styles.badges}>
+              {badges.slice(0, 3).map((badge) => <Text key={badge} style={styles.badge}>{badge.replaceAll("_", " ")}</Text>)}
+            </View>
+          ) : null}
+        </View>
+        <Text style={[styles.action, inactive && styles.statusAction]}>
+          {excluded ? "Already selected" : currentStatus ?? "Select"}
+        </Text>
+      </Pressable>
+    );
+  }
 
   return (
     <Modal animationType="slide" presentationStyle="fullScreen" visible={visible} onRequestClose={onClose}>
@@ -53,6 +94,18 @@ export function RiderSelectionPanel({
           <Pressable accessibilityLabel="Close rider selector" onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeText}>Close</Text>
           </Pressable>
+        </View>
+
+        <View style={styles.tabs}>
+          {RIDER_SELECTION_TABS.map((option) => (
+            <Pressable
+              key={option.key}
+              onPress={() => setTab(option.key)}
+              style={[styles.tab, tab === option.key && styles.tabActive]}
+            >
+              <Text style={[styles.tabText, tab === option.key && styles.tabTextActive]}>{option.label}</Text>
+            </Pressable>
+          ))}
         </View>
 
         <View style={styles.controls}>
@@ -77,46 +130,22 @@ export function RiderSelectionPanel({
         </View>
 
         <ScrollView contentContainerStyle={styles.list}>
-          {grouped.length === 0 ? (
-            <Text style={styles.empty}>No riders match your search or filters.</Text>
-          ) : grouped.map((group) => (
-            <View key={group.teamName} style={styles.group}>
-              <Text style={styles.groupTitle}>{group.teamName}</Text>
-              {group.entries.map((entry) => {
-                const excluded = excludedRiderIds.includes(entry.rider.id);
-                const inactive = !isSelectableRiderStatus(entry.status);
-                const disabled = excluded || inactive;
-                const bib = preferStageBibNumber(entry.bib_number, entry.rider.bib_number);
-                const badges = [
-                  ...(entry.rider.specialities ?? []),
-                  entry.rider_role && entry.rider_role !== "unknown" ? entry.rider_role : null
-                ].filter((value): value is string => Boolean(value));
-                const currentStatus = statusLabel(entry.status);
-                return (
-                  <Pressable
-                    disabled={disabled}
-                    key={entry.id}
-                    onPress={() => onSelect(entry.rider.id)}
-                    style={[styles.rider, disabled && styles.disabled, excluded && styles.excluded]}
-                  >
-                    <View style={styles.bibBadge}><Text style={styles.bibText}>{bib ? `#${bib}` : "—"}</Text></View>
-                    <View style={styles.copy}>
-                      <Text style={styles.name}>{formatRiderDisplayName(entry.rider.display_name, bib)}</Text>
-                      <Text style={styles.team}>{entry.team?.code ?? entry.team?.name ?? "Team TBC"}</Text>
-                      {badges.length ? (
-                        <View style={styles.badges}>
-                          {badges.slice(0, 3).map((badge) => <Text key={badge} style={styles.badge}>{badge.replaceAll("_", " ")}</Text>)}
-                        </View>
-                      ) : null}
-                    </View>
-                    <Text style={[styles.action, inactive && styles.statusAction]}>
-                      {excluded ? "Already selected" : currentStatus ?? "Select"}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ))}
+          {noFavourites ? (
+            <Text style={styles.empty}>No favourite riders yet. Add favourites from the rider list.</Text>
+          ) : result.mode === "grouped" ? (
+            result.groups.length === 0 ? (
+              <Text style={styles.empty}>No riders match your search or filters.</Text>
+            ) : result.groups.map((group) => (
+              <View key={group.teamName} style={styles.group}>
+                <Text style={styles.groupTitle}>{group.teamName}</Text>
+                {group.entries.map((entry) => renderRider(entry))}
+              </View>
+            ))
+          ) : (
+            result.riders.length === 0 ? (
+              <Text style={styles.empty}>No riders match your search or filters.</Text>
+            ) : result.riders.map((entry) => renderRider(entry))
+          )}
         </ScrollView>
       </View>
     </Modal>
@@ -151,6 +180,11 @@ const styles = StyleSheet.create({
   screen: { backgroundColor: "#EEF2EF", flex: 1 },
   search: { backgroundColor: "#FFFFFF", borderColor: "#C9D1CB", borderRadius: 14, borderWidth: 1, minHeight: 48, paddingHorizontal: 12 },
   statusAction: { color: "#A12622" },
+  tab: { alignItems: "center", borderRadius: 12, flex: 1, padding: 11 },
+  tabActive: { backgroundColor: "#12372A" },
+  tabText: { color: "#536159", fontSize: 13, fontWeight: "900" },
+  tabTextActive: { color: "#FFFFFF" },
+  tabs: { backgroundColor: "#EEF2EF", borderRadius: 14, flexDirection: "row", gap: 4, margin: 14, marginBottom: 0, padding: 4 },
   team: { color: "#68746D", fontSize: 12, marginTop: 2 },
   title: { color: "#17231C", fontSize: 20, fontWeight: "900" }
 });

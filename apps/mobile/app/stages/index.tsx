@@ -19,6 +19,9 @@ export default function StageListScreen() {
       title="Stage tips"
       subtitle="Choose a stage, then enter or review your picks."
     >
+      <Pressable onPress={() => router.push("/riders")} style={styles.ridersLink}>
+        <Text style={styles.ridersLinkText}>Rider directory & favourites →</Text>
+      </Pressable>
       {loading ? <LoadingState /> : null}
       {race.error ? <ErrorState error={race.error} onRetry={race.reload} /> : null}
       {stages.error ? <ErrorState error={stages.error} onRetry={stages.reload} /> : null}
@@ -60,6 +63,8 @@ const styles = StyleSheet.create({
   lock: { color: "#12372A", fontSize: 14, fontWeight: "900" },
   locked: { color: "#A12622", fontSize: 14, fontWeight: "900" },
   provisional: { color: "#8A5A00", fontSize: 12, fontWeight: "800" },
+  ridersLink: { alignSelf: "flex-start", minHeight: 32, justifyContent: "center" },
+  ridersLinkText: { color: "#12372A", fontSize: 14, fontWeight: "900" },
   topRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   tttNote: { backgroundColor: "#E8E5FF", borderRadius: 10, color: "#3A2F8F", fontSize: 13, fontWeight: "800", lineHeight: 18, padding: 10 }
 });

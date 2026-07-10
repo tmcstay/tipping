@@ -613,6 +613,45 @@ export type Database = {
           },
         ]
       }
+      grandtour_favourite_riders: {
+        Row: {
+          created_at: string
+          grand_tour_id: string
+          id: string
+          rider_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          grand_tour_id: string
+          id?: string
+          rider_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          grand_tour_id?: string
+          id?: string
+          rider_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grandtour_favourite_riders_grand_tour_id_fkey"
+            columns: ["grand_tour_id"]
+            isOneToOne: false
+            referencedRelation: "grand_tours"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_favourite_riders_rider_id_fkey"
+            columns: ["rider_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_riders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grandtour_feed_import_runs: {
         Row: {
           applied_at: string | null
