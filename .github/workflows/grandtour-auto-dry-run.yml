@@ -57,7 +57,12 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node 20 has no native WebSocket support, and @supabase/supabase-js's
+          # createClient() throws synchronously when constructing its Realtime
+          # client without one (no `ws` package is installed as a fallback
+          # here) - this workflow always runs --reconcile, so it always
+          # constructs a Supabase client. Node 22+ has native WebSocket.
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
