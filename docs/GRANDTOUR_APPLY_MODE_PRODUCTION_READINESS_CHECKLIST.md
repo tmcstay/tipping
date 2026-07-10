@@ -1067,6 +1067,83 @@ itself. `apps/mobile/tests/grandtourOfficialCheckExperience.test.cjs`
 (`npm run test:ui`) covers the report-to-panel summarization and the exact
 safe-case status copy.
 
+### 14.0.4 Per-stage "Apply Official Result" (admin-session apply, from the admin UI)
+
+The same panel that shows a "Run Official Check" result also has an
+**"Apply Official Result"** button. It is disabled until: a check has been
+run for this stage, that check's `safeToApply` is `true`, and the stage
+isn't already final (`canApplyOfficialResult` in
+`apps/mobile/lib/grandtourOfficialCheckExperience.ts`). Clicking it opens
+a confirmation modal (`buildApplyConfirmationMessage`); confirming calls
+`applyGrandTourOfficialResult()` (`packages/supabase-client/src/grandtourAdmin.ts`)
+→ `POST /api/admin/grandtour/apply-official-result`.
+
+**This required extending `apply_grandtour_official_stage_result` itself**
+(`supabase/migrations/20260714010000_grandtour_apply_authenticated_grant.sql`),
+which was previously `service_role`-only, unlike mark-checked/finalize
+(already extended by `20260710060000`). The migration adds the identical
+guard clause (`auth.role() = 'service_role' or grandtour_private.is_cycling_admin()`)
+as the first statement in the function body, on the same byte-identical
+9-arg signature (a safe same-OID `create or replace`), then grants EXECUTE
+to `authenticated`. This was a deliberate choice over the alternative
+(a server route holding a service-role key) specifically to avoid ever
+putting a production service-role secret into Vercel — see the "Security"
+paragraph below.
+
+The route (`apps/mobile/api/admin/grandtour/apply-official-result.mjs`):
+
+1. Verifies the session + `is_current_user_cycling_admin()`, exactly like
+   `run-official-check.mjs` (401 anonymous, 403 non-admin).
+2. Validates `provider` (only `"official-letour"`) and `stageNumber`.
+3. **Fetches a fresh report itself** via the shared `runDryRunReconcile()`
+   — it never trusts a report supplied by the browser, even one the admin
+   just saw in the "Run Official Check" panel seconds earlier. This
+   matches the CLI's `--from-report` freshness discipline in spirit (a
+   stale/tampered client-side report can never reach the RPC), though the
+   mechanism differs (re-fetch instead of a max-age check on a file).
+4. Re-validates that report with the **exact same** pure functions the
+   CLI's `runApply` uses (`validateReportForApply`, `selectTopNRows`,
+   `mapRowsToResultLines`, `selectJerseyHolderParams`,
+   `buildApplyRpcParams` — all from `scripts/grandtour-apply.mjs`,
+   imported directly, not reimplemented). Any validation failure returns
+   `422` with the error list; the apply RPC is never called.
+5. Calls `apply_grandtour_official_stage_result` using **the same
+   authenticated client used for the admin check** — i.e. the admin's own
+   bearer token, not a service-role key. This is defense in depth on top
+   of step 1: even if the route's own admin check were somehow bypassed,
+   the RPC's own internal guard (added by `20260714010000`) still refuses
+   a non-admin caller server-side.
+6. Returns the RPC's outcome (`applied`/`no_change`/an error message) to
+   the UI, which shows it as a success or error banner and refreshes the
+   stage summary (`onActionComplete`) and resets Review Results so it must
+   be re-expanded before Mark Checked re-enables — same rule a correction
+   already follows.
+
+Writes a **draft** only (`is_final: false`) — identical write scope to the
+CLI's `--apply`. Never finalises, never scores, never touches
+`grandtour_stage_result_lines`/`grandtour_stage_jersey_holders` for a
+stage that's already final (the RPC refuses that outright, same as
+always). The audit log's `changed_by` is `null` regardless of caller for
+this RPC (no `p_applied_by` parameter exists) — a pre-existing gap, not
+introduced or fixed by this change.
+
+**Security**: no service-role key is introduced anywhere by this feature.
+`SUPABASE_SERVICE_ROLE_KEY` is never read by this route (same as the
+check route) — the RPC extension (service_role OR admin session) is what
+makes that possible, instead of the alternative design of giving Vercel a
+service-role secret to call an unchanged service-role-only RPC.
+
+Tests: `apps/mobile/api/admin/grandtour/apply-official-result.test.mjs`
+(`npm run test:api`) covers anonymous/non-admin/admin authorization,
+provider/stageNumber validation, an unsafe freshly-fetched report being
+refused with `422` before the RPC is ever called, a safe report being
+applied via the authenticated client (not a service-role client), and an
+RPC error being surfaced without throwing. `supabase/tests/grandtour_apply_official_stage_result.sql`
+tests 2, 10, 11 cover the RPC's own new guard: a non-admin authenticated
+session is refused (via the internal guard message, not a grant-level
+error, now that `authenticated` is granted EXECUTE), an admin session can
+apply directly, and anon still cannot call it at all.
+
 ### 14.7 User-facing: My Tips & score history (`/my-tips`)
 
 Reachable from Profile → "My Tips & score history" or Results → "View My

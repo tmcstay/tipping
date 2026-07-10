@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import {
+  applyGrandTourOfficialResult,
   correctGrandTourStageResult,
   finalizeGrandTourStage,
   getGrandTourStageAdminReviewDetails,
@@ -34,6 +35,8 @@ import {
   type ParsedCorrectionReport
 } from "../lib/grandtourCorrectionExperience";
 import {
+  buildApplyConfirmationMessage,
+  canApplyOfficialResult,
   getOfficialCheckStatusMessage,
   summarizeOfficialCheckReport,
   type OfficialCheckSummary
@@ -67,6 +70,11 @@ export function GrandTourStageAdminCard({ currentUserId, grandTourName, grandTou
   const [checkReport, setCheckReport] = useState<GrandTourOfficialCheckReport | null>(null);
   const [checkError, setCheckError] = useState<string | null>(null);
   const [checkExpanded, setCheckExpanded] = useState(false);
+
+  const [applyPending, setApplyPending] = useState(false);
+  const [applyMessage, setApplyMessage] = useState<string | null>(null);
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [confirmingApply, setConfirmingApply] = useState(false);
 
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -139,6 +147,35 @@ export function GrandTourStageAdminCard({ currentUserId, grandTourName, grandTou
     ? summarizeOfficialCheckReport(checkReport, summary.stageNumber)
     : null;
   const checkStatusMessage = checkSummary ? getOfficialCheckStatusMessage(checkSummary.safeToApply) : null;
+  const applyEnabled = canApplyOfficialResult(checkSummary, summary.isFinal) && !applyPending;
+
+  // Writes a DRAFT result (never finalises, never scores). Fetches fresh
+  // server-side and re-validates before writing - see
+  // apps/mobile/api/admin/grandtour/apply-official-result.mjs. Runs under
+  // the signed-in admin's own session, never a service-role key.
+  async function applyOfficialResult() {
+    setApplyPending(true);
+    setApplyError(null);
+    setApplyMessage(null);
+    try {
+      const outcome = await applyGrandTourOfficialResult({
+        grandTourName,
+        grandTourYear,
+        stageNumber: summary.stageNumber
+      });
+      setApplyMessage(outcome.message);
+      // The applied result/jersey holders just changed in the DB - refresh
+      // the summary counts and force Review Results to be reloaded before
+      // Mark Checked can be re-enabled, matching the same rule a
+      // correction already follows.
+      setDetailsLoaded(false);
+      onActionComplete();
+    } catch (error) {
+      setApplyError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setApplyPending(false);
+    }
+  }
 
   async function runAction(action: GrandTourAdminAction) {
     setPendingAction(action);
@@ -336,6 +373,26 @@ export function GrandTourStageAdminCard({ currentUserId, grandTourName, grandTou
                   ))}
                 </View>
               ) : null}
+
+              {summary.isFinal ? (
+                <Text style={styles.hintText}>This stage is already final; results cannot be applied here.</Text>
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !applyEnabled }}
+                  disabled={!applyEnabled}
+                  onPress={() => setConfirmingApply(true)}
+                  style={[styles.button, styles.checkButton, !applyEnabled && styles.buttonDisabled]}
+                >
+                  {applyPending ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={[styles.buttonText, !applyEnabled && styles.buttonTextDisabled]}>Apply Official Result</Text>
+                  )}
+                </Pressable>
+              )}
+              {applyMessage ? <Text style={styles.successText}>{applyMessage}</Text> : null}
+              {applyError ? <Text style={styles.errorText}>{applyError}</Text> : null}
 
               <Text style={styles.reviewHeading}>Parsed top 10 result lines</Text>
               {checkSummary.topResultLines.length === 0 ? (
@@ -577,6 +634,39 @@ export function GrandTourStageAdminCard({ currentUserId, grandTourName, grandTou
                 onPress={() => {
                   setConfirmingMarkChecked(false);
                   void runAction("mark-checked");
+                }}
+                style={styles.modalConfirmButton}
+              >
+                <Text style={styles.modalConfirmText}>Confirm</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setConfirmingApply(false)}
+        transparent
+        visible={confirmingApply}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Confirm Apply Official Result</Text>
+            <Text style={styles.modalCopy}>{buildApplyConfirmationMessage(summary.stageNumber)}</Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setConfirmingApply(false)}
+                style={styles.modalCancelButton}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setConfirmingApply(false);
+                  void applyOfficialResult();
                 }}
                 style={styles.modalConfirmButton}
               >

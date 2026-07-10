@@ -101,3 +101,26 @@ export const OFFICIAL_CHECK_SAFE_MESSAGE = "Official check passed. Review result
 export function getOfficialCheckStatusMessage(safeToApply: boolean | null): string | null {
   return safeToApply === true ? OFFICIAL_CHECK_SAFE_MESSAGE : null;
 }
+
+/**
+ * Whether the "Apply Official Result" button should be enabled: a check
+ * must have been run for this stage, it must be safe, and the stage must
+ * not already be final. Applying itself re-fetches and re-validates fresh
+ * server-side (apps/mobile/api/admin/grandtour/apply-official-result.mjs)
+ * regardless - this only decides whether the UI offers the button at all,
+ * the same "mirror, don't replace, the server-side gate" pattern as
+ * canMarkChecked/canFinalise/canScore in grandtourAdminExperience.ts.
+ */
+export function canApplyOfficialResult(summary: OfficialCheckSummary | null, isFinal: boolean): boolean {
+  return summary !== null && summary.safeToApply === true && !isFinal;
+}
+
+/**
+ * The exact confirmation-modal copy shown before Apply Official Result,
+ * including the stage number and an ISO timestamp the admin is implicitly
+ * attesting to at the moment of confirming - mirrors
+ * buildMarkCheckedConfirmationMessage in grandtourAdminExperience.ts.
+ */
+export function buildApplyConfirmationMessage(stageNumber: number, now: Date = new Date()): string {
+  return `I have reviewed the official check results for Stage ${stageNumber} and want to apply this result as a draft, at ${now.toISOString()}.`;
+}

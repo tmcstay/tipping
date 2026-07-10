@@ -476,3 +476,59 @@ export async function runGrandTourOfficialCheck(input: {
 
   return body.report as GrandTourOfficialCheckReport;
 }
+
+export type GrandTourApplyOfficialResultOutcome = {
+  status: string;
+  message: string;
+  data: unknown;
+};
+
+/**
+ * Calls the server-side POST /api/admin/grandtour/apply-official-result
+ * route (apps/mobile/api/admin/grandtour/apply-official-result.mjs) -
+ * fetches a fresh official result for the stage, validates it, and applies
+ * it as a draft using the caller's own session (never a service-role key).
+ * Writes a draft result only - never finalises, never scores. Throws on
+ * any non-2xx response (validation failure, RPC error, auth failure), with
+ * the server's error message.
+ */
+export async function applyGrandTourOfficialResult(input: {
+  grandTourName: string;
+  grandTourYear: number;
+  stageNumber: number;
+  provider?: string;
+  reason?: string;
+}): Promise<GrandTourApplyOfficialResultOutcome> {
+  const session = await getCurrentSession();
+  if (!session?.access_token) {
+    throw new Error("You must be signed in to apply an official result.");
+  }
+
+  const response = await fetch("/api/admin/grandtour/apply-official-result", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`
+    },
+    body: JSON.stringify({
+      grandTourName: input.grandTourName,
+      grandTourYear: input.grandTourYear,
+      stageNumber: input.stageNumber,
+      provider: input.provider ?? "official-letour",
+      reason: input.reason ?? undefined
+    })
+  });
+
+  let body: { ok?: boolean; status?: string; message?: string; data?: unknown; error?: string } | null = null;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+
+  if (!response.ok || !body?.ok) {
+    throw new Error(body?.error ?? body?.message ?? `Apply failed (HTTP ${response.status}).`);
+  }
+
+  return { status: body.status ?? "applied", message: body.message ?? "Applied.", data: body.data ?? null };
+}

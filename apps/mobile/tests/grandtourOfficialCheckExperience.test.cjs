@@ -2,6 +2,8 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  buildApplyConfirmationMessage,
+  canApplyOfficialResult,
   getOfficialCheckStatusMessage,
   OFFICIAL_CHECK_SAFE_MESSAGE,
   summarizeOfficialCheckReport
@@ -119,4 +121,22 @@ test("getOfficialCheckStatusMessage returns the exact required copy when safe", 
 test("getOfficialCheckStatusMessage returns null when unsafe or unknown", () => {
   assert.equal(getOfficialCheckStatusMessage(false), null);
   assert.equal(getOfficialCheckStatusMessage(null), null);
+});
+
+test("canApplyOfficialResult requires a safe check result and a non-final stage", () => {
+  const safeSummary = summarizeOfficialCheckReport(buildReport(), 5);
+  assert.equal(canApplyOfficialResult(safeSummary, false), true);
+  assert.equal(canApplyOfficialResult(safeSummary, true), false, "must not apply to an already-final stage");
+  assert.equal(canApplyOfficialResult(null, false), false, "must not apply before any check has run");
+
+  const unsafeReport = buildReport();
+  unsafeReport.reconciliation.stages[0].safeToApply = false;
+  const unsafeSummary = summarizeOfficialCheckReport(unsafeReport, 5);
+  assert.equal(canApplyOfficialResult(unsafeSummary, false), false);
+});
+
+test("buildApplyConfirmationMessage includes the stage number and an ISO timestamp", () => {
+  const message = buildApplyConfirmationMessage(5, new Date("2026-07-10T17:00:00.000Z"));
+  assert.match(message, /Stage 5/);
+  assert.match(message, /2026-07-10T17:00:00\.000Z/);
 });

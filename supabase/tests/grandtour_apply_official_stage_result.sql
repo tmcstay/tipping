@@ -23,6 +23,30 @@ begin
 end;
 $$;
 
+create or replace function pg_temp.authenticate(test_user uuid)
+returns void
+language plpgsql
+as $$
+begin
+  perform set_config('request.jwt.claim.sub', test_user::text, true);
+  perform set_config('request.jwt.claim.role', 'authenticated', true);
+end;
+$$;
+
+-- Admin/non-admin auth.users fixtures for the authenticated-session apply
+-- tests (20260714010000_grandtour_apply_authenticated_grant.sql).
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+values
+  ('c6000000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'apply-rpc-test-admin@example.test', '', now(), now()),
+  ('c6000000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'apply-rpc-test-nonadmin@example.test', '', now(), now());
+
+update public.user_app_memberships membership
+set role = 'admin'
+from public.apps app
+where membership.app_id = app.id
+  and membership.user_id = 'c6000000-0000-4000-8000-000000000001'
+  and app.code = 'cycling';
+
 -- Self-contained fixture: one test grand tour, two teams, six riders,
 -- three stages (road/road/ttt). Rider 6 is deliberately left off every
 -- stage's startlist so it can drive the "missing startlist rider" test.
@@ -76,21 +100,27 @@ $$;
 reset role;
 
 \echo '=== 2. authenticated (non-admin) cannot call the RPC either ==='
+-- Since 20260714010000, `authenticated` IS EXECUTE-granted (the Vercel-safe
+-- admin-session path), so a non-admin caller now reaches the function body
+-- and is refused by the internal grandtour_private.is_cycling_admin()
+-- guard - not by a grant-level insufficient_privilege error anymore.
 do $$
 begin
   begin
     set local role authenticated;
+    perform pg_temp.authenticate('c6000000-0000-4000-8000-000000000002');
     perform public.apply_grandtour_official_stage_result(
       'c4000000-0000-4000-8000-000000000001',
       '[]'::jsonb,
       '{}'::jsonb
     );
-    raise exception 'authenticated call unexpectedly succeeded';
-  exception when insufficient_privilege then null;
+    raise exception 'non-admin authenticated call unexpectedly succeeded';
+  exception when others then
+    if sqlerrm not like '%administrator access is required%' then raise; end if;
   end;
+  reset role;
 end;
 $$;
-reset role;
 
 \echo '=== 3. is_final=true (p_finalize) is refused ==='
 do $$
@@ -317,6 +347,64 @@ select pg_temp.assert_true(
   (select count(*) = 1 from public.grandtour_stage_results where stage_id = 'c4000000-0000-4000-8000-000000000001'),
   'a rejected changed-result reapply must not create a second stage result row'
 );
+
+-- Tests 10-11 cover the Vercel-safe direct-authenticated-session path added
+-- by 20260714010000_grandtour_apply_authenticated_grant.sql, mirroring
+-- 20260710060000's tests 14/17 for mark-checked/finalise.
+
+\echo '=== 10. an authenticated admin (own session, no service_role) CAN apply a valid draft result directly ==='
+set local role authenticated;
+select pg_temp.authenticate('c6000000-0000-4000-8000-000000000001');
+select public.apply_grandtour_official_stage_result(
+  'c4000000-0000-4000-8000-000000000003',
+  '[
+    {"rider_id":"c3000000-0000-4000-8000-000000000001","actual_position":1},
+    {"rider_id":"c3000000-0000-4000-8000-000000000002","actual_position":2},
+    {"rider_id":"c3000000-0000-4000-8000-000000000003","actual_position":3},
+    {"rider_id":"c3000000-0000-4000-8000-000000000004","actual_position":4},
+    {"rider_id":"c3000000-0000-4000-8000-000000000005","actual_position":5}
+  ]'::jsonb,
+  '{"stageNumber":3,"isTtt":false,"missingStageRecord":false,"startlistValidationPassed":true,"safeToApply":true,"matchedRiders":[{"riderId":"c3000000-0000-4000-8000-000000000001"},{"riderId":"c3000000-0000-4000-8000-000000000002"},{"riderId":"c3000000-0000-4000-8000-000000000003"},{"riderId":"c3000000-0000-4000-8000-000000000004"},{"riderId":"c3000000-0000-4000-8000-000000000005"}],"unmatchedRiders":[],"ambiguousRiders":[],"unmatchedTeams":[],"ambiguousTeams":[],"duplicateBibConflicts":[]}'::jsonb,
+  '{"parserStatus":"ok","parserDriftDetected":false}'::jsonb,
+  '{"provider_name":"official-letour","source_url":"https://www.letour.fr/en/rankings/stage-3","fetched_at":"2026-07-09T00:00:00Z","confidence":"official"}'::jsonb,
+  false,
+  'apply-rpc-test-admin-session-happy-path',
+  'apply-rpc-test-admin-session-request'
+) as admin_apply_result \gset
+reset role;
+
+select pg_temp.assert_true(
+  (:'admin_apply_result'::jsonb ->> 'status') = 'applied',
+  'an authenticated admin session must be able to apply a valid draft result directly, status=applied'
+);
+select pg_temp.assert_true(
+  (select count(*) = 1 from public.grandtour_stage_results where stage_id = 'c4000000-0000-4000-8000-000000000003' and is_final = false),
+  'stage 3 must have exactly one draft result after the admin-session apply'
+);
+select pg_temp.assert_true(
+  (select count(*) = 5
+   from public.grandtour_stage_result_lines lines
+   join public.grandtour_stage_results results on results.id = lines.stage_result_id
+   where results.stage_id = 'c4000000-0000-4000-8000-000000000003'),
+  'stage 3 must have exactly 5 result lines after the admin-session apply'
+);
+
+\echo '=== 11. anon still cannot call the RPC after the authenticated grant ==='
+do $$
+begin
+  begin
+    set local role anon;
+    perform public.apply_grandtour_official_stage_result(
+      'c4000000-0000-4000-8000-000000000003',
+      '[]'::jsonb,
+      '{}'::jsonb
+    );
+    raise exception 'anon call unexpectedly succeeded after the authenticated grant';
+  exception when insufficient_privilege then null;
+  end;
+  reset role;
+end;
+$$;
 
 select 'GrandTour apply_grandtour_official_stage_result RPC tests passed' as result;
 rollback;
