@@ -31,12 +31,14 @@ function RootNavigator() {
         <Stack.Screen name="profile" />
         <Stack.Screen name="leaderboard" />
         <Stack.Screen name="results" />
+        <Stack.Screen name="my-tips" />
         <Stack.Screen name="overall-jerseys" />
         <Stack.Screen name="stages/index" />
         <Stack.Screen name="stages/[stageId]" />
         <Stack.Screen name="stages/[stageId]/compare" />
         <Stack.Screen name="races/index" />
         <Stack.Screen name="races/[raceId]" />
+        <Stack.Screen name="admin/grandtour-stages" />
       </Stack.Protected>
     </Stack>
   );

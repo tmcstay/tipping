@@ -1,0 +1,5115 @@
+{
+  "mode": "dry-run",
+  "importType": "backfill",
+  "fromStage": 3,
+  "toStage": 3,
+  "stageRangeRequested": {
+    "fromStage": 3,
+    "toStage": 3
+  },
+  "stageDate": "2026-07-06",
+  "provider": "official-letour",
+  "sourceUrl": "https://www.letour.fr/en/rankings/stage-3",
+  "fetchedAt": "2026-07-09T08:50:50.482Z",
+  "dryRun": true,
+  "applyEnabled": false,
+  "importStatus": "review_required",
+  "parserDriftDetected": false,
+  "stageFetchMetadata": [
+    {
+      "stageNumber": 3,
+      "url": "https://www.letour.fr/en/rankings/stage-3",
+      "httpStatus": 200,
+      "status": "ok",
+      "rowsMatched": 182,
+      "ridersParsed": 182,
+      "warningCount": 0
+    }
+  ],
+  "jerseyFetchMetadata": [
+    {
+      "stageNumber": 3,
+      "classification": "individual",
+      "jerseyType": "yellow",
+      "status": "found",
+      "selector": "table.rankingTable > tbody > tr.rankingTables__row (row 1)",
+      "url": "https://www.letour.fr/en/ajax/ranking/3/itg/8cc975d0be03e5d50e78530e0a4b6f7d/none",
+      "rowsMatched": 182
+    },
+    {
+      "stageNumber": 3,
+      "classification": "points",
+      "jerseyType": "green",
+      "status": "found",
+      "selector": "table.rankingTable > tbody > tr.rankingTables__row (row 1)",
+      "url": "https://www.letour.fr/en/ajax/ranking/3/ipg/477ec2766509ecac2687bca08dfbd65d/none",
+      "rowsMatched": 46
+    },
+    {
+      "stageNumber": 3,
+      "classification": "climber",
+      "jerseyType": "kom",
+      "status": "found",
+      "selector": "table.rankingTable > tbody > tr.rankingTables__row (row 1)",
+      "url": "https://www.letour.fr/en/ajax/ranking/3/img/dc308368730dbad45a7bf5946284246b/none",
+      "rowsMatched": 18
+    },
+    {
+      "stageNumber": 3,
+      "classification": "youth",
+      "jerseyType": "white",
+      "status": "found",
+      "selector": "table.rankingTable > tbody > tr.rankingTables__row (row 1)",
+      "url": "https://www.letour.fr/en/ajax/ranking/3/ijg/8c48050599394fe0b8d6dcbbc5480ede/none",
+      "rowsMatched": 40
+    }
+  ],
+  "validationErrors": [],
+  "summary": {
+    "sourceName": "official-letour",
+    "sourceUrl": "https://www.letour.fr/en/rankings/stage-3",
+    "fetchedAt": "2026-07-09T08:50:50.482Z",
+    "matchedRiders": 0,
+    "unmatchedRiders": 182,
+    "unmatchedTeams": 0,
+    "changedRiderStatuses": 0,
+    "stageResultCandidates": 1,
+    "tttResultCandidates": 0,
+    "candidateJerseyHolderRows": 0,
+    "candidateRiderStatusChanges": 0,
+    "individualTimingCandidates": 0,
+    "stagesConsidered": [
+      3
+    ],
+    "stagesWithResults": [
+      3
+    ],
+    "stagesMissingResults": [],
+    "scoringStages": [
+      3
+    ],
+    "leaderboardRebuildRequired": true,
+    "conflicts": [],
+    "segments": {
+      "stage_metadata": 0,
+      "stage_result": 0,
+      "ttt_result": 0,
+      "jersey_holders": 0,
+      "rider_status": 0,
+      "startlist": 0,
+      "team_data": 0
+    }
+  },
+  "warnings": [],
+  "note": "Dry run/review mode does not mutate database tables.",
+  "reconciliation": {
+    "provider": "official-letour",
+    "dryRun": true,
+    "applyEnabled": false,
+    "reconciliationOnly": true,
+    "stageDate": "2026-07-06",
+    "stageRangeRequested": {
+      "fromStage": 3,
+      "toStage": 3
+    },
+    "generatedAt": "2026-07-09T08:50:51.117Z",
+    "stages": [
+      {
+        "stageNumber": 3,
+        "stageId": "567d0712-e574-55c4-b073-39d2d977d163",
+        "stageDate": "2026-07-06",
+        "stageType": "mountain",
+        "isTtt": false,
+        "missingStageRecord": false,
+        "parsedRiders": [
+          {
+            "position": 1,
+            "rider_name": "T. POGACAR",
+            "bib_number": 1,
+            "team_name": "UAE TEAM EMIRATES XRG",
+            "time": "04h 45' 11''",
+            "gap": "-"
+          },
+          {
+            "position": 2,
+            "rider_name": "J. VINGEGAARD",
+            "bib_number": 11,
+            "team_name": "TEAM VISMA | LEASE A BIKE",
+            "time": "04h 45' 13''",
+            "gap": "+ 00h 00' 02''"
+          },
+          {
+            "position": 3,
+            "rider_name": "R. CARAPAZ",
+            "bib_number": 41,
+            "team_name": "EF EDUCATION - EASYPOST",
+            "time": "04h 45' 13''",
+            "gap": "+ 00h 00' 02''"
+          },
+          {
+            "position": 4,
+            "rider_name": "P. SEIXAS",
+            "bib_number": 51,
+            "team_name": "DECATHLON CMA CGM TEAM",
+            "time": "04h 45' 13''",
+            "gap": "+ 00h 00' 02''"
+          },
+          {
+            "position": 5,
+            "rider_name": "T. JOHANNESSEN",
+            "bib_number": 121,
+            "team_name": "UNO-X MOBILITY",
+            "time": "04h 45' 15''",
+            "gap": "+ 00h 00' 04''"
+          },
+          {
+            "position": 6,
+            "rider_name": "L. VAN EETVELT",
+            "bib_number": 156,
+            "team_name": "LOTTO INTERMARCHE",
+            "time": "04h 45' 15''",
+            "gap": "+ 00h 00' 04''"
+          },
+          {
+            "position": 7,
+            "rider_name": "F. LIPOWITZ",
+            "bib_number": 25,
+            "team_name": "RED BULL - BORA - HANSGROHE",
+            "time": "04h 45' 15''",
+            "gap": "+ 00h 00' 04''"
+          },
+          {
+            "position": 8,
+            "rider_name": "R. EVENEPOEL",
+            "bib_number": 21,
+            "team_name": "RED BULL - BORA - HANSGROHE",
+            "time": "04h 45' 15''",
+            "gap": "+ 00h 00' 04''"
+          },
+          {
+            "position": 9,
+            "rider_name": "I. DEL TORO",
+            "bib_number": 2,
+            "team_name": "UAE TEAM EMIRATES XRG",
+            "time": "04h 45' 15''",
+            "gap": "+ 00h 00' 04''"
+          },
+          {
+            "position": 10,
+            "rider_name": "J. AYUSO",
+            "bib_number": 31,
+            "team_name": "LIDL-TREK",
+            "time": "04h 45' 15''",
+            "gap": "+ 00h 00' 04''"
+          },
+          {
+            "position": 11,
+            "rider_name": "M. SKJELMOSE",
+            "bib_number": 35,
+            "team_name": "LIDL-TREK",
+            "time": "04h 45' 21''",
+            "gap": "+ 00h 00' 10''"
+          },
+          {
+            "position": 12,
+            "rider_name": "I. VAN WILDER",
+            "bib_number": 97,
+            "team_name": "SOUDAL QUICK-STEP",
+            "time": "04h 45' 23''",
+            "gap": "+ 00h 00' 12''"
+          },
+          {
+            "position": 13,
+            "rider_name": "L. MARTINEZ",
+            "bib_number": 71,
+            "team_name": "BAHRAIN VICTORIOUS",
+            "time": "04h 45' 23''",
+            "gap": "+ 00h 00' 12''"
+          },
+          {
+            "position": 14,
+            "rider_name": "J. JEGAT",
+            "bib_number": 201,
+            "team_name": "TOTALENERGIES",
+            "time": "04h 45' 23''",
+            "gap": "+ 00h 00' 12''"
+          },
+          {
+            "position": 15,
+            "rider_name": "S. HIGUITA",
+            "bib_number": 61,
+            "team_name": "XDS ASTANA TEAM",
+            "time": "04h 45' 29''",
+            "gap": "+ 00h 00' 18''"
+          },
+          {
+            "position": 16,
+            "rider_name": "T. PIDCOCK",
+            "bib_number": 171,
+            "team_name": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "time": "04h 45' 29''",
+            "gap": "+ 00h 00' 18''"
+          },
+          {
+            "position": 17,
+            "rider_name": "E. BERNAL",
+            "bib_number": 81,
+            "team_name": "NETCOMPANY INEOS CYCLING TEAM",
+            "time": "04h 45' 29''",
+            "gap": "+ 00h 00' 18''"
+          },
+          {
+            "position": 18,
+            "rider_name": "T. BENOOT",
+            "bib_number": 52,
+            "team_name": "DECATHLON CMA CGM TEAM",
+            "time": "04h 45' 38''",
+            "gap": "+ 00h 00' 27''"
+          },
+          {
+            "position": 19,
+            "rider_name": "T. ARENSMAN",
+            "bib_number": 82,
+            "team_name": "NETCOMPANY INEOS CYCLING TEAM",
+            "time": "04h 45' 38''",
+            "gap": "+ 00h 00' 27''"
+          },
+          {
+            "position": 20,
+            "rider_name": "D. PIGANZOLI",
+            "bib_number": 18,
+            "team_name": "TEAM VISMA | LEASE A BIKE",
+            "time": "04h 45' 44''",
+            "gap": "+ 00h 00' 33''"
+          },
+          {
+            "position": 21,
+            "rider_name": "A. TIBERI",
+            "bib_number": 77,
+            "team_name": "BAHRAIN VICTORIOUS",
+            "time": "04h 45' 53''",
+            "gap": "+ 00h 00' 42''"
+          },
+          {
+            "position": 22,
+            "rider_name": "R. DEBRUYNE",
+            "bib_number": 102,
+            "team_name": "ALPECIN-PREMIER TECH",
+            "time": "04h 45' 59''",
+            "gap": "+ 00h 00' 48''"
+          },
+          {
+            "position": 23,
+            "rider_name": "A. YATES",
+            "bib_number": 8,
+            "team_name": "UAE TEAM EMIRATES XRG",
+            "time": "04h 46' 01''",
+            "gap": "+ 00h 00' 50''"
+          },
+          {
+            "position": 24,
+            "rider_name": "S. KUSS",
+            "bib_number": 17,
+            "team_name": "TEAM VISMA | LEASE A BIKE",
+            "time": "04h 46' 01''",
+            "gap": "+ 00h 00' 50''"
+          },
+          {
+            "position": 25,
+            "rider_name": "H. TEJADA",
+            "bib_number": 65,
+            "team_name": "XDS ASTANA TEAM",
+            "time": "04h 46' 08''",
+            "gap": "+ 00h 00' 57''"
+          },
+          {
+            "position": 26,
+            "rider_name": "P. CASTRILLO",
+            "bib_number": 142,
+            "team_name": "MOVISTAR TEAM",
+            "time": "04h 46' 11''",
+            "gap": "+ 00h 01' 00''"
+          },
+          {
+            "position": 27,
+            "rider_name": "C. UIJTDEBROEKS",
+            "bib_number": 141,
+            "team_name": "MOVISTAR TEAM",
+            "time": "04h 46' 11''",
+            "gap": "+ 00h 01' 00''"
+          },
+          {
+            "position": 28,
+            "rider_name": "G. MARTIN GUYONNET",
+            "bib_number": 186,
+            "team_name": "GROUPAMA-FDJ UNITED",
+            "time": "04h 46' 17''",
+            "gap": "+ 00h 01' 06''"
+          },
+          {
+            "position": 29,
+            "rider_name": "Y. VOISARD",
+            "bib_number": 198,
+            "team_name": "TUDOR PRO CYCLING TEAM",
+            "time": "04h 46' 33''",
+            "gap": "+ 00h 01' 22''"
+          },
+          {
+            "position": 30,
+            "rider_name": "T. TRÆEN",
+            "bib_number": 127,
+            "team_name": "UNO-X MOBILITY",
+            "time": "04h 46' 49''",
+            "gap": "+ 00h 01' 38''"
+          },
+          {
+            "position": 31,
+            "rider_name": "J. HINDLEY",
+            "bib_number": 24,
+            "team_name": "RED BULL - BORA - HANSGROHE",
+            "time": "04h 46' 49''",
+            "gap": "+ 00h 01' 38''"
+          },
+          {
+            "position": 32,
+            "rider_name": "S. QUINN",
+            "bib_number": 45,
+            "team_name": "EF EDUCATION - EASYPOST",
+            "time": "04h 46' 54''",
+            "gap": "+ 00h 01' 43''"
+          },
+          {
+            "position": 33,
+            "rider_name": "J. PARRA",
+            "bib_number": 228,
+            "team_name": "CAJA RURAL-SEGUROS RGA",
+            "time": "04h 46' 56''",
+            "gap": "+ 00h 01' 45''"
+          },
+          {
+            "position": 34,
+            "rider_name": "A. PARET PEINTRE",
+            "bib_number": 56,
+            "team_name": "DECATHLON CMA CGM TEAM",
+            "time": "04h 47' 25''",
+            "gap": "+ 00h 02' 14''"
+          },
+          {
+            "position": 35,
+            "rider_name": "B. MCNULTY",
+            "bib_number": 4,
+            "team_name": "UAE TEAM EMIRATES XRG",
+            "time": "04h 47' 34''",
+            "gap": "+ 00h 02' 23''"
+          },
+          {
+            "position": 36,
+            "rider_name": "M. VAN GILS",
+            "bib_number": 28,
+            "team_name": "RED BULL - BORA - HANSGROHE",
+            "time": "04h 47' 44''",
+            "gap": "+ 00h 02' 33''"
+          },
+          {
+            "position": 37,
+            "rider_name": "N. PRODHOMME",
+            "bib_number": 57,
+            "team_name": "DECATHLON CMA CGM TEAM",
+            "time": "04h 47' 44''",
+            "gap": "+ 00h 02' 33''"
+          },
+          {
+            "position": 38,
+            "rider_name": "M. VACEK",
+            "bib_number": 37,
+            "team_name": "LIDL-TREK",
+            "time": "04h 47' 49''",
+            "gap": "+ 00h 02' 38''"
+          },
+          {
+            "position": 39,
+            "rider_name": "C. HARPER",
+            "bib_number": 173,
+            "team_name": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "time": "04h 47' 52''",
+            "gap": "+ 00h 02' 41''"
+          },
+          {
+            "position": 40,
+            "rider_name": "M. JORGENSON",
+            "bib_number": 16,
+            "team_name": "TEAM VISMA | LEASE A BIKE",
+            "time": "04h 47' 53''",
+            "gap": "+ 00h 02' 42''"
+          },
+          {
+            "position": 41,
+            "rider_name": "Q. SIMMONS",
+            "bib_number": 34,
+            "team_name": "LIDL-TREK",
+            "time": "04h 48' 00''",
+            "gap": "+ 00h 02' 49''"
+          },
+          {
+            "position": 42,
+            "rider_name": "V. PARET PEINTRE",
+            "bib_number": 93,
+            "team_name": "SOUDAL QUICK-STEP",
+            "time": "04h 48' 11''",
+            "gap": "+ 00h 03' 00''"
+          },
+          {
+            "position": 43,
+            "rider_name": "N. BREUILLARD",
+            "bib_number": 202,
+            "team_name": "TOTALENERGIES",
+            "time": "04h 48' 24''",
+            "gap": "+ 00h 03' 13''"
+          },
+          {
+            "position": 44,
+            "rider_name": "C. VERONA",
+            "bib_number": 38,
+            "team_name": "LIDL-TREK",
+            "time": "04h 48' 38''",
+            "gap": "+ 00h 03' 27''"
+          },
+          {
+            "position": 45,
+            "rider_name": "A. SKAARSETH",
+            "bib_number": 126,
+            "team_name": "UNO-X MOBILITY",
+            "time": "04h 48' 38''",
+            "gap": "+ 00h 03' 27''"
+          },
+          {
+            "position": 46,
+            "rider_name": "G. BENNETT",
+            "bib_number": 133,
+            "team_name": "NSN CYCLING TEAM",
+            "time": "04h 49' 13''",
+            "gap": "+ 00h 04' 02''"
+          },
+          {
+            "position": 47,
+            "rider_name": "A. BAUDIN",
+            "bib_number": 43,
+            "team_name": "EF EDUCATION - EASYPOST",
+            "time": "04h 49' 19''",
+            "gap": "+ 00h 04' 08''"
+          },
+          {
+            "position": 48,
+            "rider_name": "R. GARCIA",
+            "bib_number": 144,
+            "team_name": "MOVISTAR TEAM",
+            "time": "04h 49' 27''",
+            "gap": "+ 00h 04' 16''"
+          },
+          {
+            "position": 49,
+            "rider_name": "F. GROSSSCHARTNER",
+            "bib_number": 3,
+            "team_name": "UAE TEAM EMIRATES XRG",
+            "time": "04h 50' 13''",
+            "gap": "+ 00h 05' 02''"
+          },
+          {
+            "position": 50,
+            "rider_name": "M. VERCHER",
+            "bib_number": 208,
+            "team_name": "TOTALENERGIES",
+            "time": "04h 52' 47''",
+            "gap": "+ 00h 07' 36''"
+          },
+          {
+            "position": 51,
+            "rider_name": "K. ASGREEN",
+            "bib_number": 42,
+            "team_name": "EF EDUCATION - EASYPOST",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 52,
+            "rider_name": "N. OLIVEIRA",
+            "bib_number": 146,
+            "team_name": "MOVISTAR TEAM",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 53,
+            "rider_name": "A. BALDERSTONE",
+            "bib_number": 222,
+            "team_name": "CAJA RURAL-SEGUROS RGA",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 54,
+            "rider_name": "E. RUBIO",
+            "bib_number": 148,
+            "team_name": "MOVISTAR TEAM",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 55,
+            "rider_name": "I. IZAGIRRE",
+            "bib_number": 161,
+            "team_name": "COFIDIS",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 56,
+            "rider_name": "M. HIRSCHI",
+            "bib_number": 194,
+            "team_name": "TUDOR PRO CYCLING TEAM",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 57,
+            "rider_name": "K. VAUQUELIN",
+            "bib_number": 88,
+            "team_name": "NETCOMPANY INEOS CYCLING TEAM",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 58,
+            "rider_name": "M. STORER",
+            "bib_number": 196,
+            "team_name": "TUDOR PRO CYCLING TEAM",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 59,
+            "rider_name": "L. GERMANI",
+            "bib_number": 185,
+            "team_name": "GROUPAMA-FDJ UNITED",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 60,
+            "rider_name": "M. CATTANEO",
+            "bib_number": 22,
+            "team_name": "RED BULL - BORA - HANSGROHE",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 61,
+            "rider_name": "D. CARUSO",
+            "bib_number": 73,
+            "team_name": "BAHRAIN VICTORIOUS",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 62,
+            "rider_name": "V. CAMPENAERTS",
+            "bib_number": 14,
+            "team_name": "TEAM VISMA | LEASE A BIKE",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 63,
+            "rider_name": "Q. HERMANS",
+            "bib_number": 174,
+            "team_name": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 64,
+            "rider_name": "X. MEURISSE",
+            "bib_number": 176,
+            "team_name": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 65,
+            "rider_name": "T. SKUJINS",
+            "bib_number": 36,
+            "team_name": "LIDL-TREK",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 66,
+            "rider_name": "C. BRAZ AFONSO",
+            "bib_number": 183,
+            "team_name": "GROUPAMA-FDJ UNITED",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 67,
+            "rider_name": "D. GEE",
+            "bib_number": 32,
+            "team_name": "LIDL-TREK",
+            "time": "04h 58' 46''",
+            "gap": "+ 00h 13' 35''"
+          },
+          {
+            "position": 68,
+            "rider_name": "V. VAN MECHELEN",
+            "bib_number": 78,
+            "team_name": "BAHRAIN VICTORIOUS",
+            "time": "04h 59' 05''",
+            "gap": "+ 00h 13' 54''"
+          },
+          {
+            "position": 69,
+            "rider_name": "S. VELASCO",
+            "bib_number": 67,
+            "team_name": "XDS ASTANA TEAM",
+            "time": "05h 01' 29''",
+            "gap": "+ 00h 16' 18''"
+          },
+          {
+            "position": 70,
+            "rider_name": "M. CORT NIELSEN",
+            "bib_number": 124,
+            "team_name": "UNO-X MOBILITY",
+            "time": "05h 02' 49''",
+            "gap": "+ 00h 17' 38''"
+          },
+          {
+            "position": 71,
+            "rider_name": "N. POLITT",
+            "bib_number": 5,
+            "team_name": "UAE TEAM EMIRATES XRG",
+            "time": "05h 05' 03''",
+            "gap": "+ 00h 19' 52''"
+          },
+          {
+            "position": 72,
+            "rider_name": "M. MATTHEWS",
+            "bib_number": 115,
+            "team_name": "TEAM JAYCO ALULA",
+            "time": "05h 05' 08''",
+            "gap": "+ 00h 19' 57''"
+          },
+          {
+            "position": 73,
+            "rider_name": "J. ABRAHAMSEN",
+            "bib_number": 122,
+            "team_name": "UNO-X MOBILITY",
+            "time": "05h 05' 08''",
+            "gap": "+ 00h 19' 57''"
+          },
+          {
+            "position": 74,
+            "rider_name": "T. WELLENS",
+            "bib_number": 7,
+            "team_name": "UAE TEAM EMIRATES XRG",
+            "time": "05h 05' 29''",
+            "gap": "+ 00h 20' 18''"
+          },
+          {
+            "position": 75,
+            "rider_name": "R. GREGOIRE",
+            "bib_number": 181,
+            "team_name": "GROUPAMA-FDJ UNITED",
+            "time": "05h 05' 29''",
+            "gap": "+ 00h 20' 18''"
+          },
+          {
+            "position": 76,
+            "rider_name": "P. EENKHOORN",
+            "bib_number": 92,
+            "team_name": "SOUDAL QUICK-STEP",
+            "time": "05h 05' 29''",
+            "gap": "+ 00h 20' 18''"
+          },
+          {
+            "position": 77,
+            "rider_name": "J. CEPEDA",
+            "bib_number": 143,
+            "team_name": "MOVISTAR TEAM",
+            "time": "05h 05' 29''",
+            "gap": "+ 00h 20' 18''"
+          },
+          {
+            "position": 78,
+            "rider_name": "J. ROMO",
+            "bib_number": 147,
+            "team_name": "MOVISTAR TEAM",
+            "time": "05h 05' 29''",
+            "gap": "+ 00h 20' 18''"
+          },
+          {
+            "position": 79,
+            "rider_name": "M. LE BERRE",
+            "bib_number": 206,
+            "team_name": "TOTALENERGIES",
+            "time": "05h 05' 29''",
+            "gap": "+ 00h 20' 18''"
+          },
+          {
+            "position": 80,
+            "rider_name": "G. ZIMMERMANN",
+            "bib_number": 158,
+            "team_name": "LOTTO INTERMARCHE",
+            "time": "05h 05' 29''",
+            "gap": "+ 00h 20' 18''"
+          },
+          {
+            "position": 81,
+            "rider_name": "B. O'CONNOR",
+            "bib_number": 111,
+            "team_name": "TEAM JAYCO ALULA",
+            "time": "05h 05' 33''",
+            "gap": "+ 00h 20' 22''"
+          },
+          {
+            "position": 82,
+            "rider_name": "S. OLDANI",
+            "bib_number": 226,
+            "team_name": "CAJA RURAL-SEGUROS RGA",
+            "time": "05h 05' 43''",
+            "gap": "+ 00h 20' 32''"
+          },
+          {
+            "position": 83,
+            "rider_name": "S. BERWICK",
+            "bib_number": 223,
+            "team_name": "CAJA RURAL-SEGUROS RGA",
+            "time": "05h 05' 43''",
+            "gap": "+ 00h 20' 32''"
+          },
+          {
+            "position": 84,
+            "rider_name": "J. OTRUBA",
+            "bib_number": 227,
+            "team_name": "CAJA RURAL-SEGUROS RGA",
+            "time": "05h 05' 43''",
+            "gap": "+ 00h 20' 32''"
+          },
+          {
+            "position": 85,
+            "rider_name": "A. DELETTRE",
+            "bib_number": 204,
+            "team_name": "TOTALENERGIES",
+            "time": "05h 05' 52''",
+            "gap": "+ 00h 20' 41''"
+          },
+          {
+            "position": 86,
+            "rider_name": "J. DELBOVE",
+            "bib_number": 203,
+            "team_name": "TOTALENERGIES",
+            "time": "05h 05' 52''",
+            "gap": "+ 00h 20' 41''"
+          },
+          {
+            "position": 87,
+            "rider_name": "D. VAN BAARLE",
+            "bib_number": 95,
+            "team_name": "SOUDAL QUICK-STEP",
+            "time": "05h 05' 52''",
+            "gap": "+ 00h 20' 41''"
+          },
+          {
+            "position": 88,
+            "rider_name": "J. STUYVEN",
+            "bib_number": 94,
+            "team_name": "SOUDAL QUICK-STEP",
+            "time": "05h 06' 02''",
+            "gap": "+ 00h 20' 51''"
+          },
+          {
+            "position": 89,
+            "rider_name": "B. HEALY",
+            "bib_number": 44,
+            "team_name": "EF EDUCATION - EASYPOST",
+            "time": "05h 06' 11''",
+            "gap": "+ 00h 21' 00''"
+          },
+          {
+            "position": 90,
+            "rider_name": "M. SCHMID",
+            "bib_number": 118,
+            "team_name": "TEAM JAYCO ALULA",
+            "time": "05h 06' 39''",
+            "gap": "+ 00h 21' 28''"
+          },
+          {
+            "position": 91,
+            "rider_name": "S. DILLIER",
+            "bib_number": 103,
+            "team_name": "ALPECIN-PREMIER TECH",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 92,
+            "rider_name": "F. ENGELHARDT",
+            "bib_number": 114,
+            "team_name": "TEAM JAYCO ALULA",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 93,
+            "rider_name": "M. TEUNISSEN",
+            "bib_number": 66,
+            "team_name": "XDS ASTANA TEAM",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 94,
+            "rider_name": "C. RUSSO",
+            "bib_number": 188,
+            "team_name": "GROUPAMA-FDJ UNITED",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 95,
+            "rider_name": "Q. PACHER",
+            "bib_number": 187,
+            "team_name": "GROUPAMA-FDJ UNITED",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 96,
+            "rider_name": "R. PLUIMERS",
+            "bib_number": 195,
+            "team_name": "TUDOR PRO CYCLING TEAM",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 97,
+            "rider_name": "J. BERCKMOES",
+            "bib_number": 153,
+            "team_name": "LOTTO INTERMARCHE",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 98,
+            "rider_name": "A. CHARMIG",
+            "bib_number": 123,
+            "team_name": "UNO-X MOBILITY",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 99,
+            "rider_name": "D. HOWSON",
+            "bib_number": 175,
+            "team_name": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 100,
+            "rider_name": "R. STANNARD",
+            "bib_number": 76,
+            "team_name": "BAHRAIN VICTORIOUS",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 101,
+            "rider_name": "A. GATE",
+            "bib_number": 63,
+            "team_name": "XDS ASTANA TEAM",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 102,
+            "rider_name": "L. DURBRIDGE",
+            "bib_number": 113,
+            "team_name": "TEAM JAYCO ALULA",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 103,
+            "rider_name": "L. VERVAEKE",
+            "bib_number": 98,
+            "team_name": "SOUDAL QUICK-STEP",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 104,
+            "rider_name": "E. VERSTRYNGE",
+            "bib_number": 108,
+            "team_name": "ALPECIN-PREMIER TECH",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 105,
+            "rider_name": "N. DENZ",
+            "bib_number": 23,
+            "team_name": "RED BULL - BORA - HANSGROHE",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 106,
+            "rider_name": "M. MOHORIC",
+            "bib_number": 75,
+            "team_name": "BAHRAIN VICTORIOUS",
+            "time": "05h 08' 10''",
+            "gap": "+ 00h 22' 59''"
+          },
+          {
+            "position": 107,
+            "rider_name": "E. COSTIOU",
+            "bib_number": 184,
+            "team_name": "GROUPAMA-FDJ UNITED",
+            "time": "05h 08' 21''",
+            "gap": "+ 00h 23' 10''"
+          },
+          {
+            "position": 108,
+            "rider_name": "G. STEINHAUSER",
+            "bib_number": 46,
+            "team_name": "EF EDUCATION - EASYPOST",
+            "time": "05h 08' 31''",
+            "gap": "+ 00h 23' 20''"
+          },
+          {
+            "position": 109,
+            "rider_name": "T. GUERNALEC",
+            "bib_number": 205,
+            "team_name": "TOTALENERGIES",
+            "time": "05h 08' 31''",
+            "gap": "+ 00h 23' 20''"
+          },
+          {
+            "position": 110,
+            "rider_name": "J. RICKAERT",
+            "bib_number": 107,
+            "team_name": "ALPECIN-PREMIER TECH",
+            "time": "05h 08' 35''",
+            "gap": "+ 00h 23' 24''"
+          },
+          {
+            "position": 111,
+            "rider_name": "A. ARANBURU",
+            "bib_number": 163,
+            "team_name": "COFIDIS",
+            "time": "05h 08' 40''",
+            "gap": "+ 00h 23' 29''"
+          },
+          {
+            "position": 112,
+            "rider_name": "M. VALGREN",
+            "bib_number": 47,
+            "team_name": "EF EDUCATION - EASYPOST",
+            "time": "05h 08' 40''",
+            "gap": "+ 00h 23' 29''"
+          },
+          {
+            "position": 113,
+            "rider_name": "M. FRIGO",
+            "bib_number": 134,
+            "team_name": "NSN CYCLING TEAM",
+            "time": "05h 08' 47''",
+            "gap": "+ 00h 23' 36''"
+          },
+          {
+            "position": 114,
+            "rider_name": "W. BARGUIL",
+            "bib_number": 211,
+            "team_name": "TEAM PICNIC POSTNL",
+            "time": "05h 08' 47''",
+            "gap": "+ 00h 23' 36''"
+          },
+          {
+            "position": 115,
+            "rider_name": "A. TURGIS",
+            "bib_number": 207,
+            "team_name": "TOTALENERGIES",
+            "time": "05h 08' 51''",
+            "gap": "+ 00h 23' 40''"
+          },
+          {
+            "position": 116,
+            "rider_name": "F. VAN DEN BROEK",
+            "bib_number": 218,
+            "team_name": "TEAM PICNIC POSTNL",
+            "time": "05h 08' 57''",
+            "gap": "+ 00h 23' 46''"
+          },
+          {
+            "position": 117,
+            "rider_name": "B. VAN MOER",
+            "bib_number": 177,
+            "team_name": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "time": "05h 09' 03''",
+            "gap": "+ 00h 23' 52''"
+          },
+          {
+            "position": 118,
+            "rider_name": "L. CRAPS",
+            "bib_number": 154,
+            "team_name": "LOTTO INTERMARCHE",
+            "time": "05h 09' 03''",
+            "gap": "+ 00h 23' 52''"
+          },
+          {
+            "position": 119,
+            "rider_name": "M. WALKER",
+            "bib_number": 48,
+            "team_name": "EF EDUCATION - EASYPOST",
+            "time": "05h 09' 03''",
+            "gap": "+ 00h 23' 52''"
+          },
+          {
+            "position": 120,
+            "rider_name": "K. NEILANDS",
+            "bib_number": 136,
+            "team_name": "NSN CYCLING TEAM",
+            "time": "05h 09' 03''",
+            "gap": "+ 00h 23' 52''"
+          },
+          {
+            "position": 121,
+            "rider_name": "L. PLAPP",
+            "bib_number": 117,
+            "team_name": "TEAM JAYCO ALULA",
+            "time": "05h 09' 08''",
+            "gap": "+ 00h 23' 57''"
+          },
+          {
+            "position": 122,
+            "rider_name": "B. THOMAS",
+            "bib_number": 168,
+            "team_name": "COFIDIS",
+            "time": "05h 09' 24''",
+            "gap": "+ 00h 24' 13''"
+          },
+          {
+            "position": 123,
+            "rider_name": "J. TRATNIK",
+            "bib_number": 26,
+            "team_name": "RED BULL - BORA - HANSGROHE",
+            "time": "05h 09' 24''",
+            "gap": "+ 00h 24' 13''"
+          },
+          {
+            "position": 124,
+            "rider_name": "E. PLANCKAERT",
+            "bib_number": 106,
+            "team_name": "ALPECIN-PREMIER TECH",
+            "time": "05h 09' 28''",
+            "gap": "+ 00h 24' 17''"
+          },
+          {
+            "position": 125,
+            "rider_name": "M. VAN DER POEL",
+            "bib_number": 101,
+            "team_name": "ALPECIN-PREMIER TECH",
+            "time": "05h 09' 28''",
+            "gap": "+ 00h 24' 17''"
+          },
+          {
+            "position": 126,
+            "rider_name": "J. PHILIPSEN",
+            "bib_number": 105,
+            "team_name": "ALPECIN-PREMIER TECH",
+            "time": "05h 09' 28''",
+            "gap": "+ 00h 24' 17''"
+          },
+          {
+            "position": 127,
+            "rider_name": "X. AZPARREN IRURZUN",
+            "bib_number": 172,
+            "team_name": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "time": "05h 09' 28''",
+            "gap": "+ 00h 24' 17''"
+          },
+          {
+            "position": 128,
+            "rider_name": "D. HOOLE",
+            "bib_number": 54,
+            "team_name": "DECATHLON CMA CGM TEAM",
+            "time": "05h 09' 39''",
+            "gap": "+ 00h 24' 28''"
+          },
+          {
+            "position": 129,
+            "rider_name": "M. PEDERSEN",
+            "bib_number": 33,
+            "team_name": "LIDL-TREK",
+            "time": "05h 09' 39''",
+            "gap": "+ 00h 24' 28''"
+          },
+          {
+            "position": 130,
+            "rider_name": "M. HEßMANN",
+            "bib_number": 145,
+            "team_name": "MOVISTAR TEAM",
+            "time": "05h 09' 39''",
+            "gap": "+ 00h 24' 28''"
+          },
+          {
+            "position": 131,
+            "rider_name": "J. NICOLAU",
+            "bib_number": 225,
+            "team_name": "CAJA RURAL-SEGUROS RGA",
+            "time": "05h 09' 39''",
+            "gap": "+ 00h 24' 28''"
+          },
+          {
+            "position": 132,
+            "rider_name": "B. GIRMAY",
+            "bib_number": 131,
+            "team_name": "NSN CYCLING TEAM",
+            "time": "05h 09' 41''",
+            "gap": "+ 00h 24' 30''"
+          },
+          {
+            "position": 133,
+            "rider_name": "M. KANTER",
+            "bib_number": 64,
+            "team_name": "XDS ASTANA TEAM",
+            "time": "05h 09' 51''",
+            "gap": "+ 00h 24' 40''"
+          },
+          {
+            "position": 134,
+            "rider_name": "M. TRENTIN",
+            "bib_number": 197,
+            "team_name": "TUDOR PRO CYCLING TEAM",
+            "time": "05h 10' 00''",
+            "gap": "+ 00h 24' 49''"
+          },
+          {
+            "position": 135,
+            "rider_name": "F. VERMEERSCH",
+            "bib_number": 6,
+            "team_name": "UAE TEAM EMIRATES XRG",
+            "time": "05h 10' 33''",
+            "gap": "+ 00h 25' 22''"
+          },
+          {
+            "position": 136,
+            "rider_name": "S. WAERENSKJOLD",
+            "bib_number": 128,
+            "team_name": "UNO-X MOBILITY",
+            "time": "05h 11' 22''",
+            "gap": "+ 00h 26' 11''"
+          },
+          {
+            "position": 137,
+            "rider_name": "N. VINOKUROV",
+            "bib_number": 68,
+            "team_name": "XDS ASTANA TEAM",
+            "time": "05h 12' 11''",
+            "gap": "+ 00h 27' 00''"
+          },
+          {
+            "position": 138,
+            "rider_name": "A. KIRSCH",
+            "bib_number": 166,
+            "team_name": "COFIDIS",
+            "time": "05h 16' 25''",
+            "gap": "+ 00h 31' 14''"
+          },
+          {
+            "position": 139,
+            "rider_name": "B. VEISTROFFER",
+            "bib_number": 157,
+            "team_name": "LOTTO INTERMARCHE",
+            "time": "05h 21' 38''",
+            "gap": "+ 00h 36' 27''"
+          },
+          {
+            "position": 140,
+            "rider_name": "M. LOUVEL",
+            "bib_number": 135,
+            "team_name": "NSN CYCLING TEAM",
+            "time": "05h 21' 38''",
+            "gap": "+ 00h 36' 27''"
+          },
+          {
+            "position": 141,
+            "rider_name": "J. ALAPHILIPPE",
+            "bib_number": 191,
+            "team_name": "TUDOR PRO CYCLING TEAM",
+            "time": "05h 21' 38''",
+            "gap": "+ 00h 36' 27''"
+          },
+          {
+            "position": 142,
+            "rider_name": "T. VAN ASBROECK",
+            "bib_number": 138,
+            "team_name": "NSN CYCLING TEAM",
+            "time": "05h 21' 38''",
+            "gap": "+ 00h 36' 27''"
+          },
+          {
+            "position": 143,
+            "rider_name": "A. MOLENAAR",
+            "bib_number": 224,
+            "team_name": "CAJA RURAL-SEGUROS RGA",
+            "time": "05h 21' 38''",
+            "gap": "+ 00h 36' 27''"
+          },
+          {
+            "position": 144,
+            "rider_name": "J. DEGENKOLB",
+            "bib_number": 214,
+            "team_name": "TEAM PICNIC POSTNL",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 145,
+            "rider_name": "M. RICCITELLO",
+            "bib_number": 58,
+            "team_name": "DECATHLON CMA CGM TEAM",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 146,
+            "rider_name": "M. FRETIN",
+            "bib_number": 165,
+            "team_name": "COFIDIS",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 147,
+            "rider_name": "J. BIERMANS",
+            "bib_number": 164,
+            "team_name": "COFIDIS",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 148,
+            "rider_name": "P. BITTNER",
+            "bib_number": 213,
+            "team_name": "TEAM PICNIC POSTNL",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 149,
+            "rider_name": "N. MÄRKL",
+            "bib_number": 216,
+            "team_name": "TEAM PICNIC POSTNL",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 150,
+            "rider_name": "P. BAUHAUS",
+            "bib_number": 72,
+            "team_name": "BAHRAIN VICTORIOUS",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 151,
+            "rider_name": "P. ACKERMANN",
+            "bib_number": 112,
+            "team_name": "TEAM JAYCO ALULA",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 152,
+            "rider_name": "T. VAN DIJKE",
+            "bib_number": 27,
+            "team_name": "RED BULL - BORA - HANSGROHE",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 153,
+            "rider_name": "K. GRADEK",
+            "bib_number": 74,
+            "team_name": "BAHRAIN VICTORIOUS",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 154,
+            "rider_name": "T. MARSMAN",
+            "bib_number": 104,
+            "team_name": "ALPECIN-PREMIER TECH",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 155,
+            "rider_name": "B. VAN LERBERGHE",
+            "bib_number": 96,
+            "team_name": "SOUDAL QUICK-STEP",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 156,
+            "rider_name": "T. MERLIER",
+            "bib_number": 91,
+            "team_name": "SOUDAL QUICK-STEP",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 157,
+            "rider_name": "J. VAN DEN BERG",
+            "bib_number": 217,
+            "team_name": "TEAM PICNIC POSTNL",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 158,
+            "rider_name": "J. STEWART",
+            "bib_number": 137,
+            "team_name": "NSN CYCLING TEAM",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 159,
+            "rider_name": "O. KOOIJ",
+            "bib_number": 55,
+            "team_name": "DECATHLON CMA CGM TEAM",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 160,
+            "rider_name": "F. BIESTERBOS",
+            "bib_number": 212,
+            "team_name": "TEAM PICNIC POSTNL",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 161,
+            "rider_name": "F. GAVIRIA",
+            "bib_number": 221,
+            "team_name": "CAJA RURAL-SEGUROS RGA",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 162,
+            "rider_name": "C. BOL",
+            "bib_number": 53,
+            "team_name": "DECATHLON CMA CGM TEAM",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 163,
+            "rider_name": "E. AFFINI",
+            "bib_number": 12,
+            "team_name": "TEAM VISMA | LEASE A BIKE",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 164,
+            "rider_name": "P. ALLEGAERT",
+            "bib_number": 162,
+            "team_name": "COFIDIS",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 165,
+            "rider_name": "P. HAGENES",
+            "bib_number": 15,
+            "team_name": "TEAM VISMA | LEASE A BIKE",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 166,
+            "rider_name": "M. KWIATKOWSKI",
+            "bib_number": 86,
+            "team_name": "NETCOMPANY INEOS CYCLING TEAM",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 167,
+            "rider_name": "H. ARTZ",
+            "bib_number": 152,
+            "team_name": "LOTTO INTERMARCHE",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 168,
+            "rider_name": "A. JOHANNESSEN",
+            "bib_number": 125,
+            "team_name": "UNO-X MOBILITY",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 169,
+            "rider_name": "B. ARMIRAIL",
+            "bib_number": 13,
+            "team_name": "TEAM VISMA | LEASE A BIKE",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 170,
+            "rider_name": "L. ASKEY",
+            "bib_number": 132,
+            "team_name": "NSN CYCLING TEAM",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 171,
+            "rider_name": "T. FOSS",
+            "bib_number": 83,
+            "team_name": "NETCOMPANY INEOS CYCLING TEAM",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 172,
+            "rider_name": "D. GODON",
+            "bib_number": 85,
+            "team_name": "NETCOMPANY INEOS CYCLING TEAM",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 173,
+            "rider_name": "H. PAGE",
+            "bib_number": 167,
+            "team_name": "COFIDIS",
+            "time": "05h 21' 41''",
+            "gap": "+ 00h 36' 30''"
+          },
+          {
+            "position": 174,
+            "rider_name": "L. SLOCK",
+            "bib_number": 155,
+            "team_name": "LOTTO INTERMARCHE",
+            "time": "05h 21' 53''",
+            "gap": "+ 00h 36' 42''"
+          },
+          {
+            "position": 175,
+            "rider_name": "D. BALLERINI",
+            "bib_number": 62,
+            "team_name": "XDS ASTANA TEAM",
+            "time": "05h 22' 51''",
+            "gap": "+ 00h 37' 40''"
+          },
+          {
+            "position": 176,
+            "rider_name": "F. WRIGHT",
+            "bib_number": 178,
+            "team_name": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "time": "05h 22' 52''",
+            "gap": "+ 00h 37' 41''"
+          },
+          {
+            "position": 177,
+            "rider_name": "R. DHONDT",
+            "bib_number": 215,
+            "team_name": "TEAM PICNIC POSTNL",
+            "time": "05h 23' 18''",
+            "gap": "+ 00h 38' 07''"
+          },
+          {
+            "position": 178,
+            "rider_name": "J. TARLING",
+            "bib_number": 87,
+            "team_name": "NETCOMPANY INEOS CYCLING TEAM",
+            "time": "05h 23' 21''",
+            "gap": "+ 00h 38' 10''"
+          },
+          {
+            "position": 179,
+            "rider_name": "F. GANNA",
+            "bib_number": 84,
+            "team_name": "NETCOMPANY INEOS CYCLING TEAM",
+            "time": "05h 23' 21''",
+            "gap": "+ 00h 38' 10''"
+          },
+          {
+            "position": 180,
+            "rider_name": "M. HALLER",
+            "bib_number": 193,
+            "team_name": "TUDOR PRO CYCLING TEAM",
+            "time": "05h 23' 23''",
+            "gap": "+ 00h 38' 12''"
+          },
+          {
+            "position": 181,
+            "rider_name": "K. O’BRIEN",
+            "bib_number": 116,
+            "team_name": "TEAM JAYCO ALULA",
+            "time": "05h 23' 42''",
+            "gap": "+ 00h 38' 31''"
+          },
+          {
+            "position": 182,
+            "rider_name": "A. DE KLEIJN",
+            "bib_number": 192,
+            "team_name": "TUDOR PRO CYCLING TEAM",
+            "time": "05h 26' 27''",
+            "gap": "+ 00h 41' 16''"
+          }
+        ],
+        "matchedRiders": [
+          {
+            "riderName": "T. POGACAR",
+            "bibNumber": 1,
+            "riderId": "1b78ea0c-a9c2-5ab1-b8cb-7c095a24b29d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. VINGEGAARD",
+            "bibNumber": 11,
+            "riderId": "b6aa6179-af5b-5fa2-998c-d53305a4f4c9",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. CARAPAZ",
+            "bibNumber": 41,
+            "riderId": "178d1fff-ca29-5f23-9c5f-5fa45e8c1d89",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. SEIXAS",
+            "bibNumber": 51,
+            "riderId": "6f99ee46-4301-554d-9c0c-23a1e9c1d855",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. JOHANNESSEN",
+            "bibNumber": 121,
+            "riderId": "1f86bd65-1d2e-574a-b0d5-b0dd23424ee4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. VAN EETVELT",
+            "bibNumber": 156,
+            "riderId": "d3b9a75e-b409-5584-be3c-4a6e6b19934a",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. LIPOWITZ",
+            "bibNumber": 25,
+            "riderId": "8d198e7a-109f-5c70-ad01-7d25f05143e3",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. EVENEPOEL",
+            "bibNumber": 21,
+            "riderId": "e8f3e17f-c9c3-529d-a5b0-a5a3dbdb745b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "I. DEL TORO",
+            "bibNumber": 2,
+            "riderId": "71e4df35-c770-59ab-b002-ec413c86c658",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. AYUSO",
+            "bibNumber": 31,
+            "riderId": "19214a4f-1fa4-51fc-bd3b-7bf4984c9aa4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. SKJELMOSE",
+            "bibNumber": 35,
+            "riderId": "02c694eb-1507-5c67-a0a6-b799ab9fa035",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "I. VAN WILDER",
+            "bibNumber": 97,
+            "riderId": "b75e3203-3a4d-51c2-8890-84597b6ff9d3",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. MARTINEZ",
+            "bibNumber": 71,
+            "riderId": "2e3c025a-44af-5bde-bdbd-91ac51b3b00b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. JEGAT",
+            "bibNumber": 201,
+            "riderId": "d37be1f2-1d19-5f91-bd1e-bbb23c91ecbd",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. HIGUITA",
+            "bibNumber": 61,
+            "riderId": "65661621-d9d6-5166-9956-10ee6ef115de",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. PIDCOCK",
+            "bibNumber": 171,
+            "riderId": "16b1ee60-1fbd-5b74-92e2-e7fe945d4073",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "E. BERNAL",
+            "bibNumber": 81,
+            "riderId": "2602aed2-35d1-4d7a-a9ef-4003d48550b2",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. BENOOT",
+            "bibNumber": 52,
+            "riderId": "fb02b43c-955b-5585-9c86-b8c870205a38",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. ARENSMAN",
+            "bibNumber": 82,
+            "riderId": "d6816ca2-edbe-555b-af11-fedadd2d8daf",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. PIGANZOLI",
+            "bibNumber": 18,
+            "riderId": "26d6b95b-514b-5c60-8078-05377e897809",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. TIBERI",
+            "bibNumber": 77,
+            "riderId": "b4333ee2-bdf5-59e3-8065-023becbc16e0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. DEBRUYNE",
+            "bibNumber": 102,
+            "riderId": "38d43df3-2b14-5381-a0d9-a99950e533b2",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. YATES",
+            "bibNumber": 8,
+            "riderId": "630316fb-8ec4-5876-8ed5-f8e2be1b7ebb",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. KUSS",
+            "bibNumber": 17,
+            "riderId": "320a8abb-041c-5bdc-b165-4843b0ed77a3",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "H. TEJADA",
+            "bibNumber": 65,
+            "riderId": "5becbd99-8ef9-5e45-a971-a09ce03c2f11",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. CASTRILLO",
+            "bibNumber": 142,
+            "riderId": "80a6e038-e0f4-5a4d-a9e2-aed5c448c6a5",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "C. UIJTDEBROEKS",
+            "bibNumber": 141,
+            "riderId": "ba5926d0-ed5d-5701-86ae-aefac9a975c0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "G. MARTIN GUYONNET",
+            "bibNumber": 186,
+            "riderId": "d9d5f4a3-63ac-538b-b5cb-6f5acaec3faf",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "Y. VOISARD",
+            "bibNumber": 198,
+            "riderId": "5ed72848-deae-5543-907e-881dd7a93e1d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. TRÆEN",
+            "bibNumber": 127,
+            "riderId": "4d79f507-cbfd-5085-a29c-cf96fd93f940",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. HINDLEY",
+            "bibNumber": 24,
+            "riderId": "e135ca37-cd80-57e1-b07f-d484f1328d38",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. QUINN",
+            "bibNumber": 45,
+            "riderId": "7ab2721d-5582-5bb5-a876-a4d610da45e0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. PARRA",
+            "bibNumber": 228,
+            "riderId": "b3cb89fc-e531-5ce8-add7-f56526a0c9e6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. PARET PEINTRE",
+            "bibNumber": 56,
+            "riderId": "7e3e0a1a-b054-5a40-9ce1-d637d7c469b6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. MCNULTY",
+            "bibNumber": 4,
+            "riderId": "16beca97-2676-5565-b861-cc9a53653a68",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. VAN GILS",
+            "bibNumber": 28,
+            "riderId": "64354697-56c9-501a-9cc5-ec56b1f4ab5f",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. PRODHOMME",
+            "bibNumber": 57,
+            "riderId": "3644771b-9bd4-55ac-bd91-10defe60dff4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. VACEK",
+            "bibNumber": 37,
+            "riderId": "d01e9ae3-faa8-5fcd-a403-e4c0d95db31e",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "C. HARPER",
+            "bibNumber": 173,
+            "riderId": "fa6f8e86-5efc-44f5-a5d8-d926fe6a1d75",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. JORGENSON",
+            "bibNumber": 16,
+            "riderId": "51dcff22-a00e-5656-af24-4c131546f341",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "Q. SIMMONS",
+            "bibNumber": 34,
+            "riderId": "c6e3fb2e-4dab-5107-82d9-7ffd9c0a667e",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "V. PARET PEINTRE",
+            "bibNumber": 93,
+            "riderId": "798b0cfe-46d3-5805-aee5-fef619bc44a9",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. BREUILLARD",
+            "bibNumber": 202,
+            "riderId": "48a27671-db14-5e6e-92fd-992ddbd99b4d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "C. VERONA",
+            "bibNumber": 38,
+            "riderId": "0bc6c7e8-e703-59e1-92b1-68a38ed2b474",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. SKAARSETH",
+            "bibNumber": 126,
+            "riderId": "47409c13-050e-583c-a2e8-2b2e0b0f9b5b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "G. BENNETT",
+            "bibNumber": 133,
+            "riderId": "9f7c0df8-daca-5ddc-97d3-40fdab38ff60",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. BAUDIN",
+            "bibNumber": 43,
+            "riderId": "379c4cb7-33a2-5c8d-a774-db0204417ed9",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. GARCIA",
+            "bibNumber": 144,
+            "riderId": "dde67a98-4873-4732-8536-3097ab96e708",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. GROSSSCHARTNER",
+            "bibNumber": 3,
+            "riderId": "0d81c852-2151-51b9-897e-69d0575e61e8",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. VERCHER",
+            "bibNumber": 208,
+            "riderId": "1cbe7ffe-8220-5a63-b97e-03e977751a25",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "K. ASGREEN",
+            "bibNumber": 42,
+            "riderId": "a3129470-14f7-5edb-be80-d87a948dca08",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. OLIVEIRA",
+            "bibNumber": 146,
+            "riderId": "8677a2ef-7e73-433f-b8ee-8879878d21b5",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. BALDERSTONE",
+            "bibNumber": 222,
+            "riderId": "cbb1a9b6-854f-55a2-b4b8-bb5897bfd81d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "E. RUBIO",
+            "bibNumber": 148,
+            "riderId": "54a2b472-f37d-59cd-a932-5d3de6af02bc",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "I. IZAGIRRE",
+            "bibNumber": 161,
+            "riderId": "e8c362af-be19-5be0-8508-a4fa6b47e5d4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. HIRSCHI",
+            "bibNumber": 194,
+            "riderId": "d15f5822-b4aa-57b0-a2a5-450e1225d19b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "K. VAUQUELIN",
+            "bibNumber": 88,
+            "riderId": "2cc1972e-8505-5629-bebd-9e57076d4e94",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. STORER",
+            "bibNumber": 196,
+            "riderId": "e91251cb-5a0f-5035-a96e-3f2fe288c7b6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. GERMANI",
+            "bibNumber": 185,
+            "riderId": "82501024-2eae-58ad-a1ab-9cbebd57d3fb",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. CATTANEO",
+            "bibNumber": 22,
+            "riderId": "4a0a4781-d7f6-5f52-9c72-8726416c0270",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. CARUSO",
+            "bibNumber": 73,
+            "riderId": "d25c48fd-f9cf-58be-9d71-06cbcc3fe6ca",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "V. CAMPENAERTS",
+            "bibNumber": 14,
+            "riderId": "9b78a863-9ebb-5254-84b2-bdd445d7a037",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "Q. HERMANS",
+            "bibNumber": 174,
+            "riderId": "4f1666f6-ea57-5d30-9e07-6a73c10e5e39",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "X. MEURISSE",
+            "bibNumber": 176,
+            "riderId": "b116bf4a-1721-45ba-a6c0-7ac9bb1a019c",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. SKUJINS",
+            "bibNumber": 36,
+            "riderId": "565f110d-d7ad-5714-9406-51763964e3b9",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "C. BRAZ AFONSO",
+            "bibNumber": 183,
+            "riderId": "45867e91-cd61-5189-af56-84c2ec3e85ef",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. GEE",
+            "bibNumber": 32,
+            "riderId": "8eab81d1-9a40-58fd-8e38-c775a767469a",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "V. VAN MECHELEN",
+            "bibNumber": 78,
+            "riderId": "48389352-0d62-52f9-ade1-9c372cd6a14b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. VELASCO",
+            "bibNumber": 67,
+            "riderId": "a14aa4c5-6a04-5f82-81f9-7e87fd66dd24",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. CORT NIELSEN",
+            "bibNumber": 124,
+            "riderId": "b1045be9-3160-5830-8456-15698ec780d1",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. POLITT",
+            "bibNumber": 5,
+            "riderId": "3e4b7099-efc9-53a4-9872-cb31f992b5d4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. MATTHEWS",
+            "bibNumber": 115,
+            "riderId": "3a5bfceb-c04f-5333-bcdb-9442be1a0bdc",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. ABRAHAMSEN",
+            "bibNumber": 122,
+            "riderId": "e09f1ad9-3053-502a-8750-1d4c695e627f",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. WELLENS",
+            "bibNumber": 7,
+            "riderId": "c8fed61c-3646-5e30-aabb-4a2827ab0f24",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. GREGOIRE",
+            "bibNumber": 181,
+            "riderId": "262fc7c9-0161-525f-a06e-e97029a5cd56",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. EENKHOORN",
+            "bibNumber": 92,
+            "riderId": "ce97bfcf-908e-403a-89c1-afe2c3a746f0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. CEPEDA",
+            "bibNumber": 143,
+            "riderId": "c951b0e0-b89c-42a2-966f-c0b2f14d7645",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. ROMO",
+            "bibNumber": 147,
+            "riderId": "22432641-f3a9-49eb-a80c-43b31fcae3b9",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. LE BERRE",
+            "bibNumber": 206,
+            "riderId": "f7d7f674-1b36-53ef-8ad9-4f2dd7e9532a",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "G. ZIMMERMANN",
+            "bibNumber": 158,
+            "riderId": "8694de12-5bd7-5d2a-8eca-b3fec3605082",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. O'CONNOR",
+            "bibNumber": 111,
+            "riderId": "8cb5330f-eabe-58d3-b6b0-7db18cf88d69",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. OLDANI",
+            "bibNumber": 226,
+            "riderId": "df15be7c-4133-5579-94f7-a72e7382b496",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. BERWICK",
+            "bibNumber": 223,
+            "riderId": "71b158db-f0a9-5cca-b529-cc2f7a22c048",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. OTRUBA",
+            "bibNumber": 227,
+            "riderId": "11707a50-adfd-5132-8771-a59a2e6a6954",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. DELETTRE",
+            "bibNumber": 204,
+            "riderId": "2722f6ef-edbb-5666-b6fd-3bb53e023fa4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. DELBOVE",
+            "bibNumber": 203,
+            "riderId": "27eae15f-a1e7-5418-8cf9-cbc82975ae92",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. VAN BAARLE",
+            "bibNumber": 95,
+            "riderId": "765b09ad-4bf9-505f-9038-b9c2be6990bb",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. STUYVEN",
+            "bibNumber": 94,
+            "riderId": "048b471b-df59-5167-8893-3243277d7516",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. HEALY",
+            "bibNumber": 44,
+            "riderId": "336238ff-f0b4-5004-beff-2643f9123e13",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. SCHMID",
+            "bibNumber": 118,
+            "riderId": "fe9e9309-9e11-5a3d-8b3d-3a079f4e8236",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. DILLIER",
+            "bibNumber": 103,
+            "riderId": "36382174-dbfd-586d-b710-e6f5fda21952",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. ENGELHARDT",
+            "bibNumber": 114,
+            "riderId": "87529e45-6da3-5a09-977c-5e887ecf3953",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. TEUNISSEN",
+            "bibNumber": 66,
+            "riderId": "05343dfa-56cf-5812-8916-9a0974094a21",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "C. RUSSO",
+            "bibNumber": 188,
+            "riderId": "a650c970-451d-5e46-931f-eac574e3a3fd",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "Q. PACHER",
+            "bibNumber": 187,
+            "riderId": "e860a231-a46e-5d7b-bf16-e79de19e6db4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. PLUIMERS",
+            "bibNumber": 195,
+            "riderId": "d4911b26-5c89-53f0-98f9-5bcaf6dbdda4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. BERCKMOES",
+            "bibNumber": 153,
+            "riderId": "e3c0eb7d-e6f8-5f63-9f05-21e50e33d578",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. CHARMIG",
+            "bibNumber": 123,
+            "riderId": "e7baff1e-4f4c-583a-a633-09846c501d72",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. HOWSON",
+            "bibNumber": 175,
+            "riderId": "4dcae69e-e801-4cb9-ae33-7347612be2e6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. STANNARD",
+            "bibNumber": 76,
+            "riderId": "532cced5-b9a6-55c7-bcef-32a9481e8f1f",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. GATE",
+            "bibNumber": 63,
+            "riderId": "48e5fe13-802d-5622-8225-4fa54947c0d8",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. DURBRIDGE",
+            "bibNumber": 113,
+            "riderId": "db5e6f68-2205-57f1-a902-8ca2f5dde270",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. VERVAEKE",
+            "bibNumber": 98,
+            "riderId": "7b576fcb-0fbe-5ecf-b5ac-254b3190e49c",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "E. VERSTRYNGE",
+            "bibNumber": 108,
+            "riderId": "3ffc4761-8bfd-587a-acd5-cee1dee0abb0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. DENZ",
+            "bibNumber": 23,
+            "riderId": "c1379c90-c95e-555d-a574-798c4a1d02ae",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. MOHORIC",
+            "bibNumber": 75,
+            "riderId": "7b4ed48f-d0b1-503a-aa13-f160b63f3ba0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "E. COSTIOU",
+            "bibNumber": 184,
+            "riderId": "13d9f9b1-2a84-5049-be9a-eba1b70e4112",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "G. STEINHAUSER",
+            "bibNumber": 46,
+            "riderId": "8a4ecb70-c0aa-517c-90ef-68123f34328e",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. GUERNALEC",
+            "bibNumber": 205,
+            "riderId": "da58d77d-00f8-526f-a70f-8a3abafead27",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. RICKAERT",
+            "bibNumber": 107,
+            "riderId": "5ff084ff-b4a3-5d0c-a5cd-593be2c2fb3e",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. ARANBURU",
+            "bibNumber": 163,
+            "riderId": "054e27c6-c455-5cc4-9f13-d6efa31f7921",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. VALGREN",
+            "bibNumber": 47,
+            "riderId": "93fe8fae-dbfd-536a-b12b-7a3abc54ff9a",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. FRIGO",
+            "bibNumber": 134,
+            "riderId": "2928ffcf-9fa4-5f1a-b46b-454acbfebfcb",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "W. BARGUIL",
+            "bibNumber": 211,
+            "riderId": "c02fffc2-bb51-53ae-af93-d666b65ee6ae",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. TURGIS",
+            "bibNumber": 207,
+            "riderId": "15a93de2-983e-55c8-b153-c204eb3e97cc",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. VAN DEN BROEK",
+            "bibNumber": 218,
+            "riderId": "3183cf19-1071-5ce1-b0ca-f7908d784930",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. VAN MOER",
+            "bibNumber": 177,
+            "riderId": "a1b6fb3e-09e9-4ba5-b757-8295481b5039",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. CRAPS",
+            "bibNumber": 154,
+            "riderId": "161ec369-3663-52b0-9f1b-a99e6b11bb5d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. WALKER",
+            "bibNumber": 48,
+            "riderId": "1cc3588f-715e-5258-8452-6aed5b45d891",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "K. NEILANDS",
+            "bibNumber": 136,
+            "riderId": "c1b7ba5b-b429-59a8-aa55-ed543759c468",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. PLAPP",
+            "bibNumber": 117,
+            "riderId": "599087be-aff4-5e92-9d52-4839dcf9238a",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. THOMAS",
+            "bibNumber": 168,
+            "riderId": "abfa5a32-268d-5de5-a27b-f927cdea78a1",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. TRATNIK",
+            "bibNumber": 26,
+            "riderId": "9030eaad-77b9-5d8f-97f2-e273551db83d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "E. PLANCKAERT",
+            "bibNumber": 106,
+            "riderId": "3cfd28d5-505c-533f-ad4d-50ebcc2a2ced",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. VAN DER POEL",
+            "bibNumber": 101,
+            "riderId": "14d287c7-ba9a-5c6e-8f99-e15aed6d9b39",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. PHILIPSEN",
+            "bibNumber": 105,
+            "riderId": "999b6489-bc7a-5b3d-9cd4-e9108f8b9860",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "X. AZPARREN IRURZUN",
+            "bibNumber": 172,
+            "riderId": "3ff36229-5e26-4825-8331-2f06aae37de5",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. HOOLE",
+            "bibNumber": 54,
+            "riderId": "227f4958-4c14-5f0b-82de-b9a9ee34bf62",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. PEDERSEN",
+            "bibNumber": 33,
+            "riderId": "97f3320e-63f9-5b67-8cce-d2388db6c3c6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. HEßMANN",
+            "bibNumber": 145,
+            "riderId": "fa0adb65-63ca-4676-82e8-f5f3511ccf40",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. NICOLAU",
+            "bibNumber": 225,
+            "riderId": "11e8f2d7-7c25-528d-898d-45f993b52d8c",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. GIRMAY",
+            "bibNumber": 131,
+            "riderId": "3fd0273e-c2d6-5eef-9f26-ff0e7f9c577c",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. KANTER",
+            "bibNumber": 64,
+            "riderId": "403a2342-8e37-50cf-81be-efeb5bea34ab",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. TRENTIN",
+            "bibNumber": 197,
+            "riderId": "58b7bebb-c6ad-500b-b56f-a321c9a154ef",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. VERMEERSCH",
+            "bibNumber": 6,
+            "riderId": "53808b47-d1f1-5bf4-a0b0-0dd410380e75",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. WAERENSKJOLD",
+            "bibNumber": 128,
+            "riderId": "b9311ed4-6e61-5ae2-85aa-73e59bb0f366",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. VINOKUROV",
+            "bibNumber": 68,
+            "riderId": "93e7b81c-ed93-596d-be16-b35b4586b88a",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. KIRSCH",
+            "bibNumber": 166,
+            "riderId": "c84cf5c6-510d-5d04-a8c3-ce4a31d9b2ce",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. VEISTROFFER",
+            "bibNumber": 157,
+            "riderId": "fc5329a0-e4ff-5e86-8944-254c6116cf42",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. LOUVEL",
+            "bibNumber": 135,
+            "riderId": "b1bd25af-b3ad-5932-92db-4de0613b53cc",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. ALAPHILIPPE",
+            "bibNumber": 191,
+            "riderId": "a631d0ba-bfac-5d37-af79-c9ecf9313f95",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. VAN ASBROECK",
+            "bibNumber": 138,
+            "riderId": "db994ff6-e033-59d9-9f4e-34c974bc8784",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. MOLENAAR",
+            "bibNumber": 224,
+            "riderId": "3e6f05bb-47d5-5b8b-b266-3a063b588f60",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. DEGENKOLB",
+            "bibNumber": 214,
+            "riderId": "d32f980e-d638-5d60-9703-d74f033345f0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. RICCITELLO",
+            "bibNumber": 58,
+            "riderId": "70e3c3b3-ea1b-5984-beb2-e4ad06ead6b3",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. FRETIN",
+            "bibNumber": 165,
+            "riderId": "2b5682f6-6767-53ad-bf81-3b40b0eafef6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. BIERMANS",
+            "bibNumber": 164,
+            "riderId": "38121f5a-1342-55f5-be69-2cb31d4a9d50",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. BITTNER",
+            "bibNumber": 213,
+            "riderId": "edda09e4-fc88-5f2c-8ad5-2a9e589475a2",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. MÄRKL",
+            "bibNumber": 216,
+            "riderId": "f1f42bda-d752-5628-b432-dbb6a559b596",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. BAUHAUS",
+            "bibNumber": 72,
+            "riderId": "9602fd53-2fca-5397-beb9-49c06bc31130",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. ACKERMANN",
+            "bibNumber": 112,
+            "riderId": "c72c0d8d-6dba-580a-ba68-06536ff4e82b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. VAN DIJKE",
+            "bibNumber": 27,
+            "riderId": "b0e2ea92-177e-527d-9d55-6e723bf54601",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "K. GRADEK",
+            "bibNumber": 74,
+            "riderId": "919c0489-9720-5e69-b8e5-3a50cf0c24c9",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. MARSMAN",
+            "bibNumber": 104,
+            "riderId": "17364d30-0e18-5696-9e49-bc6e4486f411",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. VAN LERBERGHE",
+            "bibNumber": 96,
+            "riderId": "b9cf7d17-3043-556a-9c7a-60a1a1549069",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. MERLIER",
+            "bibNumber": 91,
+            "riderId": "a0b15cf2-0911-520b-bc76-93dc15c492a8",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. VAN DEN BERG",
+            "bibNumber": 217,
+            "riderId": "77f87312-f5e1-5a71-a7f5-5ece860bf89b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. STEWART",
+            "bibNumber": 137,
+            "riderId": "a4cd7712-478f-59d0-bbb9-a2cea2efada3",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "O. KOOIJ",
+            "bibNumber": 55,
+            "riderId": "c35edc9b-616f-520b-bfa8-1ab7f3144b21",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. BIESTERBOS",
+            "bibNumber": 212,
+            "riderId": "249b7766-f897-5b1c-aeb4-7f47792242fc",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. GAVIRIA",
+            "bibNumber": 221,
+            "riderId": "ddf25603-e7aa-59d2-b465-8b062a4c8978",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "C. BOL",
+            "bibNumber": 53,
+            "riderId": "8a09088c-10aa-513b-b74b-f95caecddcfb",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "E. AFFINI",
+            "bibNumber": 12,
+            "riderId": "25c4f996-a7b1-5b3c-98d3-fd197dcc59aa",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. ALLEGAERT",
+            "bibNumber": 162,
+            "riderId": "08723aeb-4e5d-55c9-9cc8-01035f0eb484",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. HAGENES",
+            "bibNumber": 15,
+            "riderId": "8b6b639d-de4d-5212-957d-dcdf720196c0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. KWIATKOWSKI",
+            "bibNumber": 86,
+            "riderId": "6f4cbb71-d7e1-5bbb-aed4-4d4884aabe93",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "H. ARTZ",
+            "bibNumber": 152,
+            "riderId": "b35250ba-2779-56d4-8744-9adf3fd4d2d7",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. JOHANNESSEN",
+            "bibNumber": 125,
+            "riderId": "f743ddd5-4101-5114-9dad-581f75c794b0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. ARMIRAIL",
+            "bibNumber": 13,
+            "riderId": "13ee15fc-cc6b-5f7a-ad91-0e5c0e305f70",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. ASKEY",
+            "bibNumber": 132,
+            "riderId": "9662afde-f80b-5b6a-8941-51cb94e657e7",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. FOSS",
+            "bibNumber": 83,
+            "riderId": "087f1921-3dc6-4c93-8ab8-5ef69a9c0d2e",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. GODON",
+            "bibNumber": 85,
+            "riderId": "7adfbf0e-f66a-5b31-8949-3e5563fd69f4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "H. PAGE",
+            "bibNumber": 167,
+            "riderId": "9f90c5d3-1438-5b33-a00e-7fb43545f0c6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. SLOCK",
+            "bibNumber": 155,
+            "riderId": "72965280-79b2-5da8-8a03-118ee5a0d700",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. BALLERINI",
+            "bibNumber": 62,
+            "riderId": "4cc52875-39f6-5ef8-9198-932f79a99eac",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. WRIGHT",
+            "bibNumber": 178,
+            "riderId": "15a2f6ef-0a9f-5498-ad6e-5fcee8ac5668",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. DHONDT",
+            "bibNumber": 215,
+            "riderId": "cad05284-cc48-51dd-883c-249a9de693b6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. TARLING",
+            "bibNumber": 87,
+            "riderId": "3d8f0efb-a9c1-4a05-86c9-804c8fdfa6a8",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. GANNA",
+            "bibNumber": 84,
+            "riderId": "77946d3e-250c-52f4-af44-d6ea05c2f57e",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. HALLER",
+            "bibNumber": 193,
+            "riderId": "f5cdb578-bf85-5bf7-abdb-7feb3f3f9f62",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "K. O’BRIEN",
+            "bibNumber": 116,
+            "riderId": "5ff66d29-e3b9-5fc9-afb6-d57dd2c842bd",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. DE KLEIJN",
+            "bibNumber": 192,
+            "riderId": "c8207ae8-22e0-57f4-9bbb-44bcb397ac63",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          }
+        ],
+        "unmatchedRiders": [],
+        "ambiguousRiders": [],
+        "matchedTeams": [
+          {
+            "teamName": "UAE TEAM EMIRATES XRG",
+            "teamId": "60354603-e2f0-5a69-9052-d7fca8fab34b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM VISMA | LEASE A BIKE",
+            "teamId": "4ff01bc1-646a-5688-a3c5-48afd774844c",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "EF EDUCATION - EASYPOST",
+            "teamId": "16d50532-d9cf-5f99-8132-5470112dafe8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "DECATHLON CMA CGM TEAM",
+            "teamId": "38471901-a349-526c-91dc-1635ad999cce",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UNO-X MOBILITY",
+            "teamId": "4ada786a-f38e-5c90-9b42-6ac559088bcd",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LOTTO INTERMARCHE",
+            "teamId": "cef7bc23-ffc0-5051-a479-a25fad303783",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "RED BULL - BORA - HANSGROHE",
+            "teamId": "889d8032-f275-566e-80d2-d71d974abaf3",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "RED BULL - BORA - HANSGROHE",
+            "teamId": "889d8032-f275-566e-80d2-d71d974abaf3",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UAE TEAM EMIRATES XRG",
+            "teamId": "60354603-e2f0-5a69-9052-d7fca8fab34b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LIDL-TREK",
+            "teamId": "a2a3656f-93f1-53c2-bb18-b9c8656f6d9b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LIDL-TREK",
+            "teamId": "a2a3656f-93f1-53c2-bb18-b9c8656f6d9b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "SOUDAL QUICK-STEP",
+            "teamId": "8025501d-dbd0-547b-860a-1e978344ec21",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "BAHRAIN VICTORIOUS",
+            "teamId": "1ac9b6a0-06f7-5273-a337-43d1a9969627",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TOTALENERGIES",
+            "teamId": "bfe14a53-e9da-53fa-9558-32bb4dba6b1a",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "XDS ASTANA TEAM",
+            "teamId": "afd20c6c-1510-54e5-a749-8ddfa3f636b8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "teamId": "ae21de29-5097-5066-9f8f-9ef797b2b4ff",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NETCOMPANY INEOS CYCLING TEAM",
+            "teamId": "2f0395c4-d1e5-5a3d-baa2-e99cbfc779fb",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "DECATHLON CMA CGM TEAM",
+            "teamId": "38471901-a349-526c-91dc-1635ad999cce",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NETCOMPANY INEOS CYCLING TEAM",
+            "teamId": "2f0395c4-d1e5-5a3d-baa2-e99cbfc779fb",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM VISMA | LEASE A BIKE",
+            "teamId": "4ff01bc1-646a-5688-a3c5-48afd774844c",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "BAHRAIN VICTORIOUS",
+            "teamId": "1ac9b6a0-06f7-5273-a337-43d1a9969627",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "ALPECIN-PREMIER TECH",
+            "teamId": "622f2c3b-e497-5265-a050-ff462d2f0821",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UAE TEAM EMIRATES XRG",
+            "teamId": "60354603-e2f0-5a69-9052-d7fca8fab34b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM VISMA | LEASE A BIKE",
+            "teamId": "4ff01bc1-646a-5688-a3c5-48afd774844c",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "XDS ASTANA TEAM",
+            "teamId": "afd20c6c-1510-54e5-a749-8ddfa3f636b8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "MOVISTAR TEAM",
+            "teamId": "8a85c223-8448-58e0-9921-ce76799ce536",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "MOVISTAR TEAM",
+            "teamId": "8a85c223-8448-58e0-9921-ce76799ce536",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "GROUPAMA-FDJ UNITED",
+            "teamId": "fbe453f6-58f6-5db0-85a0-85e608d3b87b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TUDOR PRO CYCLING TEAM",
+            "teamId": "ad468825-a1d9-53e6-a031-2874986830fe",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UNO-X MOBILITY",
+            "teamId": "4ada786a-f38e-5c90-9b42-6ac559088bcd",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "RED BULL - BORA - HANSGROHE",
+            "teamId": "889d8032-f275-566e-80d2-d71d974abaf3",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "EF EDUCATION - EASYPOST",
+            "teamId": "16d50532-d9cf-5f99-8132-5470112dafe8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "CAJA RURAL-SEGUROS RGA",
+            "teamId": "32c7c9f2-8154-5bd6-b810-0e3fe760e560",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "DECATHLON CMA CGM TEAM",
+            "teamId": "38471901-a349-526c-91dc-1635ad999cce",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UAE TEAM EMIRATES XRG",
+            "teamId": "60354603-e2f0-5a69-9052-d7fca8fab34b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "RED BULL - BORA - HANSGROHE",
+            "teamId": "889d8032-f275-566e-80d2-d71d974abaf3",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "DECATHLON CMA CGM TEAM",
+            "teamId": "38471901-a349-526c-91dc-1635ad999cce",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LIDL-TREK",
+            "teamId": "a2a3656f-93f1-53c2-bb18-b9c8656f6d9b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "teamId": "ae21de29-5097-5066-9f8f-9ef797b2b4ff",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM VISMA | LEASE A BIKE",
+            "teamId": "4ff01bc1-646a-5688-a3c5-48afd774844c",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LIDL-TREK",
+            "teamId": "a2a3656f-93f1-53c2-bb18-b9c8656f6d9b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "SOUDAL QUICK-STEP",
+            "teamId": "8025501d-dbd0-547b-860a-1e978344ec21",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TOTALENERGIES",
+            "teamId": "bfe14a53-e9da-53fa-9558-32bb4dba6b1a",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LIDL-TREK",
+            "teamId": "a2a3656f-93f1-53c2-bb18-b9c8656f6d9b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UNO-X MOBILITY",
+            "teamId": "4ada786a-f38e-5c90-9b42-6ac559088bcd",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NSN CYCLING TEAM",
+            "teamId": "416042a4-a03b-50a1-ac08-10d9ef7788b0",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "EF EDUCATION - EASYPOST",
+            "teamId": "16d50532-d9cf-5f99-8132-5470112dafe8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "MOVISTAR TEAM",
+            "teamId": "8a85c223-8448-58e0-9921-ce76799ce536",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UAE TEAM EMIRATES XRG",
+            "teamId": "60354603-e2f0-5a69-9052-d7fca8fab34b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TOTALENERGIES",
+            "teamId": "bfe14a53-e9da-53fa-9558-32bb4dba6b1a",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "EF EDUCATION - EASYPOST",
+            "teamId": "16d50532-d9cf-5f99-8132-5470112dafe8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "MOVISTAR TEAM",
+            "teamId": "8a85c223-8448-58e0-9921-ce76799ce536",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "CAJA RURAL-SEGUROS RGA",
+            "teamId": "32c7c9f2-8154-5bd6-b810-0e3fe760e560",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "MOVISTAR TEAM",
+            "teamId": "8a85c223-8448-58e0-9921-ce76799ce536",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "COFIDIS",
+            "teamId": "8ebca40c-ecd8-5577-ba01-af763b231862",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TUDOR PRO CYCLING TEAM",
+            "teamId": "ad468825-a1d9-53e6-a031-2874986830fe",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NETCOMPANY INEOS CYCLING TEAM",
+            "teamId": "2f0395c4-d1e5-5a3d-baa2-e99cbfc779fb",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TUDOR PRO CYCLING TEAM",
+            "teamId": "ad468825-a1d9-53e6-a031-2874986830fe",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "GROUPAMA-FDJ UNITED",
+            "teamId": "fbe453f6-58f6-5db0-85a0-85e608d3b87b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "RED BULL - BORA - HANSGROHE",
+            "teamId": "889d8032-f275-566e-80d2-d71d974abaf3",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "BAHRAIN VICTORIOUS",
+            "teamId": "1ac9b6a0-06f7-5273-a337-43d1a9969627",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM VISMA | LEASE A BIKE",
+            "teamId": "4ff01bc1-646a-5688-a3c5-48afd774844c",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "teamId": "ae21de29-5097-5066-9f8f-9ef797b2b4ff",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "teamId": "ae21de29-5097-5066-9f8f-9ef797b2b4ff",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LIDL-TREK",
+            "teamId": "a2a3656f-93f1-53c2-bb18-b9c8656f6d9b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "GROUPAMA-FDJ UNITED",
+            "teamId": "fbe453f6-58f6-5db0-85a0-85e608d3b87b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LIDL-TREK",
+            "teamId": "a2a3656f-93f1-53c2-bb18-b9c8656f6d9b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "BAHRAIN VICTORIOUS",
+            "teamId": "1ac9b6a0-06f7-5273-a337-43d1a9969627",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "XDS ASTANA TEAM",
+            "teamId": "afd20c6c-1510-54e5-a749-8ddfa3f636b8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UNO-X MOBILITY",
+            "teamId": "4ada786a-f38e-5c90-9b42-6ac559088bcd",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UAE TEAM EMIRATES XRG",
+            "teamId": "60354603-e2f0-5a69-9052-d7fca8fab34b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM JAYCO ALULA",
+            "teamId": "4daf242f-037a-52fb-88ea-b5f780106bcc",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UNO-X MOBILITY",
+            "teamId": "4ada786a-f38e-5c90-9b42-6ac559088bcd",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UAE TEAM EMIRATES XRG",
+            "teamId": "60354603-e2f0-5a69-9052-d7fca8fab34b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "GROUPAMA-FDJ UNITED",
+            "teamId": "fbe453f6-58f6-5db0-85a0-85e608d3b87b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "SOUDAL QUICK-STEP",
+            "teamId": "8025501d-dbd0-547b-860a-1e978344ec21",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "MOVISTAR TEAM",
+            "teamId": "8a85c223-8448-58e0-9921-ce76799ce536",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "MOVISTAR TEAM",
+            "teamId": "8a85c223-8448-58e0-9921-ce76799ce536",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TOTALENERGIES",
+            "teamId": "bfe14a53-e9da-53fa-9558-32bb4dba6b1a",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LOTTO INTERMARCHE",
+            "teamId": "cef7bc23-ffc0-5051-a479-a25fad303783",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM JAYCO ALULA",
+            "teamId": "4daf242f-037a-52fb-88ea-b5f780106bcc",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "CAJA RURAL-SEGUROS RGA",
+            "teamId": "32c7c9f2-8154-5bd6-b810-0e3fe760e560",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "CAJA RURAL-SEGUROS RGA",
+            "teamId": "32c7c9f2-8154-5bd6-b810-0e3fe760e560",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "CAJA RURAL-SEGUROS RGA",
+            "teamId": "32c7c9f2-8154-5bd6-b810-0e3fe760e560",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TOTALENERGIES",
+            "teamId": "bfe14a53-e9da-53fa-9558-32bb4dba6b1a",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TOTALENERGIES",
+            "teamId": "bfe14a53-e9da-53fa-9558-32bb4dba6b1a",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "SOUDAL QUICK-STEP",
+            "teamId": "8025501d-dbd0-547b-860a-1e978344ec21",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "SOUDAL QUICK-STEP",
+            "teamId": "8025501d-dbd0-547b-860a-1e978344ec21",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "EF EDUCATION - EASYPOST",
+            "teamId": "16d50532-d9cf-5f99-8132-5470112dafe8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM JAYCO ALULA",
+            "teamId": "4daf242f-037a-52fb-88ea-b5f780106bcc",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "ALPECIN-PREMIER TECH",
+            "teamId": "622f2c3b-e497-5265-a050-ff462d2f0821",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM JAYCO ALULA",
+            "teamId": "4daf242f-037a-52fb-88ea-b5f780106bcc",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "XDS ASTANA TEAM",
+            "teamId": "afd20c6c-1510-54e5-a749-8ddfa3f636b8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "GROUPAMA-FDJ UNITED",
+            "teamId": "fbe453f6-58f6-5db0-85a0-85e608d3b87b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "GROUPAMA-FDJ UNITED",
+            "teamId": "fbe453f6-58f6-5db0-85a0-85e608d3b87b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TUDOR PRO CYCLING TEAM",
+            "teamId": "ad468825-a1d9-53e6-a031-2874986830fe",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LOTTO INTERMARCHE",
+            "teamId": "cef7bc23-ffc0-5051-a479-a25fad303783",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UNO-X MOBILITY",
+            "teamId": "4ada786a-f38e-5c90-9b42-6ac559088bcd",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "teamId": "ae21de29-5097-5066-9f8f-9ef797b2b4ff",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "BAHRAIN VICTORIOUS",
+            "teamId": "1ac9b6a0-06f7-5273-a337-43d1a9969627",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "XDS ASTANA TEAM",
+            "teamId": "afd20c6c-1510-54e5-a749-8ddfa3f636b8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM JAYCO ALULA",
+            "teamId": "4daf242f-037a-52fb-88ea-b5f780106bcc",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "SOUDAL QUICK-STEP",
+            "teamId": "8025501d-dbd0-547b-860a-1e978344ec21",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "ALPECIN-PREMIER TECH",
+            "teamId": "622f2c3b-e497-5265-a050-ff462d2f0821",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "RED BULL - BORA - HANSGROHE",
+            "teamId": "889d8032-f275-566e-80d2-d71d974abaf3",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "BAHRAIN VICTORIOUS",
+            "teamId": "1ac9b6a0-06f7-5273-a337-43d1a9969627",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "GROUPAMA-FDJ UNITED",
+            "teamId": "fbe453f6-58f6-5db0-85a0-85e608d3b87b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "EF EDUCATION - EASYPOST",
+            "teamId": "16d50532-d9cf-5f99-8132-5470112dafe8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TOTALENERGIES",
+            "teamId": "bfe14a53-e9da-53fa-9558-32bb4dba6b1a",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "ALPECIN-PREMIER TECH",
+            "teamId": "622f2c3b-e497-5265-a050-ff462d2f0821",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "COFIDIS",
+            "teamId": "8ebca40c-ecd8-5577-ba01-af763b231862",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "EF EDUCATION - EASYPOST",
+            "teamId": "16d50532-d9cf-5f99-8132-5470112dafe8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NSN CYCLING TEAM",
+            "teamId": "416042a4-a03b-50a1-ac08-10d9ef7788b0",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM PICNIC POSTNL",
+            "teamId": "3921607b-c3eb-5812-9d53-9d4f676087d9",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TOTALENERGIES",
+            "teamId": "bfe14a53-e9da-53fa-9558-32bb4dba6b1a",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM PICNIC POSTNL",
+            "teamId": "3921607b-c3eb-5812-9d53-9d4f676087d9",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "teamId": "ae21de29-5097-5066-9f8f-9ef797b2b4ff",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LOTTO INTERMARCHE",
+            "teamId": "cef7bc23-ffc0-5051-a479-a25fad303783",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "EF EDUCATION - EASYPOST",
+            "teamId": "16d50532-d9cf-5f99-8132-5470112dafe8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NSN CYCLING TEAM",
+            "teamId": "416042a4-a03b-50a1-ac08-10d9ef7788b0",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM JAYCO ALULA",
+            "teamId": "4daf242f-037a-52fb-88ea-b5f780106bcc",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "COFIDIS",
+            "teamId": "8ebca40c-ecd8-5577-ba01-af763b231862",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "RED BULL - BORA - HANSGROHE",
+            "teamId": "889d8032-f275-566e-80d2-d71d974abaf3",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "ALPECIN-PREMIER TECH",
+            "teamId": "622f2c3b-e497-5265-a050-ff462d2f0821",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "ALPECIN-PREMIER TECH",
+            "teamId": "622f2c3b-e497-5265-a050-ff462d2f0821",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "ALPECIN-PREMIER TECH",
+            "teamId": "622f2c3b-e497-5265-a050-ff462d2f0821",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "teamId": "ae21de29-5097-5066-9f8f-9ef797b2b4ff",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "DECATHLON CMA CGM TEAM",
+            "teamId": "38471901-a349-526c-91dc-1635ad999cce",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LIDL-TREK",
+            "teamId": "a2a3656f-93f1-53c2-bb18-b9c8656f6d9b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "MOVISTAR TEAM",
+            "teamId": "8a85c223-8448-58e0-9921-ce76799ce536",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "CAJA RURAL-SEGUROS RGA",
+            "teamId": "32c7c9f2-8154-5bd6-b810-0e3fe760e560",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NSN CYCLING TEAM",
+            "teamId": "416042a4-a03b-50a1-ac08-10d9ef7788b0",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "XDS ASTANA TEAM",
+            "teamId": "afd20c6c-1510-54e5-a749-8ddfa3f636b8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TUDOR PRO CYCLING TEAM",
+            "teamId": "ad468825-a1d9-53e6-a031-2874986830fe",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UAE TEAM EMIRATES XRG",
+            "teamId": "60354603-e2f0-5a69-9052-d7fca8fab34b",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UNO-X MOBILITY",
+            "teamId": "4ada786a-f38e-5c90-9b42-6ac559088bcd",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "XDS ASTANA TEAM",
+            "teamId": "afd20c6c-1510-54e5-a749-8ddfa3f636b8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "COFIDIS",
+            "teamId": "8ebca40c-ecd8-5577-ba01-af763b231862",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LOTTO INTERMARCHE",
+            "teamId": "cef7bc23-ffc0-5051-a479-a25fad303783",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NSN CYCLING TEAM",
+            "teamId": "416042a4-a03b-50a1-ac08-10d9ef7788b0",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TUDOR PRO CYCLING TEAM",
+            "teamId": "ad468825-a1d9-53e6-a031-2874986830fe",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NSN CYCLING TEAM",
+            "teamId": "416042a4-a03b-50a1-ac08-10d9ef7788b0",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "CAJA RURAL-SEGUROS RGA",
+            "teamId": "32c7c9f2-8154-5bd6-b810-0e3fe760e560",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM PICNIC POSTNL",
+            "teamId": "3921607b-c3eb-5812-9d53-9d4f676087d9",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "DECATHLON CMA CGM TEAM",
+            "teamId": "38471901-a349-526c-91dc-1635ad999cce",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "COFIDIS",
+            "teamId": "8ebca40c-ecd8-5577-ba01-af763b231862",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "COFIDIS",
+            "teamId": "8ebca40c-ecd8-5577-ba01-af763b231862",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM PICNIC POSTNL",
+            "teamId": "3921607b-c3eb-5812-9d53-9d4f676087d9",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM PICNIC POSTNL",
+            "teamId": "3921607b-c3eb-5812-9d53-9d4f676087d9",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "BAHRAIN VICTORIOUS",
+            "teamId": "1ac9b6a0-06f7-5273-a337-43d1a9969627",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM JAYCO ALULA",
+            "teamId": "4daf242f-037a-52fb-88ea-b5f780106bcc",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "RED BULL - BORA - HANSGROHE",
+            "teamId": "889d8032-f275-566e-80d2-d71d974abaf3",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "BAHRAIN VICTORIOUS",
+            "teamId": "1ac9b6a0-06f7-5273-a337-43d1a9969627",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "ALPECIN-PREMIER TECH",
+            "teamId": "622f2c3b-e497-5265-a050-ff462d2f0821",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "SOUDAL QUICK-STEP",
+            "teamId": "8025501d-dbd0-547b-860a-1e978344ec21",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "SOUDAL QUICK-STEP",
+            "teamId": "8025501d-dbd0-547b-860a-1e978344ec21",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM PICNIC POSTNL",
+            "teamId": "3921607b-c3eb-5812-9d53-9d4f676087d9",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NSN CYCLING TEAM",
+            "teamId": "416042a4-a03b-50a1-ac08-10d9ef7788b0",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "DECATHLON CMA CGM TEAM",
+            "teamId": "38471901-a349-526c-91dc-1635ad999cce",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM PICNIC POSTNL",
+            "teamId": "3921607b-c3eb-5812-9d53-9d4f676087d9",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "CAJA RURAL-SEGUROS RGA",
+            "teamId": "32c7c9f2-8154-5bd6-b810-0e3fe760e560",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "DECATHLON CMA CGM TEAM",
+            "teamId": "38471901-a349-526c-91dc-1635ad999cce",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM VISMA | LEASE A BIKE",
+            "teamId": "4ff01bc1-646a-5688-a3c5-48afd774844c",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "COFIDIS",
+            "teamId": "8ebca40c-ecd8-5577-ba01-af763b231862",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM VISMA | LEASE A BIKE",
+            "teamId": "4ff01bc1-646a-5688-a3c5-48afd774844c",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NETCOMPANY INEOS CYCLING TEAM",
+            "teamId": "2f0395c4-d1e5-5a3d-baa2-e99cbfc779fb",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LOTTO INTERMARCHE",
+            "teamId": "cef7bc23-ffc0-5051-a479-a25fad303783",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "UNO-X MOBILITY",
+            "teamId": "4ada786a-f38e-5c90-9b42-6ac559088bcd",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM VISMA | LEASE A BIKE",
+            "teamId": "4ff01bc1-646a-5688-a3c5-48afd774844c",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NSN CYCLING TEAM",
+            "teamId": "416042a4-a03b-50a1-ac08-10d9ef7788b0",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NETCOMPANY INEOS CYCLING TEAM",
+            "teamId": "2f0395c4-d1e5-5a3d-baa2-e99cbfc779fb",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NETCOMPANY INEOS CYCLING TEAM",
+            "teamId": "2f0395c4-d1e5-5a3d-baa2-e99cbfc779fb",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "COFIDIS",
+            "teamId": "8ebca40c-ecd8-5577-ba01-af763b231862",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "LOTTO INTERMARCHE",
+            "teamId": "cef7bc23-ffc0-5051-a479-a25fad303783",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "XDS ASTANA TEAM",
+            "teamId": "afd20c6c-1510-54e5-a749-8ddfa3f636b8",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "PINARELLO-Q36.5 PRO CYCLING TEAM",
+            "teamId": "ae21de29-5097-5066-9f8f-9ef797b2b4ff",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM PICNIC POSTNL",
+            "teamId": "3921607b-c3eb-5812-9d53-9d4f676087d9",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NETCOMPANY INEOS CYCLING TEAM",
+            "teamId": "2f0395c4-d1e5-5a3d-baa2-e99cbfc779fb",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "NETCOMPANY INEOS CYCLING TEAM",
+            "teamId": "2f0395c4-d1e5-5a3d-baa2-e99cbfc779fb",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TUDOR PRO CYCLING TEAM",
+            "teamId": "ad468825-a1d9-53e6-a031-2874986830fe",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TEAM JAYCO ALULA",
+            "teamId": "4daf242f-037a-52fb-88ea-b5f780106bcc",
+            "matchedBy": "name"
+          },
+          {
+            "teamName": "TUDOR PRO CYCLING TEAM",
+            "teamId": "ad468825-a1d9-53e6-a031-2874986830fe",
+            "matchedBy": "name"
+          }
+        ],
+        "unmatchedTeams": [],
+        "ambiguousTeams": [],
+        "duplicateBibConflicts": [],
+        "matchedRidersOnStartlist": [
+          {
+            "riderName": "T. POGACAR",
+            "bibNumber": 1,
+            "riderId": "1b78ea0c-a9c2-5ab1-b8cb-7c095a24b29d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. VINGEGAARD",
+            "bibNumber": 11,
+            "riderId": "b6aa6179-af5b-5fa2-998c-d53305a4f4c9",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. CARAPAZ",
+            "bibNumber": 41,
+            "riderId": "178d1fff-ca29-5f23-9c5f-5fa45e8c1d89",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. SEIXAS",
+            "bibNumber": 51,
+            "riderId": "6f99ee46-4301-554d-9c0c-23a1e9c1d855",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. JOHANNESSEN",
+            "bibNumber": 121,
+            "riderId": "1f86bd65-1d2e-574a-b0d5-b0dd23424ee4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. VAN EETVELT",
+            "bibNumber": 156,
+            "riderId": "d3b9a75e-b409-5584-be3c-4a6e6b19934a",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. LIPOWITZ",
+            "bibNumber": 25,
+            "riderId": "8d198e7a-109f-5c70-ad01-7d25f05143e3",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. EVENEPOEL",
+            "bibNumber": 21,
+            "riderId": "e8f3e17f-c9c3-529d-a5b0-a5a3dbdb745b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "I. DEL TORO",
+            "bibNumber": 2,
+            "riderId": "71e4df35-c770-59ab-b002-ec413c86c658",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. AYUSO",
+            "bibNumber": 31,
+            "riderId": "19214a4f-1fa4-51fc-bd3b-7bf4984c9aa4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. SKJELMOSE",
+            "bibNumber": 35,
+            "riderId": "02c694eb-1507-5c67-a0a6-b799ab9fa035",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "I. VAN WILDER",
+            "bibNumber": 97,
+            "riderId": "b75e3203-3a4d-51c2-8890-84597b6ff9d3",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. MARTINEZ",
+            "bibNumber": 71,
+            "riderId": "2e3c025a-44af-5bde-bdbd-91ac51b3b00b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. JEGAT",
+            "bibNumber": 201,
+            "riderId": "d37be1f2-1d19-5f91-bd1e-bbb23c91ecbd",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. HIGUITA",
+            "bibNumber": 61,
+            "riderId": "65661621-d9d6-5166-9956-10ee6ef115de",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. PIDCOCK",
+            "bibNumber": 171,
+            "riderId": "16b1ee60-1fbd-5b74-92e2-e7fe945d4073",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "E. BERNAL",
+            "bibNumber": 81,
+            "riderId": "2602aed2-35d1-4d7a-a9ef-4003d48550b2",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. BENOOT",
+            "bibNumber": 52,
+            "riderId": "fb02b43c-955b-5585-9c86-b8c870205a38",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. ARENSMAN",
+            "bibNumber": 82,
+            "riderId": "d6816ca2-edbe-555b-af11-fedadd2d8daf",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. PIGANZOLI",
+            "bibNumber": 18,
+            "riderId": "26d6b95b-514b-5c60-8078-05377e897809",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. TIBERI",
+            "bibNumber": 77,
+            "riderId": "b4333ee2-bdf5-59e3-8065-023becbc16e0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. DEBRUYNE",
+            "bibNumber": 102,
+            "riderId": "38d43df3-2b14-5381-a0d9-a99950e533b2",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. YATES",
+            "bibNumber": 8,
+            "riderId": "630316fb-8ec4-5876-8ed5-f8e2be1b7ebb",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. KUSS",
+            "bibNumber": 17,
+            "riderId": "320a8abb-041c-5bdc-b165-4843b0ed77a3",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "H. TEJADA",
+            "bibNumber": 65,
+            "riderId": "5becbd99-8ef9-5e45-a971-a09ce03c2f11",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. CASTRILLO",
+            "bibNumber": 142,
+            "riderId": "80a6e038-e0f4-5a4d-a9e2-aed5c448c6a5",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "C. UIJTDEBROEKS",
+            "bibNumber": 141,
+            "riderId": "ba5926d0-ed5d-5701-86ae-aefac9a975c0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "G. MARTIN GUYONNET",
+            "bibNumber": 186,
+            "riderId": "d9d5f4a3-63ac-538b-b5cb-6f5acaec3faf",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "Y. VOISARD",
+            "bibNumber": 198,
+            "riderId": "5ed72848-deae-5543-907e-881dd7a93e1d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. TRÆEN",
+            "bibNumber": 127,
+            "riderId": "4d79f507-cbfd-5085-a29c-cf96fd93f940",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. HINDLEY",
+            "bibNumber": 24,
+            "riderId": "e135ca37-cd80-57e1-b07f-d484f1328d38",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. QUINN",
+            "bibNumber": 45,
+            "riderId": "7ab2721d-5582-5bb5-a876-a4d610da45e0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. PARRA",
+            "bibNumber": 228,
+            "riderId": "b3cb89fc-e531-5ce8-add7-f56526a0c9e6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. PARET PEINTRE",
+            "bibNumber": 56,
+            "riderId": "7e3e0a1a-b054-5a40-9ce1-d637d7c469b6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. MCNULTY",
+            "bibNumber": 4,
+            "riderId": "16beca97-2676-5565-b861-cc9a53653a68",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. VAN GILS",
+            "bibNumber": 28,
+            "riderId": "64354697-56c9-501a-9cc5-ec56b1f4ab5f",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. PRODHOMME",
+            "bibNumber": 57,
+            "riderId": "3644771b-9bd4-55ac-bd91-10defe60dff4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. VACEK",
+            "bibNumber": 37,
+            "riderId": "d01e9ae3-faa8-5fcd-a403-e4c0d95db31e",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "C. HARPER",
+            "bibNumber": 173,
+            "riderId": "fa6f8e86-5efc-44f5-a5d8-d926fe6a1d75",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. JORGENSON",
+            "bibNumber": 16,
+            "riderId": "51dcff22-a00e-5656-af24-4c131546f341",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "Q. SIMMONS",
+            "bibNumber": 34,
+            "riderId": "c6e3fb2e-4dab-5107-82d9-7ffd9c0a667e",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "V. PARET PEINTRE",
+            "bibNumber": 93,
+            "riderId": "798b0cfe-46d3-5805-aee5-fef619bc44a9",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. BREUILLARD",
+            "bibNumber": 202,
+            "riderId": "48a27671-db14-5e6e-92fd-992ddbd99b4d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "C. VERONA",
+            "bibNumber": 38,
+            "riderId": "0bc6c7e8-e703-59e1-92b1-68a38ed2b474",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. SKAARSETH",
+            "bibNumber": 126,
+            "riderId": "47409c13-050e-583c-a2e8-2b2e0b0f9b5b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "G. BENNETT",
+            "bibNumber": 133,
+            "riderId": "9f7c0df8-daca-5ddc-97d3-40fdab38ff60",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. BAUDIN",
+            "bibNumber": 43,
+            "riderId": "379c4cb7-33a2-5c8d-a774-db0204417ed9",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. GARCIA",
+            "bibNumber": 144,
+            "riderId": "dde67a98-4873-4732-8536-3097ab96e708",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. GROSSSCHARTNER",
+            "bibNumber": 3,
+            "riderId": "0d81c852-2151-51b9-897e-69d0575e61e8",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. VERCHER",
+            "bibNumber": 208,
+            "riderId": "1cbe7ffe-8220-5a63-b97e-03e977751a25",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "K. ASGREEN",
+            "bibNumber": 42,
+            "riderId": "a3129470-14f7-5edb-be80-d87a948dca08",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. OLIVEIRA",
+            "bibNumber": 146,
+            "riderId": "8677a2ef-7e73-433f-b8ee-8879878d21b5",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. BALDERSTONE",
+            "bibNumber": 222,
+            "riderId": "cbb1a9b6-854f-55a2-b4b8-bb5897bfd81d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "E. RUBIO",
+            "bibNumber": 148,
+            "riderId": "54a2b472-f37d-59cd-a932-5d3de6af02bc",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "I. IZAGIRRE",
+            "bibNumber": 161,
+            "riderId": "e8c362af-be19-5be0-8508-a4fa6b47e5d4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. HIRSCHI",
+            "bibNumber": 194,
+            "riderId": "d15f5822-b4aa-57b0-a2a5-450e1225d19b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "K. VAUQUELIN",
+            "bibNumber": 88,
+            "riderId": "2cc1972e-8505-5629-bebd-9e57076d4e94",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. STORER",
+            "bibNumber": 196,
+            "riderId": "e91251cb-5a0f-5035-a96e-3f2fe288c7b6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. GERMANI",
+            "bibNumber": 185,
+            "riderId": "82501024-2eae-58ad-a1ab-9cbebd57d3fb",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. CATTANEO",
+            "bibNumber": 22,
+            "riderId": "4a0a4781-d7f6-5f52-9c72-8726416c0270",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. CARUSO",
+            "bibNumber": 73,
+            "riderId": "d25c48fd-f9cf-58be-9d71-06cbcc3fe6ca",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "V. CAMPENAERTS",
+            "bibNumber": 14,
+            "riderId": "9b78a863-9ebb-5254-84b2-bdd445d7a037",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "Q. HERMANS",
+            "bibNumber": 174,
+            "riderId": "4f1666f6-ea57-5d30-9e07-6a73c10e5e39",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "X. MEURISSE",
+            "bibNumber": 176,
+            "riderId": "b116bf4a-1721-45ba-a6c0-7ac9bb1a019c",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. SKUJINS",
+            "bibNumber": 36,
+            "riderId": "565f110d-d7ad-5714-9406-51763964e3b9",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "C. BRAZ AFONSO",
+            "bibNumber": 183,
+            "riderId": "45867e91-cd61-5189-af56-84c2ec3e85ef",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. GEE",
+            "bibNumber": 32,
+            "riderId": "8eab81d1-9a40-58fd-8e38-c775a767469a",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "V. VAN MECHELEN",
+            "bibNumber": 78,
+            "riderId": "48389352-0d62-52f9-ade1-9c372cd6a14b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. VELASCO",
+            "bibNumber": 67,
+            "riderId": "a14aa4c5-6a04-5f82-81f9-7e87fd66dd24",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. CORT NIELSEN",
+            "bibNumber": 124,
+            "riderId": "b1045be9-3160-5830-8456-15698ec780d1",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. POLITT",
+            "bibNumber": 5,
+            "riderId": "3e4b7099-efc9-53a4-9872-cb31f992b5d4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. MATTHEWS",
+            "bibNumber": 115,
+            "riderId": "3a5bfceb-c04f-5333-bcdb-9442be1a0bdc",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. ABRAHAMSEN",
+            "bibNumber": 122,
+            "riderId": "e09f1ad9-3053-502a-8750-1d4c695e627f",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. WELLENS",
+            "bibNumber": 7,
+            "riderId": "c8fed61c-3646-5e30-aabb-4a2827ab0f24",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. GREGOIRE",
+            "bibNumber": 181,
+            "riderId": "262fc7c9-0161-525f-a06e-e97029a5cd56",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. EENKHOORN",
+            "bibNumber": 92,
+            "riderId": "ce97bfcf-908e-403a-89c1-afe2c3a746f0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. CEPEDA",
+            "bibNumber": 143,
+            "riderId": "c951b0e0-b89c-42a2-966f-c0b2f14d7645",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. ROMO",
+            "bibNumber": 147,
+            "riderId": "22432641-f3a9-49eb-a80c-43b31fcae3b9",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. LE BERRE",
+            "bibNumber": 206,
+            "riderId": "f7d7f674-1b36-53ef-8ad9-4f2dd7e9532a",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "G. ZIMMERMANN",
+            "bibNumber": 158,
+            "riderId": "8694de12-5bd7-5d2a-8eca-b3fec3605082",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. O'CONNOR",
+            "bibNumber": 111,
+            "riderId": "8cb5330f-eabe-58d3-b6b0-7db18cf88d69",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. OLDANI",
+            "bibNumber": 226,
+            "riderId": "df15be7c-4133-5579-94f7-a72e7382b496",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. BERWICK",
+            "bibNumber": 223,
+            "riderId": "71b158db-f0a9-5cca-b529-cc2f7a22c048",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. OTRUBA",
+            "bibNumber": 227,
+            "riderId": "11707a50-adfd-5132-8771-a59a2e6a6954",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. DELETTRE",
+            "bibNumber": 204,
+            "riderId": "2722f6ef-edbb-5666-b6fd-3bb53e023fa4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. DELBOVE",
+            "bibNumber": 203,
+            "riderId": "27eae15f-a1e7-5418-8cf9-cbc82975ae92",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. VAN BAARLE",
+            "bibNumber": 95,
+            "riderId": "765b09ad-4bf9-505f-9038-b9c2be6990bb",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. STUYVEN",
+            "bibNumber": 94,
+            "riderId": "048b471b-df59-5167-8893-3243277d7516",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. HEALY",
+            "bibNumber": 44,
+            "riderId": "336238ff-f0b4-5004-beff-2643f9123e13",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. SCHMID",
+            "bibNumber": 118,
+            "riderId": "fe9e9309-9e11-5a3d-8b3d-3a079f4e8236",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. DILLIER",
+            "bibNumber": 103,
+            "riderId": "36382174-dbfd-586d-b710-e6f5fda21952",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. ENGELHARDT",
+            "bibNumber": 114,
+            "riderId": "87529e45-6da3-5a09-977c-5e887ecf3953",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. TEUNISSEN",
+            "bibNumber": 66,
+            "riderId": "05343dfa-56cf-5812-8916-9a0974094a21",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "C. RUSSO",
+            "bibNumber": 188,
+            "riderId": "a650c970-451d-5e46-931f-eac574e3a3fd",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "Q. PACHER",
+            "bibNumber": 187,
+            "riderId": "e860a231-a46e-5d7b-bf16-e79de19e6db4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. PLUIMERS",
+            "bibNumber": 195,
+            "riderId": "d4911b26-5c89-53f0-98f9-5bcaf6dbdda4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. BERCKMOES",
+            "bibNumber": 153,
+            "riderId": "e3c0eb7d-e6f8-5f63-9f05-21e50e33d578",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. CHARMIG",
+            "bibNumber": 123,
+            "riderId": "e7baff1e-4f4c-583a-a633-09846c501d72",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. HOWSON",
+            "bibNumber": 175,
+            "riderId": "4dcae69e-e801-4cb9-ae33-7347612be2e6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. STANNARD",
+            "bibNumber": 76,
+            "riderId": "532cced5-b9a6-55c7-bcef-32a9481e8f1f",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. GATE",
+            "bibNumber": 63,
+            "riderId": "48e5fe13-802d-5622-8225-4fa54947c0d8",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. DURBRIDGE",
+            "bibNumber": 113,
+            "riderId": "db5e6f68-2205-57f1-a902-8ca2f5dde270",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. VERVAEKE",
+            "bibNumber": 98,
+            "riderId": "7b576fcb-0fbe-5ecf-b5ac-254b3190e49c",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "E. VERSTRYNGE",
+            "bibNumber": 108,
+            "riderId": "3ffc4761-8bfd-587a-acd5-cee1dee0abb0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. DENZ",
+            "bibNumber": 23,
+            "riderId": "c1379c90-c95e-555d-a574-798c4a1d02ae",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. MOHORIC",
+            "bibNumber": 75,
+            "riderId": "7b4ed48f-d0b1-503a-aa13-f160b63f3ba0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "E. COSTIOU",
+            "bibNumber": 184,
+            "riderId": "13d9f9b1-2a84-5049-be9a-eba1b70e4112",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "G. STEINHAUSER",
+            "bibNumber": 46,
+            "riderId": "8a4ecb70-c0aa-517c-90ef-68123f34328e",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. GUERNALEC",
+            "bibNumber": 205,
+            "riderId": "da58d77d-00f8-526f-a70f-8a3abafead27",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. RICKAERT",
+            "bibNumber": 107,
+            "riderId": "5ff084ff-b4a3-5d0c-a5cd-593be2c2fb3e",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. ARANBURU",
+            "bibNumber": 163,
+            "riderId": "054e27c6-c455-5cc4-9f13-d6efa31f7921",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. VALGREN",
+            "bibNumber": 47,
+            "riderId": "93fe8fae-dbfd-536a-b12b-7a3abc54ff9a",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. FRIGO",
+            "bibNumber": 134,
+            "riderId": "2928ffcf-9fa4-5f1a-b46b-454acbfebfcb",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "W. BARGUIL",
+            "bibNumber": 211,
+            "riderId": "c02fffc2-bb51-53ae-af93-d666b65ee6ae",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. TURGIS",
+            "bibNumber": 207,
+            "riderId": "15a93de2-983e-55c8-b153-c204eb3e97cc",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. VAN DEN BROEK",
+            "bibNumber": 218,
+            "riderId": "3183cf19-1071-5ce1-b0ca-f7908d784930",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. VAN MOER",
+            "bibNumber": 177,
+            "riderId": "a1b6fb3e-09e9-4ba5-b757-8295481b5039",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. CRAPS",
+            "bibNumber": 154,
+            "riderId": "161ec369-3663-52b0-9f1b-a99e6b11bb5d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. WALKER",
+            "bibNumber": 48,
+            "riderId": "1cc3588f-715e-5258-8452-6aed5b45d891",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "K. NEILANDS",
+            "bibNumber": 136,
+            "riderId": "c1b7ba5b-b429-59a8-aa55-ed543759c468",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. PLAPP",
+            "bibNumber": 117,
+            "riderId": "599087be-aff4-5e92-9d52-4839dcf9238a",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. THOMAS",
+            "bibNumber": 168,
+            "riderId": "abfa5a32-268d-5de5-a27b-f927cdea78a1",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. TRATNIK",
+            "bibNumber": 26,
+            "riderId": "9030eaad-77b9-5d8f-97f2-e273551db83d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "E. PLANCKAERT",
+            "bibNumber": 106,
+            "riderId": "3cfd28d5-505c-533f-ad4d-50ebcc2a2ced",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. VAN DER POEL",
+            "bibNumber": 101,
+            "riderId": "14d287c7-ba9a-5c6e-8f99-e15aed6d9b39",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. PHILIPSEN",
+            "bibNumber": 105,
+            "riderId": "999b6489-bc7a-5b3d-9cd4-e9108f8b9860",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "X. AZPARREN IRURZUN",
+            "bibNumber": 172,
+            "riderId": "3ff36229-5e26-4825-8331-2f06aae37de5",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. HOOLE",
+            "bibNumber": 54,
+            "riderId": "227f4958-4c14-5f0b-82de-b9a9ee34bf62",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. PEDERSEN",
+            "bibNumber": 33,
+            "riderId": "97f3320e-63f9-5b67-8cce-d2388db6c3c6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. HEßMANN",
+            "bibNumber": 145,
+            "riderId": "fa0adb65-63ca-4676-82e8-f5f3511ccf40",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. NICOLAU",
+            "bibNumber": 225,
+            "riderId": "11e8f2d7-7c25-528d-898d-45f993b52d8c",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. GIRMAY",
+            "bibNumber": 131,
+            "riderId": "3fd0273e-c2d6-5eef-9f26-ff0e7f9c577c",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. KANTER",
+            "bibNumber": 64,
+            "riderId": "403a2342-8e37-50cf-81be-efeb5bea34ab",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. TRENTIN",
+            "bibNumber": 197,
+            "riderId": "58b7bebb-c6ad-500b-b56f-a321c9a154ef",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. VERMEERSCH",
+            "bibNumber": 6,
+            "riderId": "53808b47-d1f1-5bf4-a0b0-0dd410380e75",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "S. WAERENSKJOLD",
+            "bibNumber": 128,
+            "riderId": "b9311ed4-6e61-5ae2-85aa-73e59bb0f366",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. VINOKUROV",
+            "bibNumber": 68,
+            "riderId": "93e7b81c-ed93-596d-be16-b35b4586b88a",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. KIRSCH",
+            "bibNumber": 166,
+            "riderId": "c84cf5c6-510d-5d04-a8c3-ce4a31d9b2ce",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. VEISTROFFER",
+            "bibNumber": 157,
+            "riderId": "fc5329a0-e4ff-5e86-8944-254c6116cf42",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. LOUVEL",
+            "bibNumber": 135,
+            "riderId": "b1bd25af-b3ad-5932-92db-4de0613b53cc",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. ALAPHILIPPE",
+            "bibNumber": 191,
+            "riderId": "a631d0ba-bfac-5d37-af79-c9ecf9313f95",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. VAN ASBROECK",
+            "bibNumber": 138,
+            "riderId": "db994ff6-e033-59d9-9f4e-34c974bc8784",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. MOLENAAR",
+            "bibNumber": 224,
+            "riderId": "3e6f05bb-47d5-5b8b-b266-3a063b588f60",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. DEGENKOLB",
+            "bibNumber": 214,
+            "riderId": "d32f980e-d638-5d60-9703-d74f033345f0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. RICCITELLO",
+            "bibNumber": 58,
+            "riderId": "70e3c3b3-ea1b-5984-beb2-e4ad06ead6b3",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. FRETIN",
+            "bibNumber": 165,
+            "riderId": "2b5682f6-6767-53ad-bf81-3b40b0eafef6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. BIERMANS",
+            "bibNumber": 164,
+            "riderId": "38121f5a-1342-55f5-be69-2cb31d4a9d50",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. BITTNER",
+            "bibNumber": 213,
+            "riderId": "edda09e4-fc88-5f2c-8ad5-2a9e589475a2",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "N. MÄRKL",
+            "bibNumber": 216,
+            "riderId": "f1f42bda-d752-5628-b432-dbb6a559b596",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. BAUHAUS",
+            "bibNumber": 72,
+            "riderId": "9602fd53-2fca-5397-beb9-49c06bc31130",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. ACKERMANN",
+            "bibNumber": 112,
+            "riderId": "c72c0d8d-6dba-580a-ba68-06536ff4e82b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. VAN DIJKE",
+            "bibNumber": 27,
+            "riderId": "b0e2ea92-177e-527d-9d55-6e723bf54601",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "K. GRADEK",
+            "bibNumber": 74,
+            "riderId": "919c0489-9720-5e69-b8e5-3a50cf0c24c9",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. MARSMAN",
+            "bibNumber": 104,
+            "riderId": "17364d30-0e18-5696-9e49-bc6e4486f411",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. VAN LERBERGHE",
+            "bibNumber": 96,
+            "riderId": "b9cf7d17-3043-556a-9c7a-60a1a1549069",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. MERLIER",
+            "bibNumber": 91,
+            "riderId": "a0b15cf2-0911-520b-bc76-93dc15c492a8",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. VAN DEN BERG",
+            "bibNumber": 217,
+            "riderId": "77f87312-f5e1-5a71-a7f5-5ece860bf89b",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. STEWART",
+            "bibNumber": 137,
+            "riderId": "a4cd7712-478f-59d0-bbb9-a2cea2efada3",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "O. KOOIJ",
+            "bibNumber": 55,
+            "riderId": "c35edc9b-616f-520b-bfa8-1ab7f3144b21",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. BIESTERBOS",
+            "bibNumber": 212,
+            "riderId": "249b7766-f897-5b1c-aeb4-7f47792242fc",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. GAVIRIA",
+            "bibNumber": 221,
+            "riderId": "ddf25603-e7aa-59d2-b465-8b062a4c8978",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "C. BOL",
+            "bibNumber": 53,
+            "riderId": "8a09088c-10aa-513b-b74b-f95caecddcfb",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "E. AFFINI",
+            "bibNumber": 12,
+            "riderId": "25c4f996-a7b1-5b3c-98d3-fd197dcc59aa",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. ALLEGAERT",
+            "bibNumber": 162,
+            "riderId": "08723aeb-4e5d-55c9-9cc8-01035f0eb484",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "P. HAGENES",
+            "bibNumber": 15,
+            "riderId": "8b6b639d-de4d-5212-957d-dcdf720196c0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. KWIATKOWSKI",
+            "bibNumber": 86,
+            "riderId": "6f4cbb71-d7e1-5bbb-aed4-4d4884aabe93",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "H. ARTZ",
+            "bibNumber": 152,
+            "riderId": "b35250ba-2779-56d4-8744-9adf3fd4d2d7",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. JOHANNESSEN",
+            "bibNumber": 125,
+            "riderId": "f743ddd5-4101-5114-9dad-581f75c794b0",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "B. ARMIRAIL",
+            "bibNumber": 13,
+            "riderId": "13ee15fc-cc6b-5f7a-ad91-0e5c0e305f70",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. ASKEY",
+            "bibNumber": 132,
+            "riderId": "9662afde-f80b-5b6a-8941-51cb94e657e7",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "T. FOSS",
+            "bibNumber": 83,
+            "riderId": "087f1921-3dc6-4c93-8ab8-5ef69a9c0d2e",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. GODON",
+            "bibNumber": 85,
+            "riderId": "7adfbf0e-f66a-5b31-8949-3e5563fd69f4",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "H. PAGE",
+            "bibNumber": 167,
+            "riderId": "9f90c5d3-1438-5b33-a00e-7fb43545f0c6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "L. SLOCK",
+            "bibNumber": 155,
+            "riderId": "72965280-79b2-5da8-8a03-118ee5a0d700",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "D. BALLERINI",
+            "bibNumber": 62,
+            "riderId": "4cc52875-39f6-5ef8-9198-932f79a99eac",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. WRIGHT",
+            "bibNumber": 178,
+            "riderId": "15a2f6ef-0a9f-5498-ad6e-5fcee8ac5668",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "R. DHONDT",
+            "bibNumber": 215,
+            "riderId": "cad05284-cc48-51dd-883c-249a9de693b6",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "J. TARLING",
+            "bibNumber": 87,
+            "riderId": "3d8f0efb-a9c1-4a05-86c9-804c8fdfa6a8",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "F. GANNA",
+            "bibNumber": 84,
+            "riderId": "77946d3e-250c-52f4-af44-d6ea05c2f57e",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "M. HALLER",
+            "bibNumber": 193,
+            "riderId": "f5cdb578-bf85-5bf7-abdb-7feb3f3f9f62",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "K. O’BRIEN",
+            "bibNumber": 116,
+            "riderId": "5ff66d29-e3b9-5fc9-afb6-d57dd2c842bd",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          },
+          {
+            "riderName": "A. DE KLEIJN",
+            "bibNumber": 192,
+            "riderId": "c8207ae8-22e0-57f4-9bbb-44bcb397ac63",
+            "matchedBy": "bib_number",
+            "nameMismatch": true
+          }
+        ],
+        "matchedRidersMissingFromStartlist": [],
+        "startlistValidationPassed": true,
+        "noStartlistRowsFound": false,
+        "jerseyHolders": [
+          {
+            "jerseyType": "yellow",
+            "sourceClassification": "individual",
+            "parsedRiderName": "T. POGACAR",
+            "parsedTeamName": "UAE TEAM EMIRATES XRG",
+            "bibNumber": 1,
+            "matchedRiderId": "1b78ea0c-a9c2-5ab1-b8cb-7c095a24b29d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true,
+            "teamMismatch": false,
+            "onStartlist": true,
+            "status": "matched"
+          },
+          {
+            "jerseyType": "green",
+            "sourceClassification": "points",
+            "parsedRiderName": "T. POGACAR",
+            "parsedTeamName": "UAE TEAM EMIRATES XRG",
+            "bibNumber": 1,
+            "matchedRiderId": "1b78ea0c-a9c2-5ab1-b8cb-7c095a24b29d",
+            "matchedBy": "bib_number",
+            "nameMismatch": true,
+            "teamMismatch": false,
+            "onStartlist": true,
+            "status": "matched"
+          },
+          {
+            "jerseyType": "kom",
+            "sourceClassification": "climber",
+            "parsedRiderName": "A. BAUDIN",
+            "parsedTeamName": "EF EDUCATION - EASYPOST",
+            "bibNumber": 43,
+            "matchedRiderId": "379c4cb7-33a2-5c8d-a774-db0204417ed9",
+            "matchedBy": "bib_number",
+            "nameMismatch": true,
+            "teamMismatch": false,
+            "onStartlist": true,
+            "status": "matched"
+          },
+          {
+            "jerseyType": "white",
+            "sourceClassification": "youth",
+            "parsedRiderName": "I. DEL TORO",
+            "parsedTeamName": "UAE TEAM EMIRATES XRG",
+            "bibNumber": 2,
+            "matchedRiderId": "71e4df35-c770-59ab-b002-ec413c86c658",
+            "matchedBy": "bib_number",
+            "nameMismatch": true,
+            "teamMismatch": false,
+            "onStartlist": true,
+            "status": "matched"
+          }
+        ],
+        "safeToApply": true,
+        "blockers": []
+      }
+    ],
+    "overallSafeToApply": true,
+    "note": "Reconciliation-only dry run comparing official-letour parsed rows against existing Supabase GrandTour records. No Supabase writes occur; apply mode is not implemented."
+  }
+}

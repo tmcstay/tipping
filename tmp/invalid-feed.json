@@ -1,0 +1,14 @@
+{
+  "source_name": "manual-invalid",
+  "ttt_results": [
+    {
+      "stage_number": 1,
+      "type": "ttt",
+      "riders": [
+        {
+          "rider_id": "r1"
+        }
+      ]
+    }
+  ]
+}

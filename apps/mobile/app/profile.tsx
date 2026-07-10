@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput } from "react-native";
 import {
@@ -8,10 +9,13 @@ import {
 import { useAuth } from "../auth/useAuth";
 import { AppShell } from "../components/AppShell";
 import { InfoCard } from "../components/InfoCard";
+import { useGrandTourAdminAccess } from "../hooks/useGrandTourAdmin";
 import { activeAppConfig } from "../lib/appConfig";
 
 export default function ProfileScreen() {
   const { profile, profileError, refreshProfile, user } = useAuth();
+  const router = useRouter();
+  const adminAccess = useGrandTourAdminAccess();
   const [displayName, setDisplayName] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -46,9 +50,20 @@ export default function ProfileScreen() {
         <Pressable disabled={saving || !displayName.trim()} onPress={save} style={styles.primaryButton}>
           <Text style={styles.primaryButtonText}>{saving ? "Saving…" : "Save profile"}</Text>
         </Pressable>
+        <Pressable onPress={() => router.push("/my-tips")} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>My Tips & score history</Text>
+        </Pressable>
         <Pressable onPress={() => void signOut()} style={styles.secondaryButton}>
           <Text style={styles.secondaryButtonText}>Log out</Text>
         </Pressable>
+        {adminAccess.data ? (
+          <Pressable
+            onPress={() => router.push("/admin/grandtour-stages")}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryButtonText}>GrandTour stage review (admin)</Text>
+          </Pressable>
+        ) : null}
       </InfoCard>
     </AppShell>
   );

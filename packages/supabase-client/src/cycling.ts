@@ -530,6 +530,32 @@ export async function listLeagueTipsAfterLock(input: {
   }));
 }
 
+/**
+ * All of the current user's own "daily"/"stage" tips for a competition, one
+ * row per stage the user has tipped (draft or otherwise) - regardless of
+ * lock/scored status, since RLS already lets an owner read their own tips
+ * unconditionally ("user_id = auth.uid()"). Used for the "My Tips"/history
+ * screen; the caller correlates each row's stage_id against the already-
+ * fetched stage list to get stage_number/date/type, and computes cumulative
+ * totals client-side (see apps/mobile/lib/grandtourHistoryExperience.ts) -
+ * no join multiplication risk since hydrateTips already resolves
+ * selections/scores via separate single-table `.in()` queries, and this
+ * function returns at most one row per stage.
+ */
+export async function listMyGrandTourStageTips(competitionId: string): Promise<GrandTourTipRecord[]> {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  const { data, error } = await getSupabaseClient()
+    .from("grandtour_tips")
+    .select(tipColumns)
+    .eq("user_id", user.id)
+    .eq("competition_id", competitionId)
+    .eq("tip_mode", "daily")
+    .eq("tip_scope", "stage");
+  if (error) throw error;
+  return hydrateTips(data ?? []);
+}
+
 export async function listCyclingLeaderboard(
   competitionId: string,
   leaderboardType: CyclingLeaderboardRow["leaderboard_type"] = "overall"
