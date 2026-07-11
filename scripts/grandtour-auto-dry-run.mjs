@@ -3,17 +3,29 @@
  * scripts/grandtour-feed-import.mjs that resolves which stage to check
  * (explicit stage-number/from-stage/to-stage, or auto-resolved from
  * grandtour_stages.starts_at when none is given), runs a dry-run +
- * reconcile pass, writes the report under tmp/auto-dry-runs/, prints a
- * readable summary, and decides the process exit code from --fail-on-unsafe.
+ * reconcile pass, classifies the outcome, and retries ONLY transient
+ * technical failures (network/HTTP/Supabase connectivity) on a fixed
+ * interval, up to a fixed attempt count. Unsafe/semantic outcomes
+ * (parser drift, unmatched/ambiguous riders, missing jersey holders, a
+ * malformed-but-fetched payload, invalid input, missing credentials) are
+ * never retried - they need a human, not another attempt.
  *
  * This wrapper NEVER applies, finalises, or scores. It never passes
  * --apply to grandtour-feed-import.mjs, and it never reads
- * SUPABASE_SERVICE_ROLE_KEY — only SUPABASE_URL plus SUPABASE_ANON_KEY or
+ * SUPABASE_SERVICE_ROLE_KEY - only SUPABASE_URL plus SUPABASE_ANON_KEY or
  * SUPABASE_PUBLISHABLE_KEY (read-only reconciliation, same as
  * scripts/grandtour-feed-import.mjs's --reconcile flag).
+ *
+ * Every run gets a unique runId, shared across all attempts, and writes
+ * to tmp/auto-dry-runs/<run-id>/:
+ *   attempt-01-report.json    (grandtour-feed-import.mjs's own report, if it produced one)
+ *   attempt-01-summary.json   (this wrapper's structured attempt metadata)
+ *   attempt-02-report.json / attempt-02-summary.json / ...
+ *   final-summary.json        (whole-run outcome, all attempts included)
  */
 
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -25,6 +37,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FEED_IMPORT_SCRIPT_PATH = path.join(__dirname, "grandtour-feed-import.mjs");
 
 export const DEFAULT_REPORT_DIR = path.resolve("tmp", "auto-dry-runs");
+export const DEFAULT_RETRY_INTERVAL_MINUTES = 15;
+export const DEFAULT_MAX_RETRIES = 8;
 
 export function parseAutoDryRunArgs(argv) {
   const options = {
@@ -36,7 +50,10 @@ export function parseAutoDryRunArgs(argv) {
     toStage: null,
     failOnUnsafe: true,
     reportDir: DEFAULT_REPORT_DIR,
-    asOfDate: null
+    asOfDate: null,
+    retryIntervalMinutes: DEFAULT_RETRY_INTERVAL_MINUTES,
+    maxRetries: DEFAULT_MAX_RETRIES,
+    noRetry: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -76,6 +93,18 @@ export function parseAutoDryRunArgs(argv) {
     } else if (argument === "--as-of-date") {
       options.asOfDate = argv[++index] ?? "";
       if (!/^\d{4}-\d{2}-\d{2}$/.test(options.asOfDate)) throw new Error("--as-of-date requires a YYYY-MM-DD value");
+    } else if (argument === "--retry-interval-minutes") {
+      options.retryIntervalMinutes = Number(argv[++index] ?? "");
+      if (!Number.isFinite(options.retryIntervalMinutes) || options.retryIntervalMinutes <= 0) {
+        throw new Error("--retry-interval-minutes requires a positive number");
+      }
+    } else if (argument === "--max-retries") {
+      options.maxRetries = Number(argv[++index] ?? "");
+      if (!Number.isInteger(options.maxRetries) || options.maxRetries < 0) {
+        throw new Error("--max-retries requires a non-negative integer");
+      }
+    } else if (argument === "--no-retry") {
+      options.noRetry = true;
     } else {
       throw new Error(`Unknown argument: ${argument}`);
     }
@@ -98,30 +127,12 @@ export function parseAutoDryRunArgs(argv) {
   return options;
 }
 
-function slugify(value) {
-  return String(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-+|-+$)/g, "");
-}
-
-/**
- * Report filenames encode provider, grand tour name/year, stage number or
- * range, and a timestamp, so artifacts from different runs never collide
- * and are identifiable at a glance in the GitHub Actions artifact list.
- * `timestamp` is passed in (rather than computed here) so this stays pure
- * and testable.
- */
-export function buildReportFileName({ provider, grandTourName, grandTourYear, fromStage, toStage, timestamp }) {
-  const stagePart = fromStage === toStage ? `stage-${fromStage}` : `stages-${fromStage}-to-${toStage}`;
-  return `${slugify(provider)}_${slugify(grandTourName)}-${grandTourYear}_${stagePart}_${slugify(timestamp)}.json`;
-}
-
 /**
  * Turns a grandtour-feed-import.mjs dry-run+reconcile report into a short,
- * human-readable summary for the GitHub Actions log, and decides whether
- * the report counts as "unsafe" (parser drift and/or safeToApply=false)
- * independent of --fail-on-unsafe, which only decides what happens next.
+ * human-readable summary, and decides whether the report counts as
+ * "unsafe" (parser drift and/or safeToApply=false) - independent of
+ * classifyAutoDryRunFailure's retry decision below, which additionally
+ * distinguishes *why* it's unsafe.
  */
 export function summarizeAutoDryRunReport(report) {
   const lines = [];
@@ -157,8 +168,92 @@ export function summarizeAutoDryRunReport(report) {
     lines.push(`Stage ${stageNumber} jersey fetch: ${statuses.join(", ")}`);
   }
 
+  const blockers = stages.flatMap((stage) => stage.blockers ?? []);
   const unsafe = parserDriftDetected || overallSafeToApply === false;
-  return { lines, unsafe, overallSafeToApply, parserDriftDetected };
+  return { lines, unsafe, overallSafeToApply, parserDriftDetected, blockers };
+}
+
+const TRANSIENT_HTTP_STATUSES = new Set([429, 500, 502, 503, 504]);
+const TRANSIENT_ERROR_CODES = new Set([
+  "ETIMEDOUT", "ECONNRESET", "ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED",
+  "ENETUNREACH", "ENETDOWN", "EPIPE", "ECONNABORTED", "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT", "UND_ERR_SOCKET"
+]);
+const PARSER_DRIFT_STAGE_STATUSES = new Set(["table_not_found", "parse_empty"]);
+const PARSER_DRIFT_JERSEY_STATUSES = new Set(["table_not_found", "unsupported_markup"]);
+
+function isTransientFetchEntry(entry) {
+  if (!entry) return false;
+  if (entry.status === "fetch_error") return true;
+  return TRANSIENT_HTTP_STATUSES.has(entry.httpStatus);
+}
+
+/**
+ * Classifies a completed attempt (either a thrown `error`, or a
+ * successfully-produced `report`, never both) into exactly one of:
+ * "success" | "transient" | "unsafe" | "parser_drift" | "configuration" |
+ * "invalid_input" | "no_eligible_stage" | "unknown_non_retryable".
+ *
+ * Only "transient" is ever retried. Priority, when a report exists:
+ * no_eligible_stage > parser_drift > safe (success) > transient (unsafe
+ * purely because a fetch technically failed, e.g. HTTP 429/500-504,
+ * network reset/timeout, DNS) > unsafe (a real semantic/reconciliation
+ * problem: unmatched/ambiguous riders, missing jersey holders that were
+ * actually fetched but not matched, startlist validation failure, a
+ * malformed-but-successfully-fetched payload, etc).
+ *
+ * When there's a thrown `error` instead (the subprocess never produced a
+ * report - e.g. it crashed, or stage resolution itself failed), this
+ * inspects HTTP status / errno-style codes / message patterns, per the
+ * documented retryable/non-retryable lists - never as a substitute for
+ * structured report fields when a report is available.
+ */
+export function classifyAutoDryRunFailure(error, report) {
+  if (report) {
+    if (report.importStatus === "skipped") return "no_eligible_stage";
+
+    const stageFetchMetadata = report.stageFetchMetadata ?? [];
+    const jerseyFetchMetadata = report.jerseyFetchMetadata ?? [];
+
+    const hasParserDrift = report.parserDriftDetected === true
+      || stageFetchMetadata.some((entry) => PARSER_DRIFT_STAGE_STATUSES.has(entry.status))
+      || jerseyFetchMetadata.some((entry) => PARSER_DRIFT_JERSEY_STATUSES.has(entry.status));
+    if (hasParserDrift) return "parser_drift";
+
+    const stage = report.reconciliation?.stages?.[0] ?? null;
+    const overallSafeToApply = report.reconciliation?.overallSafeToApply ?? null;
+    const safeToApply = stage?.safeToApply ?? overallSafeToApply;
+
+    if (safeToApply !== false) return "success";
+
+    const hasTransientFetchIssue = stageFetchMetadata.some(isTransientFetchEntry)
+      || jerseyFetchMetadata.some(isTransientFetchEntry);
+    if (hasTransientFetchIssue) return "transient";
+
+    return "unsafe";
+  }
+
+  if (!error) return "unknown_non_retryable";
+
+  const message = String(error.message ?? error);
+  const httpStatus = error.httpStatus ?? error.status ?? error.statusCode ?? null;
+  if (httpStatus !== null && TRANSIENT_HTTP_STATUSES.has(httpStatus)) return "transient";
+
+  const code = error.cause?.code ?? error.code ?? null;
+  if (code && TRANSIENT_ERROR_CODES.has(code)) return "transient";
+
+  if (error.name === "AbortError" || /\babort(ed)?\b/i.test(message) || /\breset\b/i.test(message)) return "transient";
+  if (/fetch failed|network error|ETIMEDOUT|ECONNRESET|ENOTFOUND/i.test(message)) return "transient";
+
+  if (/SUPABASE_URL|SUPABASE_ANON_KEY|SUPABASE_PUBLISHABLE_KEY|SUPABASE_SERVICE_ROLE_KEY|is not configured|not configured with/i.test(message)) {
+    return "configuration";
+  }
+
+  if (/requires a value|requires an integer|requires a positive integer|requires a non-negative integer|requires a path|requires a YYYY-MM-DD value|requires 'true' or 'false'|must both be provided together|must be greater than or equal to|^Unknown argument:/i.test(message)) {
+    return "invalid_input";
+  }
+
+  return "unknown_non_retryable";
 }
 
 /**
@@ -167,7 +262,9 @@ export function summarizeAutoDryRunReport(report) {
  * grandtour_stages (anon key only) and picks the stage whose starts_at
  * falls on `asOfDate` (Paris calendar date, matching the existing daily
  * dry-run workflow's "today's stage" convention). `deps.createClient` is
- * injectable for tests.
+ * injectable for tests. Called fresh on every attempt (see runAttempt)
+ * so a transient Supabase issue here is retried exactly like a transient
+ * letour.fr fetch issue.
  */
 export async function resolveStageRange(options, deps = {}) {
   if (options.fromStage !== null && options.toStage !== null) {
@@ -199,82 +296,236 @@ export async function resolveStageRange(options, deps = {}) {
   return { fromStage: resolved.stageNumber, toStage: resolved.stageNumber, skippedReason: null };
 }
 
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
+function extractSafetyFields(report) {
+  if (!report) return { safeToApply: null, parserDriftDetected: null, blockers: [] };
+  const stage = report.reconciliation?.stages?.[0] ?? null;
+  const overallSafeToApply = report.reconciliation?.overallSafeToApply ?? null;
+  return {
+    safeToApply: stage?.safeToApply ?? overallSafeToApply,
+    parserDriftDetected: report.parserDriftDetected === true,
+    blockers: stage?.blockers ?? []
+  };
+}
+
 /**
- * `deps.spawnSync`/`deps.createClient` are injectable so tests never spawn
- * a real subprocess or hit real Supabase/letour.fr.
+ * Runs exactly one attempt: resolve the stage range fresh, spawn
+ * grandtour-feed-import.mjs --dry-run --reconcile, read back its report,
+ * and classify the outcome. Never throws - all failures are captured and
+ * classified instead, so the retry loop can decide what to do uniformly.
+ */
+async function runAttempt({ attemptNumber, options, runDir, deps }) {
+  const startedAt = new Date();
+  let report = null;
+  let error = null;
+  let range = null;
+  let reportPath = null;
+
+  try {
+    range = await resolveStageRange(options, deps);
+    if (range.skippedReason) {
+      return {
+        attemptNumber,
+        startedAt,
+        finishedAt: new Date(),
+        range: null,
+        classification: "no_eligible_stage",
+        report: null,
+        error: null,
+        skippedReason: range.skippedReason,
+        reportPath: null
+      };
+    }
+
+    reportPath = path.join(runDir, `attempt-${pad2(attemptNumber)}-report.json`);
+    const args = [
+      FEED_IMPORT_SCRIPT_PATH,
+      "--provider", options.provider,
+      "--reconcile",
+      "--report", reportPath,
+      "--from-stage", String(range.fromStage),
+      "--to-stage", String(range.toStage),
+      "--grand-tour-name", options.grandTourName,
+      "--grand-tour-year", String(options.grandTourYear)
+    ];
+
+    const run = deps.spawnSync ?? spawnSync;
+    const result = run(process.execPath, args, { stdio: "inherit" });
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+      throw new Error(`grandtour-feed-import.mjs exited with status ${result.status}.`);
+    }
+
+    const reportRaw = await fs.readFile(reportPath, "utf8");
+    report = JSON.parse(reportRaw);
+  } catch (caughtError) {
+    error = caughtError;
+  }
+
+  const classification = classifyAutoDryRunFailure(error, report);
+  return { attemptNumber, startedAt, finishedAt: new Date(), range, classification, report, error, skippedReason: null, reportPath };
+}
+
+function buildAttemptSummary(attempt, retryable) {
+  const { safeToApply, parserDriftDetected, blockers } = extractSafetyFields(attempt.report);
+  return {
+    attemptNumber: attempt.attemptNumber,
+    startedAt: attempt.startedAt.toISOString(),
+    finishedAt: attempt.finishedAt.toISOString(),
+    stageNumber: attempt.range && attempt.range.fromStage === attempt.range.toStage ? attempt.range.fromStage : null,
+    fromStage: attempt.range?.fromStage ?? null,
+    toStage: attempt.range?.toStage ?? null,
+    classification: attempt.classification,
+    retryable,
+    reportPath: attempt.reportPath,
+    errorMessage: attempt.error ? (attempt.error.message ?? String(attempt.error)) : null,
+    skippedReason: attempt.skippedReason,
+    safeToApply,
+    parserDriftDetected,
+    blockers
+  };
+}
+
+const RETRYABLE_CLASSIFICATIONS = new Set(["transient"]);
+const TERMINAL_CLASSIFICATIONS = new Set(["success", "no_eligible_stage"]);
+
+function mapClassificationToFinalStatus(classification) {
+  switch (classification) {
+    case "success": return "success";
+    case "no_eligible_stage": return "no_eligible_stage";
+    case "transient": return "transient_failure_exhausted";
+    case "configuration": return "configuration_error";
+    case "invalid_input": return "configuration_error";
+    default: return "unsafe_review_required"; // unsafe, parser_drift, unknown_non_retryable
+  }
+}
+
+function computeExitCode(finalStatus, failOnUnsafe) {
+  if (finalStatus === "success" || finalStatus === "no_eligible_stage") return 0;
+  if (finalStatus === "unsafe_review_required") return failOnUnsafe ? 1 : 0;
+  return 1; // transient_failure_exhausted, configuration_error always fail loudly
+}
+
+function defaultWait(ms) {
+  return new Promise((resolve) => { setTimeout(resolve, ms); });
+}
+
+/**
+ * Orchestrates the whole run: one initial attempt, then up to
+ * `options.maxRetries` further attempts (skipped entirely if
+ * `options.noRetry`), waiting `options.retryIntervalMinutes` between each,
+ * but ONLY when the previous attempt classified as "transient". Any other
+ * classification (including the first attempt) stops immediately - no
+ * unsafe/semantic/config/invalid-input outcome is ever retried.
+ *
+ * `deps.spawnSync`/`deps.createClient`/`deps.wait`/`deps.generateRunId`
+ * are injectable so tests never spawn a real subprocess, hit real
+ * Supabase/letour.fr, or actually wait 15 minutes.
  */
 export async function main(argv = process.argv.slice(2), deps = {}) {
   const options = parseAutoDryRunArgs(argv);
-  const range = await resolveStageRange(options, deps);
+  const runId = deps.generateRunId ? deps.generateRunId() : `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
+  const runDir = path.join(options.reportDir, runId);
+  await fs.mkdir(runDir, { recursive: true });
 
-  if (range.skippedReason) {
-    console.log(`GrandTour auto dry-run: skipped — ${range.skippedReason}`);
-    return { skipped: true, exitCode: 0 };
+  const maxAttempts = options.noRetry ? 1 : options.maxRetries + 1;
+  const wait = deps.wait ?? defaultWait;
+  const startedAt = new Date();
+  const attemptSummaries = [];
+  let finalAttempt = null;
+
+  for (let attemptNumber = 1; attemptNumber <= maxAttempts; attemptNumber += 1) {
+    console.log(`\n=== GrandTour auto dry-run: attempt ${attemptNumber}/${maxAttempts} (run ${runId}) ===`);
+    console.log(`Started (UTC): ${new Date().toISOString()}`);
+
+    // eslint-disable-next-line no-await-in-loop
+    const attempt = await runAttempt({ attemptNumber, options, runDir, deps });
+    finalAttempt = attempt;
+
+    const stageDescription = attempt.range
+      ? (attempt.range.fromStage === attempt.range.toStage ? String(attempt.range.fromStage) : `${attempt.range.fromStage}-${attempt.range.toStage}`)
+      : (attempt.skippedReason ?? "n/a");
+    const isLastAttempt = attemptNumber === maxAttempts;
+    const retryable = RETRYABLE_CLASSIFICATIONS.has(attempt.classification) && !isLastAttempt && !options.noRetry;
+
+    console.log(`Stage selected: ${stageDescription}`);
+    console.log(`Failure classification: ${attempt.classification}`);
+    console.log(`Retryable: ${retryable}`);
+    if (attempt.error) console.log(`Error: ${attempt.error.message ?? attempt.error}`);
+
+    const attemptSummary = buildAttemptSummary(attempt, retryable);
+    attemptSummaries.push(attemptSummary);
+    // eslint-disable-next-line no-await-in-loop
+    await fs.writeFile(
+      path.join(runDir, `attempt-${pad2(attemptNumber)}-summary.json`),
+      `${JSON.stringify(attemptSummary, null, 2)}\n`,
+      "utf8"
+    );
+
+    if (TERMINAL_CLASSIFICATIONS.has(attempt.classification)) break;
+    if (!retryable) break;
+
+    const retryIntervalMs = options.retryIntervalMinutes * 60000;
+    const nextRetryAt = new Date(Date.now() + retryIntervalMs);
+    console.log(`Next retry at (UTC): ${nextRetryAt.toISOString()}`);
+    // eslint-disable-next-line no-await-in-loop
+    await wait(retryIntervalMs);
   }
 
-  const timestamp = new Date().toISOString();
-  const fileName = buildReportFileName({
+  const finishedAt = new Date();
+  const finalStatus = mapClassificationToFinalStatus(finalAttempt.classification);
+  const exitCode = computeExitCode(finalStatus, options.failOnUnsafe);
+  const { safeToApply, parserDriftDetected, blockers } = extractSafetyFields(finalAttempt.report);
+
+  const finalSummary = {
+    runId,
     provider: options.provider,
     grandTourName: options.grandTourName,
     grandTourYear: options.grandTourYear,
-    fromStage: range.fromStage,
-    toStage: range.toStage,
-    timestamp
-  });
-  const reportPath = path.join(options.reportDir, fileName);
-  await fs.mkdir(options.reportDir, { recursive: true });
+    stageNumber: finalAttempt.range && finalAttempt.range.fromStage === finalAttempt.range.toStage ? finalAttempt.range.fromStage : null,
+    fromStage: finalAttempt.range?.fromStage ?? null,
+    toStage: finalAttempt.range?.toStage ?? null,
+    startedAt: startedAt.toISOString(),
+    finishedAt: finishedAt.toISOString(),
+    attemptsMade: attemptSummaries.length,
+    maxRetries: options.maxRetries,
+    retryIntervalMinutes: options.retryIntervalMinutes,
+    finalStatus,
+    safeToApply,
+    parserDriftDetected,
+    blockers,
+    finalError: finalAttempt.error ? (finalAttempt.error.message ?? String(finalAttempt.error)) : null,
+    attempts: attemptSummaries
+  };
 
-  // Dry-run + reconcile only: --apply is never passed, and this never
-  // touches finalise/score. grandtour-feed-import.mjs's --reconcile path
-  // itself only ever reads with the anon/publishable key (never
-  // SUPABASE_SERVICE_ROLE_KEY) - see runReconciliation() there.
-  const args = [
-    FEED_IMPORT_SCRIPT_PATH,
-    "--provider", options.provider,
-    "--reconcile",
-    "--report", reportPath,
-    "--from-stage", String(range.fromStage),
-    "--to-stage", String(range.toStage),
-    "--grand-tour-name", options.grandTourName,
-    "--grand-tour-year", String(options.grandTourYear)
-  ];
+  await fs.writeFile(
+    path.join(runDir, "final-summary.json"),
+    `${JSON.stringify(finalSummary, null, 2)}\n`,
+    "utf8"
+  );
 
-  const run = deps.spawnSync ?? spawnSync;
-  const result = run(process.execPath, args, { stdio: "inherit" });
-  if (result.error) {
-    throw result.error;
-  }
-  if (result.status !== 0) {
-    // grandtour-feed-import.mjs's dry-run/reconcile path does not throw on
-    // an unsafe report (see its main()) - a non-zero exit here means the
-    // subprocess itself failed to run (bad args, an uncaught exception),
-    // not merely that the reconciliation was unsafe.
-    throw new Error(`grandtour-feed-import.mjs exited with status ${result.status}.`);
+  if (finalAttempt.report) {
+    const readable = summarizeAutoDryRunReport(finalAttempt.report);
+    console.log("\n=== Last attempt report summary ===");
+    for (const line of readable.lines) console.log(line);
   }
 
-  const reportRaw = await fs.readFile(reportPath, "utf8");
-  const report = JSON.parse(reportRaw);
-  const summary = summarizeAutoDryRunReport(report);
+  console.log("\n=== GrandTour auto dry-run FINAL SUMMARY ===");
+  console.log(JSON.stringify(finalSummary, null, 2));
+  console.log(`Run directory: ${runDir}`);
+  console.log("====================================");
 
-  console.log("");
-  console.log("=== GrandTour auto dry-run summary ===");
-  for (const line of summary.lines) console.log(line);
-  console.log(`Report: ${reportPath}`);
-  console.log("=======================================");
-
-  if (summary.unsafe) {
-    if (options.failOnUnsafe) {
-      throw new Error("GrandTour auto dry-run report is unsafe (parser drift and/or safeToApply=false) - failing per --fail-on-unsafe true. See the uploaded report artifact for details.");
-    }
-    console.warn("WARNING: GrandTour auto dry-run report is unsafe (parser drift and/or safeToApply=false), but --fail-on-unsafe is false - completing without failing the workflow.");
-  }
-
-  return { skipped: false, exitCode: 0, reportPath, summary };
+  return { runId, runDir, finalSummary, exitCode };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main().catch((error) => {
-    console.error(error.message ?? error);
-    process.exitCode = 1;
-  });
+  main()
+    .then((result) => { process.exitCode = result.exitCode; })
+    .catch((error) => {
+      console.error(error.message ?? error);
+      process.exitCode = 1;
+    });
 }

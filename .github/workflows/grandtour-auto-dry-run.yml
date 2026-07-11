@@ -6,17 +6,25 @@ name: GrandTour Automatic Results Collection (Dry Run)
 # and scripts/grandtour-feed-import.mjs. Apply/finalise/score remain
 # separate, manually-gated admin actions (docs/GRANDTOUR_APPLY_MODE_PRODUCTION_READINESS_CHECKLIST.md).
 #
-# Schedule: 5:00pm GMT/UTC daily = 2:30am Adelaide time during July (ACST is
-# UTC+9:30, and July is outside Australian daylight saving). To change the
-# schedule, edit the single `cron:` line below - GitHub Actions cron cannot
-# be altered from workflow_dispatch inputs at run time, so this is the only
-# way to change the recurring time. Ad hoc/one-off runs with different
-# behaviour (a specific stage, a stage range, a different provider, etc.)
-# should use "Run workflow" (workflow_dispatch) instead of editing this file.
+# Retry behaviour (scripts/grandtour-auto-dry-run.mjs): the wrapper itself
+# retries, not this workflow - a single job runs the wrapper once, and the
+# wrapper's own retry loop (1 initial attempt + up to max_retries retries,
+# retry_interval_minutes apart) runs INSIDE that one job/step. Only
+# transient technical failures (network/HTTP/Supabase connectivity) are
+# retried; unsafe/semantic outcomes (parser drift, unmatched/ambiguous
+# riders, missing jersey holders, invalid input, missing credentials) stop
+# immediately on the first attempt and are never retried.
+#
+# Schedule: 17:17 UTC daily. To change the schedule, edit the single
+# `cron:` line below - GitHub Actions cron cannot be altered from
+# workflow_dispatch inputs at run time, so this is the only way to change
+# the recurring time. Ad hoc/one-off runs with different behaviour (a
+# specific stage, different retry settings, etc.) should use "Run workflow"
+# (workflow_dispatch) instead of editing this file.
 on:
   schedule:
-    # 17:00 UTC daily. See the note above before changing this.
-    - cron: '0 17 * * *'
+    # 17:17 UTC daily. See the note above before changing this.
+    - cron: '17 17 * * *'
   workflow_dispatch:
     inputs:
       grand_tour_name:
@@ -41,34 +49,68 @@ on:
         description: 'Optional: end stage number for a range'
         required: false
       fail_on_unsafe:
-        description: 'Fail the workflow if the report is unsafe (parser drift and/or safeToApply=false)'
+        description: 'Fail the workflow if the final report is unsafe/needs review (parser drift, safeToApply=false, etc.) - never affects retry behaviour, only the exit code'
         required: false
         default: 'true'
+      retry_interval_minutes:
+        description: 'Minutes to wait between retry attempts (transient failures only)'
+        required: false
+        default: '15'
+      max_retries:
+        description: 'Maximum number of retry attempts after the initial attempt (0-8+; "max retries 8" = 1 initial + 8 retries = 9 attempts total)'
+        required: false
+        default: '8'
+      no_retry:
+        description: 'Disable retries entirely - perform exactly one attempt regardless of the outcome'
+        required: false
+        default: 'false'
+
+# One automatic-collection run per grand tour/year at a time. A second
+# scheduled or manual run for the SAME grand tour/year queues behind an
+# already-running one rather than running concurrently (duplicate letour.fr
+# requests / duplicate retry loops for the same daily collection) - and
+# does NOT cancel the in-progress run just because a new one was
+# triggered, since a manual dispatch part-way through an automatic retry
+# loop should never discard attempts already in progress. A run for a
+# different grand tour/year (a genuinely different `group`) runs
+# independently, unaffected.
+concurrency:
+  group: grandtour-auto-dry-run-${{ github.event.inputs.grand_tour_name || 'Tour de France' }}-${{ github.event.inputs.grand_tour_year || '2026' }}
+  cancel-in-progress: false
 
 jobs:
   auto-dry-run:
-    name: Automatic dry-run collection
+    name: Automatic dry-run collection (with retries)
     runs-on: ubuntu-latest
+    # 1 initial attempt + up to 8 retries * 15 minutes waiting = up to 120
+    # minutes of pure waiting, plus per-attempt processing time (checkout/
+    # install/fetch/reconcile, repeated up to 9 times). 180 minutes gives a
+    # healthy margin over the worst case (default settings); a manual
+    # dispatch with larger retry_interval_minutes/max_retries than the
+    # defaults could still exceed this - GitHub's own maximum job timeout
+    # is 360 minutes if that's ever needed.
+    timeout-minutes: 180
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           # Node 20 has no native WebSocket support, and @supabase/supabase-js's
           # createClient() throws synchronously when constructing its Realtime
           # client without one (no `ws` package is installed as a fallback
           # here) - this workflow always runs --reconcile, so it always
-          # constructs a Supabase client. Node 22+ has native WebSocket.
-          node-version: '22'
+          # constructs a Supabase client. Node 22+ has native WebSocket;
+          # kept at 24 to match the rest of this project's tooling.
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run GrandTour automatic dry-run collection
+      - name: Run GrandTour automatic dry-run collection (with retries)
         id: auto_dry_run
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -81,6 +123,9 @@ jobs:
           FROM_STAGE: ${{ github.event.inputs.from_stage || '' }}
           TO_STAGE: ${{ github.event.inputs.to_stage || '' }}
           FAIL_ON_UNSAFE: ${{ github.event.inputs.fail_on_unsafe || 'true' }}
+          RETRY_INTERVAL_MINUTES: ${{ github.event.inputs.retry_interval_minutes || '15' }}
+          MAX_RETRIES: ${{ github.event.inputs.max_retries || '8' }}
+          NO_RETRY: ${{ github.event.inputs.no_retry || 'false' }}
         run: |
           # NOTE: --apply is never passed here, and this script never
           # finalises or scores - see scripts/grandtour-auto-dry-run.mjs.
@@ -91,6 +136,8 @@ jobs:
             --grand-tour-year "$GRAND_TOUR_YEAR"
             --provider "$FEED_PROVIDER"
             --fail-on-unsafe "$FAIL_ON_UNSAFE"
+            --retry-interval-minutes "$RETRY_INTERVAL_MINUTES"
+            --max-retries "$MAX_RETRIES"
             --report-dir tmp/auto-dry-runs
           )
           if [ -n "$STAGE_NUMBER" ]; then
@@ -98,17 +145,43 @@ jobs:
           elif [ -n "$FROM_STAGE" ] && [ -n "$TO_STAGE" ]; then
             args+=(--from-stage "$FROM_STAGE" --to-stage "$TO_STAGE")
           fi
-          # Stage resolution/report path decisions happen inside the script;
-          # its own stdout already includes the readable summary required
-          # by this workflow (stage number, parser status, parserDriftDetected,
-          # safeToApply/overallSafeToApply, blockers, result line count,
-          # jersey holder count, jersey fetch metadata statuses).
+          if [ "$NO_RETRY" = "true" ]; then
+            args+=(--no-retry)
+          fi
+          # The wrapper's own retry loop runs entirely inside this one step -
+          # its stdout already includes, per attempt: attempt number/max
+          # attempts, UTC start time, stage selected, failure classification,
+          # whether it's retryable, and the next retry time; and, at the end,
+          # a FINAL SUMMARY covering every attempt (parser status,
+          # parserDriftDetected, safeToApply/overallSafeToApply, blockers,
+          # result line count, jersey holder count, jersey fetch metadata).
           node scripts/grandtour-auto-dry-run.mjs "${args[@]}"
 
-      - name: Upload auto dry-run report artifact
+      - name: Print final summary
+        # Runs regardless of the previous step's outcome - the whole point
+        # is surfacing the final-summary.json (which the previous step also
+        # already prints to its own log) as a distinct, easy-to-find block,
+        # including for a failed/exhausted/unsafe run, not just a clean one.
+        # Each job checkout is a fresh workspace, so there is exactly one
+        # run directory (and one final-summary.json) to find here.
+        if: always()
+        run: |
+          summary_file=$(find tmp/auto-dry-runs -maxdepth 2 -name final-summary.json 2>/dev/null | head -n 1)
+          if [ -n "$summary_file" ]; then
+            echo "=== final-summary.json ($summary_file) ==="
+            cat "$summary_file"
+          else
+            echo "No final-summary.json was produced (the run likely failed before a run directory was created)."
+          fi
+
+      - name: Upload auto dry-run report artifacts
+        # Always uploads, even when the run step fails (exhausted retries,
+        # an unsafe/review-required outcome, or a configuration error) -
+        # the whole run directory (every attempt's report + summary, plus
+        # final-summary.json), not just the last attempt.
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: grandtour-auto-dry-run-report
-          path: tmp/auto-dry-runs/*.json
+          path: tmp/auto-dry-runs/**
           if-no-files-found: ignore
