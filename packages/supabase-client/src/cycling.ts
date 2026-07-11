@@ -114,6 +114,7 @@ export type CyclingStageResult = {
     rider: {
       id: string;
       display_name: string;
+      bib_number: number | null;
       team: { id: string; name: string; code: string | null } | null;
     };
   }[];
@@ -126,6 +127,7 @@ export type CyclingStageResult = {
     rider: {
       id: string;
       display_name: string;
+      bib_number: number | null;
       team: { id: string; name: string; code: string | null } | null;
     };
   }[];
@@ -372,7 +374,7 @@ async function hydrateCyclingStageResults(
       ? client.from("grandtour_teams").select("id,name,code").in("id", teamIds)
       : Promise.resolve({ data: [], error: null }),
     riderIds.length
-      ? client.from("grandtour_riders").select("id,display_name,team_id").in("id", riderIds)
+      ? client.from("grandtour_riders").select("id,display_name,team_id,bib_number").in("id", riderIds)
       : Promise.resolve({ data: [], error: null })
   ]);
   if (teamsError) throw teamsError;
@@ -390,7 +392,7 @@ async function hydrateCyclingStageResults(
     const rider = riders?.find((candidate) => candidate.id === riderId);
     if (!rider) return null;
     const team = allTeams.find((candidate) => candidate.id === rider.team_id) ?? null;
-    return { id: rider.id, display_name: rider.display_name, team };
+    return { id: rider.id, display_name: rider.display_name, bib_number: rider.bib_number, team };
   };
 
   return results.map((result) => ({

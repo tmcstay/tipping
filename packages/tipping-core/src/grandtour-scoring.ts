@@ -51,13 +51,31 @@ export const GRANDTOUR_JERSEYS: readonly GrandTourJerseyType[] = [
   "white"
 ];
 
-const EXACT_POSITION_POINTS: Record<GrandTourTopFivePosition, number> = {
+/**
+ * Points for predicting a rider's exact finishing position, by predicted
+ * position 1-5. Exported so any UI explaining "how this score was
+ * calculated" (e.g. GrandTourScoreExplanation) reads these values instead
+ * of duplicating them - this is the single source of truth, mirrored
+ * exactly in the server-side scoring RPC
+ * (public.recalculate_grandtour_stage_scores, the `case selection.predicted_position
+ * when 1 then 10 when 2 then 8 ...` block).
+ */
+export const EXACT_POSITION_POINTS: Record<GrandTourTopFivePosition, number> = {
   1: 10,
   2: 8,
   3: 6,
   4: 4,
   5: 2
 };
+
+/** Points for a rider who finished in the actual top 5 but at a different predicted position. */
+export const TOP_FIVE_WRONG_POSITION_POINTS = 1;
+
+/** Points for a rider who finished outside the actual top 5 (or wasn't in the result at all). */
+export const TOP_FIVE_MISS_POINTS = 0;
+
+/** Points for correctly predicting a stage jersey holder. */
+export const STAGE_JERSEY_POINTS = 5;
 
 export const GRANDTOUR_TTT_SCORING = {
   exactPosition: 6,
@@ -160,12 +178,12 @@ export function scoreGrandTourStageTip(input: GrandTourStageScoreInput) {
       const points = actualPosition === position
         ? EXACT_POSITION_POINTS[position]
         : actualPosition === null
-          ? 0
-          : 1;
+          ? TOP_FIVE_MISS_POINTS
+          : TOP_FIVE_WRONG_POSITION_POINTS;
       return { riderId, predictedPosition: position, actualPosition, points };
     });
 
-  const jerseys = scoreJerseys(input.predictedJerseys, input.actualJerseys, activeJerseys, 5);
+  const jerseys = scoreJerseys(input.predictedJerseys, input.actualJerseys, activeJerseys, STAGE_JERSEY_POINTS);
 
   const topFiveScore = topFive.reduce((total, selection) => total + selection.points, 0);
   const jerseyScore = jerseys.reduce((total, selection) => total + selection.points, 0);

@@ -3,7 +3,8 @@ import type { GrandTourHistorySummary } from "../lib/grandtourHistoryExperience"
 
 import { InfoCard } from "./InfoCard";
 
-export function CumulativeTotalsCard({ summary }: { summary: GrandTourHistorySummary }) {
+/** Requirement #3: cumulative totals shown above the stage history list. */
+export function GrandTourResultsSummary({ summary }: { summary: GrandTourHistorySummary }) {
   return (
     <InfoCard accent meta={`${summary.scoredStages} stage${summary.scoredStages === 1 ? "" : "s"} scored`} title={`${summary.totalScore} points`}>
       <View style={styles.grid}>

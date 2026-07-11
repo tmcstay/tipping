@@ -1147,23 +1147,56 @@ apply directly, and anon still cannot call it at all.
 ### 14.7 User-facing: My Tips & score history (`/my-tips`)
 
 Reachable from Profile → "My Tips & score history" or Results → "View My
-Tips & score history". Shows, per stage: status, ordered top-5 picks (and
-jersey picks, when the tip includes them), submitted/locked timestamps,
-and total score once scored; a cumulative-totals card at the top (total
-score, top5/jersey/bonus point totals, scored-stage count, best stage,
-average per scored stage); and, for any scored stage, an expandable score
-breakdown plus a predicted-vs-official comparison (exact match / top-5
-wrong position / outside top 5 / not picked, and jersey match / miss /
-pending).
+Tips & score history". `GrandTourResultsSummary` shows the cumulative
+totals card at the top (total score, top5/jersey/bonus point totals,
+scored-stage count, best stage, average per scored stage), followed by a
+sort control (Newest first / Oldest first / Highest score — newest first
+by default, by stage number descending) and one `GrandTourStageResultAccordion`
+per stage.
+
+**Every stage accordion defaults closed** — collapsed, it shows stage
+number, name/type, date, tip status badge, a "Result finalised"/"Result
+pending" chip, and (once scored) the total score plus the
+Top 5/Jersey/Bonus breakdown line. Expanding a stage never happens
+automatically (not on load, not after changing the sort), and switching
+sort order never collapses/expands anything either — each accordion's
+open/closed state is local `useState`, keyed on a stable `stage.id`, so
+React reconciliation preserves it across in-page refetches; only a full
+page reload resets everything to closed.
+
+Expanded, a stage shows `GrandTourTopFiveComparison` (predicted rider vs.
+the rider who officially finished at that predicted position — deliberately
+distinct concepts, both shown, alongside where the predicted rider
+themselves actually finished — Exact/Top 5/Miss text+colour labels, never
+colour alone, and per-position points), `GrandTourJerseyComparison`
+(predicted vs. actual holder per jersey with a subtotal), a bonus line
+(only when `bonus_score > 0`; otherwise "No bonus points"), and two nested
+collapsibles that **also default closed**: `GrandTourOfficialTopTen` (all
+stored result lines, position/bib/rider/team) and `GrandTourScoreExplanation`
+(static text sourced from `@tipping-suite/tipping-core`'s exported scoring
+constants — `EXACT_POSITION_POINTS`/`TOP_FIVE_WRONG_POSITION_POINTS`/
+`STAGE_JERSEY_POINTS` — never separately hard-coded numbers, so this can't
+drift from the real scoring RPC). A tip with no score yet (submitted/locked)
+shows "Awaiting official scoring" instead of the comparison tables'
+points/badges — never a misleading `0`; a draft shows "Draft — not
+submitted"; no tip at all shows "No tip submitted" (Official Top 10 is
+still available either way).
 
 Data layer: `listMyGrandTourStageTips` (`packages/supabase-client/src/cycling.ts`)
-reads the current user's own `grandtour_tips` rows directly — RLS already
-lets an owner read their own tips/selections/scores unconditionally
-(`user_id = auth.uid()`), regardless of status or lock state, so no new
-RPC or view was needed. Cumulative totals and the comparison classification
-are pure client-side functions (`apps/mobile/lib/grandtourHistoryExperience.ts`,
-unit-tested) over already-fetched rows — no aggregation happens in SQL, so
-there's no join-multiplication risk to begin with.
+still reads the current user's own `grandtour_tips` rows directly — RLS
+already lets an owner read their own tips/selections/scores unconditionally
+(`user_id = auth.uid()`), so still no new RPC/view. `listCyclingStageResults`/
+`getCyclingStageResult` now also select `bib_number` for each rider (previously
+only `id,display_name,team_id`) — an additive field, used by the Top 5/Official
+Top 10 comparisons. Points shown come from the tip's own already-computed
+`grandtour_stage_scores.score_details.top_five`/`.jerseys` arrays (written by
+`recalculate_grandtour_stage_scores`) whenever `status === 'scored'` — never
+recomputed client-side, so the displayed points can never drift from what was
+actually scored. Pure view-model builders and the sort function live in
+`apps/mobile/lib/grandtourStageResultsExperience.ts` (unit-tested); cumulative
+math stays in `apps/mobile/lib/grandtourHistoryExperience.ts`. No SQL
+aggregation happens anywhere in this feature, so there's no join-multiplication
+risk.
 
 ### 14.8 Manual QA: review detail + My Tips smoke steps
 
@@ -1177,23 +1210,31 @@ there's no join-multiplication risk to begin with.
    admin check" banner is showing (or a specific "⚠ Only N of …" warning if
    not) and that Mark Checked only just became enabled once this section
    finished loading.
-3. **User opens My Tips and sees selected riders.** Sign in as a regular
+3. **User opens My Tips; every stage is collapsed.** Sign in as a regular
    user with at least one submitted stage tip → Profile → "My Tips & score
-   history" (or Results → "View My Tips & score history") → confirm that
-   stage's card shows the correct ordered top-5 riders (and jersey picks,
-   if the tip includes them) and the correct submitted/locked timestamps.
-4. **User opens a scored stage and sees the points breakdown.** On
-   `/my-tips`, find a stage already scored in this environment → click
-   "Show score details ▼" → confirm `top5_score`/`jersey_score`/`bonus_score`/
-   `total_score` match the admin panel's summary for that same stage, and
-   that the predicted-vs-official comparison shows a badge (Exact / Top 5,
-   wrong spot / Outside top 5 / Not picked) for each of the 5 picks.
-5. **Cumulative total equals the sum of stage scores.** On `/my-tips`, add
-   up every visible stage's own `total_score` for scored stages and confirm
-   it equals the cumulative-totals card's top-line total score, and that
-   each stage card's own "Cumulative: N pts" meta line only increases on
-   stages that are actually scored (unscored stages repeat the previous
-   cumulative value, never advance it).
+   history" (or Results → "View My Tips & score history") → confirm every
+   stage accordion is closed on first load (no stage — including the
+   latest one — is auto-expanded).
+4. **Expanding a scored stage shows the full comparison.** Expand a stage
+   already scored in this environment → confirm all 5 Top 5 rows appear
+   (predicted rider, bib, team, actual finish, official rider at that
+   position, points, Exact/Top 5/Miss label), the jersey comparison shows
+   predicted vs. actual holder with a points subtotal, and the stage total
+   matches the collapsed header's total (and the admin panel's summary for
+   that same stage). Confirm Official Top 10 and "How this score was
+   calculated" are both still closed until clicked, and that the score
+   explanation's numbers match `packages/tipping-core`'s real scoring
+   constants (10/8/6/4/2, 1, 5).
+5. **Sorting never auto-expands anything.** With a stage expanded, switch
+   the sort control between Newest/Oldest/Highest score — confirm the
+   expanded stage stays expanded (or collapses only if you explicitly
+   close it) and no other stage opens on its own.
+6. **Pending/unscored tips never show a false zero.** Find a submitted-but-
+   unscored stage → confirm it shows "Awaiting official scoring", not a
+   Top 5/jersey table full of 0-point misses.
+7. **Cumulative total equals the sum of stage totals.** On `/my-tips`, add
+   up every visible stage's own total score for scored stages and confirm
+   it equals the results summary card's top-line total score.
 
 ## 15. Result update / correction workflow (Part C)
 
@@ -1405,13 +1446,11 @@ for a one-off check of a specific stage without leaving the app.
 
 ### 17.1 Schedule
 
-Runs daily at **5:00pm GMT/UTC** (`0 17 * * *`), which is **2:30am Adelaide
-time during July** (ACST is UTC+9:30, and July is outside Australian
-daylight saving, so this does not shift with DST).
+Runs daily at **17:17 UTC** (`17 17 * * *`).
 
 GitHub Actions' `schedule:` cron cannot be changed dynamically from
 workflow inputs — the only way to change the recurring time is to edit the
-single `cron: '0 17 * * *'` line in
+single `cron: '17 17 * * *'` line in
 `.github/workflows/grandtour-auto-dry-run.yml`. That line is documented
 in-place in the workflow file with the same note as here.
 
@@ -1429,39 +1468,158 @@ behaviour, without touching the schedule or any code:
 | `stage_number` | (empty) | Run a single stage; takes priority over `from_stage`/`to_stage`. |
 | `from_stage` | (empty) | Start of a stage range; requires `to_stage` too. |
 | `to_stage` | (empty) | End of a stage range; requires `from_stage` too. |
-| `fail_on_unsafe` | `true` | If `true`, the workflow fails when the report is unsafe (parser drift and/or `safeToApply: false`); if `false`, it completes with a warning instead. |
+| `fail_on_unsafe` | `true` | If `true`, a final `unsafe_review_required` outcome exits non-zero; if `false`, it exits 0 with a warning instead. Never affects retry behaviour — an unsafe/semantic outcome is never retried either way. |
+| `retry_interval_minutes` | `15` | Minutes to wait between retry attempts (transient failures only). |
+| `max_retries` | `8` | Retry attempts after the initial one (1 initial + up to 8 retries = up to 9 attempts total). |
+| `no_retry` | `false` | If `true`, performs exactly one attempt regardless of outcome, ignoring `max_retries`. |
+
+**Some concrete manual-dispatch examples:**
+
+- *Normal retry behaviour* (same as the daily schedule): leave `retry_interval_minutes`/`max_retries`/`no_retry` at their defaults (`15`/`8`/`false`).
+- *One attempt only, no retries*: set `no_retry` to `true` (leaves `retry_interval_minutes`/`max_retries` irrelevant — they're ignored).
+- *Retry every 10 minutes, up to 3 retries*: set `retry_interval_minutes` to `10` and `max_retries` to `3` (leave `no_retry` at `false`).
 
 If none of `stage_number`/`from_stage`/`to_stage` are given (as on every
 scheduled run), `scripts/grandtour-auto-dry-run.mjs` resolves the current
 stage itself from `grandtour_stages.starts_at` (matched against today's
-Paris calendar date, via the new `resolveStageFromGrandTourStages` helper
-in `scripts/grandtour-stage-calendar.mjs` — a live-Supabase analogue of the
+Paris calendar date, via `resolveStageFromGrandTourStages` in
+`scripts/grandtour-stage-calendar.mjs` — a live-Supabase analogue of the
 existing CSV-based `resolveScheduledStage`). If no stage starts that day
 (rest day, outside the race window, or the grand tour/stages aren't loaded
-yet), the run is skipped cleanly — exit 0, no report written, no failure.
+yet), the run exits cleanly (exit 0, `finalStatus: "no_eligible_stage"`)
+on the very first attempt — never retried, since retrying can't make a
+non-existent stage appear.
 
-### 17.3 Where to find the report artifact
+### 17.3 Retry behaviour
 
-Every non-skipped run uploads the generated JSON report as the
-`grandtour-auto-dry-run-report` GitHub Actions artifact (Actions → the run
-→ Artifacts), even if the workflow step itself failed (unsafe +
-`fail_on_unsafe: true`) — the artifact upload step runs with `if: always()`
-specifically so a failing run still leaves the report behind for review.
+Only **transient technical failures** are retried — network timeouts,
+DNS/connectivity failures, HTTP 429/500/502/503/504, a temporary Supabase
+connectivity failure, or the provider request being aborted/reset.
+Everything else (an unsafe/semantic outcome, parser drift, invalid input,
+or missing credentials) stops on the very first attempt, is written to the
+report/artifact as usual, and is **never** retried — retrying a real
+problem every 15 minutes would just spam letour.fr/Supabase without ever
+fixing anything, and would bury the one attempt an admin actually needs to
+look at under noise.
 
-The report filename encodes the provider, grand tour name/year, stage
-number or range, and a UTC timestamp, e.g.
-`official-letour_tour-de-france-2026_stage-6_2026-07-10t17-00-00-000z.json`
-or `..._stages-3-to-6_...json` for a range — see
-`buildReportFileName` in `scripts/grandtour-auto-dry-run.mjs`. Locally, the
-same reports land under `tmp/auto-dry-runs/` (gitignored).
+The retry loop lives entirely inside `scripts/grandtour-auto-dry-run.mjs`
+(`classifyAutoDryRunFailure` decides retryability; `main` runs the loop) —
+the GitHub Actions workflow itself is a single job/step, not eight
+duplicated jobs. Semantics: "max retries 8" means **1 initial attempt plus
+up to 8 additional attempts (9 total)**, waiting `retry_interval_minutes`
+(default 15) between each. The loop stops immediately on the first
+success, the first non-transient failure, or once retries are exhausted.
 
-The workflow log also prints a readable summary before completing: stage
-number(s), parser status per stage, `parserDriftDetected`,
-`safeToApply`/`overallSafeToApply`, any blockers, result line count, jersey
-holder count, and jersey fetch metadata statuses per classification — see
-`summarizeAutoDryRunReport` in `scripts/grandtour-auto-dry-run.mjs`.
+Each attempt prints, to the workflow log: the attempt number and maximum
+attempts, the UTC start time, the stage selected, the failure
+classification, whether it was retryable, and (if retrying) the next
+retry's UTC time.
 
-### 17.4 What to check before applying results from an auto-collected report
+**Classifications** (`classifyAutoDryRunFailure(error, report)` in
+`scripts/grandtour-auto-dry-run.mjs`, pure and unit-tested):
+
+| Classification | Retried? | Example |
+|---|---|---|
+| `success` | n/a (stops) | Fetched and reconciled cleanly, `safeToApply: true`. |
+| `transient` | **Yes** | HTTP 429/500/502/503/504, network timeout, DNS failure, connection reset/aborted, a temporary Supabase connectivity failure. |
+| `unsafe` | No | `safeToApply: false` for a reason unrelated to a fetch failure — unmatched/ambiguous riders, a jersey holder that was fetched but not matched, startlist validation failure, a malformed-but-successfully-fetched payload. |
+| `parser_drift` | No | `parserDriftDetected: true`, or a `table_not_found`/`parse_empty`/`unsupported_markup` status — letour.fr's markup changed. |
+| `configuration` | No | Missing `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_PUBLISHABLE_KEY`. |
+| `invalid_input` | No | A bad/unknown CLI argument. |
+| `no_eligible_stage` | No | No `grandtour_stages` row starts today (rest day, outside the race window, etc). |
+| `unknown_non_retryable` | No | Anything else unrecognized — fails closed (never guessed as retryable). |
+
+Classification prefers structured report fields (`stageFetchMetadata[].status`/`httpStatus`,
+`jerseyFetchMetadata[].status`, `reconciliation.stages[].safeToApply`,
+`parserDriftDetected`) over string-matching wherever a report exists; a
+thrown-error's HTTP status/errno-style `.code`/`.cause.code` is checked
+before falling back to message-pattern matching, and only when no report
+was produced at all (the subprocess crashed, or stage resolution itself
+threw). Note the subtlety: a fetch that technically failed (HTTP
+429/500-504, a network reset) is `transient` even though its *symptom* in
+the report looks identical to a "missing jersey holder" or "no parsed
+rider rows" blocker — the classifier distinguishes the two by checking
+whether that specific stage/jersey fetch's own status was `fetch_error`
+(or carried a transient HTTP status), not by the blocker text.
+
+**To disable retries**: pass `--no-retry` on the CLI, or set the
+`no_retry` workflow input to `true` — performs exactly one attempt no
+matter what.
+
+### 17.4 Artifact structure — one run, many attempts
+
+Every run gets a unique `runId` (shared across all its attempts) and
+writes to `tmp/auto-dry-runs/<run-id>/`:
+
+```text
+tmp/auto-dry-runs/<run-id>/
+  attempt-01-report.json    # grandtour-feed-import.mjs's own report (if it produced one)
+  attempt-01-summary.json   # this wrapper's structured metadata for attempt 1
+  attempt-02-report.json
+  attempt-02-summary.json
+  ...
+  final-summary.json        # whole-run outcome, every attempt included
+```
+
+An attempt that never reached a live fetch (e.g. a `configuration` or
+`invalid_input` failure) has no `attempt-NN-report.json` — only its
+`attempt-NN-summary.json`, which still documents the classification and
+error.
+
+`final-summary.json` includes: `runId`, `provider`, `grandTourName`,
+`grandTourYear`, `stageNumber`/`fromStage`/`toStage`, `startedAt`,
+`finishedAt`, `attemptsMade`, `maxRetries`, `retryIntervalMinutes`,
+`finalStatus` (one of `success` / `unsafe_review_required` /
+`transient_failure_exhausted` / `configuration_error` /
+`no_eligible_stage`), `safeToApply`, `parserDriftDetected`, `blockers`,
+`finalError`, and the full array of per-attempt summaries.
+
+The **entire run directory** (every attempt, not just the last one) is
+uploaded as the `grandtour-auto-dry-run-report` GitHub Actions artifact
+(Actions → the run → Artifacts) — `if: always()`, so a failed/exhausted
+run still leaves everything behind for review. The workflow also has a
+dedicated "Print final summary" step (`if: always()`) that prints
+`final-summary.json` as its own clearly-labelled log block, on top of the
+wrapper's own stdout (which already prints a per-attempt block plus the
+same final summary).
+
+Locally, the same structure lands under `tmp/auto-dry-runs/` (gitignored
+via `/tmp/auto-dry-runs/` — this repo's `tmp/` isn't otherwise ignored).
+
+### 17.5 Concurrency
+
+`concurrency: { group: grandtour-auto-dry-run-<grand tour name>-<year>, cancel-in-progress: false }`.
+A second scheduled or manual run for the **same** grand tour/year queues
+behind an already-running one instead of running concurrently (which would
+duplicate letour.fr requests and duplicate retry loops for the same daily
+collection) — and does **not** cancel the in-progress run just because a
+new one was triggered, since a manual dispatch arriving mid-retry-loop
+should never discard attempts already made. A run for a genuinely
+different grand tour/year is a different concurrency group and runs
+independently.
+
+### 17.6 Job timeout
+
+`timeout-minutes: 180` on the job. At default settings (`retry_interval_minutes: 15`,
+`max_retries: 8`), the retry loop alone can wait up to 8 × 15 = 120
+minutes, plus per-attempt processing time (checkout/install/fetch/reconcile,
+repeated up to 9 times) — 180 minutes leaves a healthy margin. A manual
+dispatch with a larger `retry_interval_minutes`/`max_retries` than the
+defaults could exceed this; GitHub's own maximum job timeout (360 minutes)
+is available if that's ever genuinely needed.
+
+### 17.7 Optional UI follow-up (not built in this pass)
+
+The admin UI's per-stage **"Run Official Check"** button (§14.0.3) should
+eventually support a one-off "Retry Now" for a transient failure, mirroring
+this workflow's retry semantics. That UI retry **state** (attempt count,
+next-retry countdown, etc.) has not been built — this pass only adds
+retries to the GitHub Actions wrapper. GitHub artifact/log visibility is
+considered sufficient for this first version; no new production table/RPC
+was added to record attempt status, and none should be added for this
+purpose without a separate, reviewed, admin-safe design.
+
+### 17.8 What to check before applying results from an auto-collected report
 
 An auto-collected report is a starting point for admin review, not
 something to apply directly:
@@ -1475,7 +1633,9 @@ something to apply directly:
    actually intend to apply — auto-resolution picks "today's" stage by
    date, which can be wrong if the race schedule changed since the last
    `grandtour_stages` load.
-4. Once satisfied, apply exactly as in §7, passing this report's path as
+4. Once satisfied, apply exactly as in §7, passing the **successful
+   attempt's** report path (`tmp/auto-dry-runs/<run-id>/attempt-NN-report.json` —
+   check `final-summary.json` for which attempt succeeded) as
    `--from-report` — `scripts/grandtour-auto-dry-run.mjs` never applies
    anything itself, so applying from its output is a fully separate,
    manually-triggered command with its own gates (`--confirm-provider`,
