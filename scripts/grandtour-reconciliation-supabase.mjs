@@ -24,11 +24,20 @@ export async function resolveGrandTourId(client, { name, year }) {
 
 /**
  * Reads every grandtour_stages row for a grand tour (id/stage_number/
- * starts_at only), sorted by stage_number ascending. Used by the automatic
- * dry-run collection wrapper (scripts/grandtour-auto-dry-run.mjs) to
- * resolve "today's" stage from the live schedule instead of the static
- * stage-calendar CSV — see resolveStageFromGrandTourStages in
+ * starts_at, plus whether it's already finalised), sorted by stage_number
+ * ascending. Used by the automatic dry-run collection wrapper
+ * (scripts/grandtour-auto-dry-run.mjs) to resolve the current stage from
+ * the live schedule — see resolveAutomaticStage in
  * scripts/grandtour-stage-calendar.mjs. Read-only, anon key.
+ *
+ * `isFinal` comes from a second, separate `grandtour_stage_results` read
+ * (never joined) scoped to this grand tour's stage ids. RLS only lets the
+ * anon key see `grandtour_stage_results` rows where `is_final = true` (see
+ * the module doc comment above) — so a stage_id that doesn't come back at
+ * all is, from this anon-scoped read's point of view, indistinguishably
+ * "no result yet" or "an admin-only draft exists", and either way counts
+ * as `isFinal: false` here, which is exactly the "not yet finalised, still
+ * eligible for an automatic check" answer this function needs to give.
  */
 export async function fetchAllGrandTourStages(client, { grandTourId }) {
   const { data, error } = await client
@@ -36,8 +45,17 @@ export async function fetchAllGrandTourStages(client, { grandTourId }) {
     .select("id, stage_number, starts_at")
     .eq("grand_tour_id", grandTourId);
   if (error) throw error;
-  return (data ?? [])
-    .map((row) => ({ stageNumber: row.stage_number, startsAt: row.starts_at }))
+  const stageRows = data ?? [];
+
+  const stageIds = stageRows.map((row) => row.id);
+  const { data: finalResults, error: resultsError } = stageIds.length > 0
+    ? await client.from("grandtour_stage_results").select("stage_id").in("stage_id", stageIds).eq("is_final", true)
+    : { data: [], error: null };
+  if (resultsError) throw resultsError;
+  const finalizedStageIds = new Set((finalResults ?? []).map((row) => row.stage_id));
+
+  return stageRows
+    .map((row) => ({ stageNumber: row.stage_number, startsAt: row.starts_at, isFinal: finalizedStageIds.has(row.id) }))
     .sort((a, b) => a.stageNumber - b.stageNumber);
 }
 

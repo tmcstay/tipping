@@ -15,6 +15,25 @@ name: GrandTour Automatic Results Collection (Dry Run)
 # riders, missing jersey holders, invalid input, missing credentials) stop
 # immediately on the first attempt and are never retried.
 #
+# Parameter resolution (`Resolve effective parameters` step below): every
+# input this job uses is resolved ONCE, early, into step outputs - never
+# scattered as `github.event.inputs.*` throughout the run command. This
+# matters because `github.event.inputs.*` is ONLY populated for a
+# workflow_dispatch event; on a `schedule` event every one of those
+# expressions evaluates to an empty string. The resolution step branches
+# explicitly on `github.event_name` and applies the documented scheduled
+# defaults itself, rather than relying on `||` fallback chains sprinkled
+# through env: blocks (which look like they handle the schedule case, but
+# in practice only mask - inconsistently - a small subset of variables).
+#
+# Scheduled runs execute ONLY the default-branch (main) copy of this
+# workflow file and the scripts it invokes - GitHub Actions always
+# evaluates `schedule` triggers from the version of the workflow on the
+# repository's default branch, never from any other branch, regardless of
+# what's merged elsewhere. A `workflow_dispatch` run, by contrast, uses
+# whatever ref it's launched against (normally also main, but can be
+# pointed at another branch/tag deliberately from the "Run workflow" UI).
+#
 # Schedule: 17:17 UTC daily. To change the schedule, edit the single
 # `cron:` line below - GitHub Actions cron cannot be altered from
 # workflow_dispatch inputs at run time, so this is the only way to change
@@ -40,7 +59,7 @@ on:
         required: false
         default: 'official-letour'
       stage_number:
-        description: 'Optional: run a single stage number (takes priority over from/to_stage)'
+        description: 'Optional: run a single stage number (takes priority over from/to_stage, and over auto-resolution)'
         required: false
       from_stage:
         description: 'Optional: start stage number for a range'
@@ -64,6 +83,14 @@ on:
         description: 'Disable retries entirely - perform exactly one attempt regardless of the outcome'
         required: false
         default: 'false'
+      stage_availability_grace_hours:
+        description: 'Hours after a stage starts_at before it is considered eligible for automatic dry-run (only used when stage_number/from_stage/to_stage are blank)'
+        required: false
+        default: '12'
+      allow_rerun_completed:
+        description: 'Allow auto-resolution to re-select a stage that is already finalised (only used when stage_number/from_stage/to_stage are blank) - normally left false so completed stages are never re-checked automatically'
+        required: false
+        default: 'false'
 
 # One automatic-collection run per grand tour/year at a time. A second
 # scheduled or manual run for the SAME grand tour/year queues behind an
@@ -74,6 +101,11 @@ on:
 # loop should never discard attempts already in progress. A run for a
 # different grand tour/year (a genuinely different `group`) runs
 # independently, unaffected.
+#
+# This is the one place `github.event.inputs.*` is still read directly
+# (with its own `||` fallback) rather than through the resolved-parameters
+# step below: the `concurrency:` block is evaluated by GitHub Actions
+# before any job or step runs, so it cannot reference step outputs.
 concurrency:
   group: grandtour-auto-dry-run-${{ github.event.inputs.grand_tour_name || 'Tour de France' }}-${{ github.event.inputs.grand_tour_year || '2026' }}
   cancel-in-progress: false
@@ -94,6 +126,114 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Resolve effective parameters
+        id: params
+        # Resolves every effective input into a step output, ONCE, here -
+        # nothing downstream reads github.event.inputs.* directly. On a
+        # `schedule` event, github.event.inputs is entirely empty (not
+        # merely blank strings - the whole object is absent), so this
+        # branches explicitly on github.event_name and applies the
+        # documented scheduled defaults itself rather than leaning on `||`
+        # fallbacks that would silently produce the same *coincidental*
+        # result for some inputs and a wrong one for others (e.g. an
+        # empty-but-"set" required-looking value).
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          IN_GRAND_TOUR_NAME: ${{ github.event.inputs.grand_tour_name }}
+          IN_GRAND_TOUR_YEAR: ${{ github.event.inputs.grand_tour_year }}
+          IN_PROVIDER: ${{ github.event.inputs.provider }}
+          IN_STAGE_NUMBER: ${{ github.event.inputs.stage_number }}
+          IN_FROM_STAGE: ${{ github.event.inputs.from_stage }}
+          IN_TO_STAGE: ${{ github.event.inputs.to_stage }}
+          IN_FAIL_ON_UNSAFE: ${{ github.event.inputs.fail_on_unsafe }}
+          IN_RETRY_INTERVAL_MINUTES: ${{ github.event.inputs.retry_interval_minutes }}
+          IN_MAX_RETRIES: ${{ github.event.inputs.max_retries }}
+          IN_NO_RETRY: ${{ github.event.inputs.no_retry }}
+          IN_STAGE_AVAILABILITY_GRACE_HOURS: ${{ github.event.inputs.stage_availability_grace_hours }}
+          IN_ALLOW_RERUN_COMPLETED: ${{ github.event.inputs.allow_rerun_completed }}
+        run: |
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            # Hard defaults for scheduled runs - never read github.event.inputs.*
+            # (it does not exist on this event at all).
+            grand_tour_name='Tour de France'
+            grand_tour_year='2026'
+            provider='official-letour'
+            stage_number=''
+            from_stage=''
+            to_stage=''
+            fail_on_unsafe='true'
+            retry_interval_minutes='15'
+            max_retries='8'
+            no_retry='false'
+            stage_availability_grace_hours='12'
+            allow_rerun_completed='false'
+          else
+            # workflow_dispatch: use the supplied input, falling back to the
+            # same defaults as the scheduled run when an optional input was
+            # left blank.
+            grand_tour_name="${IN_GRAND_TOUR_NAME:-Tour de France}"
+            grand_tour_year="${IN_GRAND_TOUR_YEAR:-2026}"
+            provider="${IN_PROVIDER:-official-letour}"
+            stage_number="$IN_STAGE_NUMBER"
+            from_stage="$IN_FROM_STAGE"
+            to_stage="$IN_TO_STAGE"
+            fail_on_unsafe="${IN_FAIL_ON_UNSAFE:-true}"
+            retry_interval_minutes="${IN_RETRY_INTERVAL_MINUTES:-15}"
+            max_retries="${IN_MAX_RETRIES:-8}"
+            no_retry="${IN_NO_RETRY:-false}"
+            stage_availability_grace_hours="${IN_STAGE_AVAILABILITY_GRACE_HOURS:-12}"
+            allow_rerun_completed="${IN_ALLOW_RERUN_COMPLETED:-false}"
+          fi
+
+          if [ -n "$stage_number" ]; then
+            auto_resolution_used='false'
+          elif [ -n "$from_stage" ] && [ -n "$to_stage" ]; then
+            auto_resolution_used='false'
+          else
+            auto_resolution_used='true'
+          fi
+
+          {
+            echo "grand_tour_name=$grand_tour_name"
+            echo "grand_tour_year=$grand_tour_year"
+            echo "provider=$provider"
+            echo "stage_number=$stage_number"
+            echo "from_stage=$from_stage"
+            echo "to_stage=$to_stage"
+            echo "fail_on_unsafe=$fail_on_unsafe"
+            echo "retry_interval_minutes=$retry_interval_minutes"
+            echo "max_retries=$max_retries"
+            echo "no_retry=$no_retry"
+            echo "stage_availability_grace_hours=$stage_availability_grace_hours"
+            echo "allow_rerun_completed=$allow_rerun_completed"
+            echo "auto_resolution_used=$auto_resolution_used"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Print trigger diagnostics
+        # Never prints secrets - only event metadata and the resolved,
+        # already-public (non-secret) parameters from the step above.
+        env:
+          RESOLVED_JSON: ${{ toJSON(steps.params.outputs) }}
+        run: |
+          echo "=== GrandTour auto dry-run: trigger diagnostics ==="
+          echo "Event: ${{ github.event_name }}"
+          echo "Git ref: ${{ github.ref }}"
+          echo "Default branch: ${{ github.event.repository.default_branch }}"
+          echo "Current UTC timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "This is a scheduled run - GitHub Actions always evaluates schedule triggers from the default-branch copy of this workflow file, regardless of what is merged elsewhere."
+          fi
+          echo "Effective provider: ${{ steps.params.outputs.provider }}"
+          echo "Effective grand tour: ${{ steps.params.outputs.grand_tour_name }} ${{ steps.params.outputs.grand_tour_year }}"
+          echo "Supplied stage number: ${{ steps.params.outputs.stage_number || '(none)' }}"
+          echo "Supplied stage range: ${{ steps.params.outputs.from_stage || '(none)' }}-${{ steps.params.outputs.to_stage || '(none)' }}"
+          echo "Auto-resolution will be used: ${{ steps.params.outputs.auto_resolution_used }}"
+          echo "Stage availability grace hours: ${{ steps.params.outputs.stage_availability_grace_hours }}"
+          echo "Allow rerun completed: ${{ steps.params.outputs.allow_rerun_completed }}"
+          echo "Effective fail-on-unsafe: ${{ steps.params.outputs.fail_on_unsafe }}"
+          echo "Effective retry settings: interval=${{ steps.params.outputs.retry_interval_minutes }}m max_retries=${{ steps.params.outputs.max_retries }} no_retry=${{ steps.params.outputs.no_retry }}"
+          echo "Full resolved parameters (JSON): $RESOLVED_JSON"
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -116,16 +256,18 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-          GRAND_TOUR_NAME: ${{ github.event.inputs.grand_tour_name || 'Tour de France' }}
-          GRAND_TOUR_YEAR: ${{ github.event.inputs.grand_tour_year || '2026' }}
-          FEED_PROVIDER: ${{ github.event.inputs.provider || 'official-letour' }}
-          STAGE_NUMBER: ${{ github.event.inputs.stage_number || '' }}
-          FROM_STAGE: ${{ github.event.inputs.from_stage || '' }}
-          TO_STAGE: ${{ github.event.inputs.to_stage || '' }}
-          FAIL_ON_UNSAFE: ${{ github.event.inputs.fail_on_unsafe || 'true' }}
-          RETRY_INTERVAL_MINUTES: ${{ github.event.inputs.retry_interval_minutes || '15' }}
-          MAX_RETRIES: ${{ github.event.inputs.max_retries || '8' }}
-          NO_RETRY: ${{ github.event.inputs.no_retry || 'false' }}
+          GRAND_TOUR_NAME: ${{ steps.params.outputs.grand_tour_name }}
+          GRAND_TOUR_YEAR: ${{ steps.params.outputs.grand_tour_year }}
+          FEED_PROVIDER: ${{ steps.params.outputs.provider }}
+          STAGE_NUMBER: ${{ steps.params.outputs.stage_number }}
+          FROM_STAGE: ${{ steps.params.outputs.from_stage }}
+          TO_STAGE: ${{ steps.params.outputs.to_stage }}
+          FAIL_ON_UNSAFE: ${{ steps.params.outputs.fail_on_unsafe }}
+          RETRY_INTERVAL_MINUTES: ${{ steps.params.outputs.retry_interval_minutes }}
+          MAX_RETRIES: ${{ steps.params.outputs.max_retries }}
+          NO_RETRY: ${{ steps.params.outputs.no_retry }}
+          STAGE_AVAILABILITY_GRACE_HOURS: ${{ steps.params.outputs.stage_availability_grace_hours }}
+          ALLOW_RERUN_COMPLETED: ${{ steps.params.outputs.allow_rerun_completed }}
         run: |
           # NOTE: --apply is never passed here, and this script never
           # finalises or scores - see scripts/grandtour-auto-dry-run.mjs.
@@ -138,6 +280,7 @@ jobs:
             --fail-on-unsafe "$FAIL_ON_UNSAFE"
             --retry-interval-minutes "$RETRY_INTERVAL_MINUTES"
             --max-retries "$MAX_RETRIES"
+            --stage-availability-grace-hours "$STAGE_AVAILABILITY_GRACE_HOURS"
             --report-dir tmp/auto-dry-runs
           )
           if [ -n "$STAGE_NUMBER" ]; then
@@ -148,13 +291,19 @@ jobs:
           if [ "$NO_RETRY" = "true" ]; then
             args+=(--no-retry)
           fi
+          if [ "$ALLOW_RERUN_COMPLETED" = "true" ]; then
+            args+=(--allow-rerun-completed)
+          fi
           # The wrapper's own retry loop runs entirely inside this one step -
           # its stdout already includes, per attempt: attempt number/max
           # attempts, UTC start time, stage selected, failure classification,
           # whether it's retryable, and the next retry time; and, at the end,
           # a FINAL SUMMARY covering every attempt (parser status,
           # parserDriftDetected, safeToApply/overallSafeToApply, blockers,
-          # result line count, jersey holder count, jersey fetch metadata).
+          # result line count, jersey holder count, jersey fetch metadata,
+          # and finalStatus - exactly one of: success, no_eligible_stage,
+          # unsafe_review_required, parser_drift, configuration_error,
+          # transient_failure_exhausted, unexpected_failure).
           node scripts/grandtour-auto-dry-run.mjs "${args[@]}"
 
       - name: Print final summary
@@ -164,21 +313,69 @@ jobs:
         # including for a failed/exhausted/unsafe run, not just a clean one.
         # Each job checkout is a fresh workspace, so there is exactly one
         # run directory (and one final-summary.json) to find here.
+        #
+        # A scheduled run that finds no eligible stage is a normal daily
+        # outcome, not a broken workflow - its finalStatus will read
+        # "no_eligible_stage" and the job step above exits 0, so this run
+        # is NOT reported as a GitHub Actions failure.
+        id: final_summary
         if: always()
         run: |
           summary_file=$(find tmp/auto-dry-runs -maxdepth 2 -name final-summary.json 2>/dev/null | head -n 1)
           if [ -n "$summary_file" ]; then
             echo "=== final-summary.json ($summary_file) ==="
             cat "$summary_file"
+            echo "summary_file=$summary_file" >> "$GITHUB_OUTPUT"
           else
-            echo "No final-summary.json was produced (the run likely failed before a run directory was created)."
+            echo "No final-summary.json was produced (the run likely failed before a run directory was created - see the resolved parameters and trigger diagnostics above)."
           fi
+
+      - name: Build admin notification email
+        # Turns final-summary.json into a plain-English email for the admin
+        # (scripts/grandtour-auto-dry-run-notify.mjs) - only for a genuine
+        # terminal success or a genuine final failure. "no_eligible_stage"
+        # (a routine day with nothing to check yet) never pages the admin,
+        # so this deliberately does NOT send an email every single day.
+        id: notify
+        if: always() && steps.final_summary.outputs.summary_file != ''
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node scripts/grandtour-auto-dry-run-notify.mjs "${{ steps.final_summary.outputs.summary_file }}" --run-url "$RUN_URL" --out-dir tmp
+
+      - name: Send admin notification email
+        # Only the two GitHub-side conditions below decide whether this
+        # step runs at all - "should this outcome page anyone" is decided
+        # entirely by the previous step/script, not here.
+        #
+        # Requires four repository secrets (SMTP credentials for the
+        # sending mailbox) - see docs/GRANDTOUR_APPLY_MODE_PRODUCTION_READINESS_CHECKLIST.md
+        # §17.9 for setup. The recipient address is not a secret; update it
+        # directly below if it ever changes.
+        if: always() && steps.notify.outputs.should_send == 'true'
+        uses: dawidd6/action-send-mail@v4
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: ${{ steps.notify.outputs.subject }}
+          body: file://${{ steps.notify.outputs.body_path }}
+          to: tmcstay@gmail.com
+          from: GrandTour Automation <${{ secrets.SMTP_USERNAME }}>
 
       - name: Upload auto dry-run report artifacts
         # Always uploads, even when the run step fails (exhausted retries,
-        # an unsafe/review-required outcome, or a configuration error) -
-        # the whole run directory (every attempt's report + summary, plus
-        # final-summary.json), not just the last attempt.
+        # an unsafe/review-required outcome, parser drift, or a
+        # configuration error) - the whole run directory (every attempt's
+        # report + summary, plus final-summary.json, which itself now
+        # includes the resolved stageAvailabilityGraceHours/
+        # allowRerunCompleted inputs), not just the last attempt.
+        # if-no-files-found: ignore covers the rare case where a
+        # configuration error prevents even a run directory from being
+        # created (e.g. missing SUPABASE_URL) - the "Resolve effective
+        # parameters" and "Print trigger diagnostics" steps above already
+        # ran and are visible in the job log in that case.
         if: always()
         uses: actions/upload-artifact@v4
         with:

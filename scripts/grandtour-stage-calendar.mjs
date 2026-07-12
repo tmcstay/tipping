@@ -49,30 +49,65 @@ export function resolveScheduledStage(calendarRows, asOfDateISO) {
   };
 }
 
+export const DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS = 12;
+
 /**
- * Same intent as resolveScheduledStage above, but sourced from live
- * grandtour_stages rows (id/stage_number/starts_at, read via
- * fetchAllGrandTourStages) instead of the static stage-calendar CSV — used
- * by the automatic dry-run collection wrapper (scripts/grandtour-auto-dry-run.mjs)
- * so it tracks whatever schedule is actually loaded in Supabase rather than
- * a separately-maintained file. `stageRows` entries are
- * `{ stageNumber, startsAt }`; `startsAt` is compared by its Paris calendar
- * date (parisDateISO), matching resolveScheduledStage's date-only semantics.
+ * Resolves the stage the automatic dry-run should check, sourced from live
+ * grandtour_stages rows (id/stage_number/starts_at/isFinal, read via
+ * fetchAllGrandTourStages) instead of the static stage-calendar CSV or an
+ * exact calendar-date match. Used by scripts/grandtour-auto-dry-run.mjs.
+ *
+ * Replaces an earlier exact-Paris-date-match design
+ * (resolveStageFromGrandTourStages, now removed) that had a real bug: if a
+ * stage's results weren't ready in time for the day it raced, the next
+ * day's exact-date match would move straight past it and it would NEVER
+ * be automatically re-attempted - `stage.starts_at` would simply no
+ * longer equal "today". This version instead:
+ *
+ *   1. Compares `now` and `starts_at` as real instants (UTC), never as a
+ *      timezone-dependent calendar-date string - the runner's local date
+ *      (or any particular timezone) never enters the comparison.
+ *   2. Considers a stage "eligible" once at least `graceHours` have passed
+ *      since it started (`starts_at <= now - graceHours`) - giving the
+ *      race, official results, and letour.fr's own publishing pipeline
+ *      time to actually finish, rather than checking (and likely finding
+ *      "not published yet") the instant a stage starts.
+ *   3. Skips any stage already finalised (`isFinal: true`) unless
+ *      `allowRerunCompleted` is explicitly set - once a stage is done,
+ *      stop re-checking it automatically every day.
+ *   4. Among everything still eligible, always picks the EARLIEST one
+ *      (lowest starts_at, tie-broken by stage number) - never "the most
+ *      recent prior stage" - so a stalled/unprocessed earlier stage is
+ *      what gets picked up next, not silently skipped in favour of a
+ *      later one.
+ *
+ * `stageRows` entries are `{ stageNumber, startsAt, isFinal }`.
  */
-export function resolveStageFromGrandTourStages(stageRows, asOfDateISO) {
-  const stage = (stageRows ?? []).find(
-    (row) => row.startsAt && parisDateISO(new Date(row.startsAt)) === asOfDateISO
-  );
-  if (!stage) {
+export function resolveAutomaticStage(stageRows, {
+  now = new Date(),
+  graceHours = DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS,
+  allowRerunCompleted = false
+} = {}) {
+  const cutoffMs = now.getTime() - graceHours * 60 * 60 * 1000;
+
+  const eligible = (stageRows ?? [])
+    .filter((row) => row.startsAt)
+    .map((row) => ({ ...row, startsAtMs: new Date(row.startsAt).getTime() }))
+    .filter((row) => !Number.isNaN(row.startsAtMs))
+    .filter((row) => row.startsAtMs <= cutoffMs)
+    .filter((row) => allowRerunCompleted || !row.isFinal)
+    .sort((a, b) => a.startsAtMs - b.startsAtMs || a.stageNumber - b.stageNumber);
+
+  if (eligible.length === 0) {
     return {
       stageNumber: null,
-      stageDate: null,
-      reason: `No grandtour_stages row starts on ${asOfDateISO} (rest day, outside the race window, or stages not yet loaded).`
+      reason: "No eligible stage for automatic dry-run."
     };
   }
+
+  const selected = eligible[0];
   return {
-    stageNumber: stage.stageNumber,
-    stageDate: asOfDateISO,
-    reason: null
+    stageNumber: selected.stageNumber,
+    reason: `Stage ${selected.stageNumber} started at ${selected.startsAt} (>= ${graceHours}h before ${now.toISOString()}) and is not yet finalised${allowRerunCompleted ? " (allow-rerun-completed is set, so finalised stages were also eligible)" : ""}.`
   };
 }

@@ -1481,14 +1481,29 @@ behaviour, without touching the schedule or any code:
 
 If none of `stage_number`/`from_stage`/`to_stage` are given (as on every
 scheduled run), `scripts/grandtour-auto-dry-run.mjs` resolves the current
-stage itself from `grandtour_stages.starts_at` (matched against today's
-Paris calendar date, via `resolveStageFromGrandTourStages` in
-`scripts/grandtour-stage-calendar.mjs` — a live-Supabase analogue of the
-existing CSV-based `resolveScheduledStage`). If no stage starts that day
-(rest day, outside the race window, or the grand tour/stages aren't loaded
-yet), the run exits cleanly (exit 0, `finalStatus: "no_eligible_stage"`)
-on the very first attempt — never retried, since retrying can't make a
-non-existent stage appear.
+stage itself via `resolveAutomaticStage` in
+`scripts/grandtour-stage-calendar.mjs` — **not** an exact calendar-date
+match (an earlier design, `resolveStageFromGrandTourStages`, matched a
+stage's `starts_at` against the exact Paris calendar date and has been
+removed: if a stage's official results weren't published in time on race
+day, the *next* day's exact-date match would move past it and it would
+never be automatically retried). The current design instead compares
+`grandtour_stages.starts_at` to "now" as real UTC instants (never a
+timezone-dependent calendar-date string), considers a stage eligible once
+`--stage-availability-grace-hours` (default 12; `workflow_dispatch` input
+`stage_availability_grace_hours`) have elapsed since it started, skips any
+stage already finalised (`grandtour_stage_results.is_final = true`, read
+via a second anon-key-safe query in `fetchAllGrandTourStages`) unless
+`--allow-rerun-completed` (`workflow_dispatch` input
+`allow_rerun_completed`) is explicitly set, and always selects the
+**earliest** eligible stage — never "the most recent prior stage" — so a
+stalled/unprocessed stage self-heals on a later scheduled run instead of
+being silently skipped forever. If no stage row is currently eligible
+(rest day, still within the grace window, the grand tour/stages aren't
+loaded yet, or every eligible stage is already finalised), the run exits
+cleanly (exit 0, `finalStatus: "no_eligible_stage"`, reason exactly
+`"No eligible stage for automatic dry-run."`) on the very first attempt —
+never retried, since retrying can't make a stage become eligible sooner.
 
 ### 17.3 Retry behaviour
 
@@ -1526,8 +1541,21 @@ retry's UTC time.
 | `parser_drift` | No | `parserDriftDetected: true`, or a `table_not_found`/`parse_empty`/`unsupported_markup` status — letour.fr's markup changed. |
 | `configuration` | No | Missing `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_PUBLISHABLE_KEY`. |
 | `invalid_input` | No | A bad/unknown CLI argument. |
-| `no_eligible_stage` | No | No `grandtour_stages` row starts today (rest day, outside the race window, etc). |
+| `no_eligible_stage` | No | No `grandtour_stages` row is currently eligible under `resolveAutomaticStage`'s grace-cutoff/finalised-skip rule (rest day, still within the grace window, outside the race window, or every eligible stage already finalised). |
 | `unknown_non_retryable` | No | Anything else unrecognized — fails closed (never guessed as retryable). |
+
+`classifyAutoDryRunFailure`'s classification is then mapped to exactly one
+of seven `finalStatus` values written to `final-summary.json` —
+`success` / `no_eligible_stage` / `unsafe_review_required` /
+`parser_drift` / `configuration_error` / `transient_failure_exhausted` /
+`unexpected_failure` (`unsafe`→`unsafe_review_required`,
+`configuration`/`invalid_input`→`configuration_error`,
+`transient`→`transient_failure_exhausted` once retries are exhausted,
+`unknown_non_retryable`→`unexpected_failure`; `parser_drift` and
+`no_eligible_stage`/`success` pass through unchanged) — so a scheduled run
+that simply found no eligible stage yet is never confused with an actual
+broken workflow. `final-summary.json` also includes the resolved
+`stageAvailabilityGraceHours`/`allowRerunCompleted` inputs for that run.
 
 Classification prefers structured report fields (`stageFetchMetadata[].status`/`httpStatus`,
 `jerseyFetchMetadata[].status`, `reconciliation.stages[].safeToApply`,
@@ -1640,6 +1668,45 @@ something to apply directly:
    anything itself, so applying from its output is a fully separate,
    manually-triggered command with its own gates (`--confirm-provider`,
    `--confirm-stage`, and `--confirm-production` against a production URL).
+
+### 17.9 Admin notification email
+
+The workflow's final two steps (`Build admin notification email` /
+`Send admin notification email`) turn `final-summary.json` into a
+plain-English email and send it via SMTP, using
+[dawidd6/action-send-mail](https://github.com/dawidd6/action-send-mail).
+
+**Only genuine terminal outcomes page the admin** — a real success, or a
+real final failure. `finalStatus: "no_eligible_stage"` (a routine day with
+nothing to check yet — rest day, still within the grace window, etc.)
+deliberately never sends an email, so the admin isn't paged every single
+day for a non-event. The mapping from `finalStatus` to email
+subject/body — and the decision of which statuses page at all — lives in
+`scripts/grandtour-auto-dry-run-notify.mjs`'s `buildNotificationEmail`
+(pure, unit-tested in the adjacent `.test.mjs`). The email never contains
+a secret — only fields already present in `final-summary.json`, which
+itself never contains credentials.
+
+**Required repository secrets** (Settings → Secrets and variables →
+Actions → New repository secret), for the SMTP mailbox the emails are sent
+*from*:
+
+| Secret | Example |
+|---|---|
+| `SMTP_SERVER` | `smtp.gmail.com` |
+| `SMTP_PORT` | `465` |
+| `SMTP_USERNAME` | the sending mailbox's address |
+| `SMTP_PASSWORD` | an app password for that mailbox (for Gmail: a 16-character [App Password](https://myaccount.google.com/apppasswords), not the account's normal login password — Gmail rejects SMTP login with the normal password when 2-Step Verification is on) |
+
+The recipient address (currently `tmcstay@gmail.com`) is **not** a secret
+— it's a plain `to:` value directly in the workflow YAML (`Send admin
+notification email` step). Update it there directly if it ever changes;
+no secret rotation needed.
+
+If any of the four secrets are missing, the `Send admin notification
+email` step fails (the action itself errors on missing SMTP config) but
+this does not affect `finalStatus`/exit code of the run itself — the mail
+step is separate from, and runs after, the actual dry-run/reconcile work.
 
 ## 18. Sign-off
 

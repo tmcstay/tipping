@@ -14,6 +14,7 @@ import {
   resolveStageRange,
   summarizeAutoDryRunReport
 } from "./grandtour-auto-dry-run.mjs";
+import { DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS } from "./grandtour-stage-calendar.mjs";
 
 test("parseAutoDryRunArgs applies documented defaults", () => {
   const options = parseAutoDryRunArgs([]);
@@ -27,8 +28,20 @@ test("parseAutoDryRunArgs applies documented defaults", () => {
   assert.equal(options.retryIntervalMinutes, DEFAULT_RETRY_INTERVAL_MINUTES);
   assert.equal(options.maxRetries, DEFAULT_MAX_RETRIES);
   assert.equal(options.noRetry, false);
+  assert.equal(options.stageAvailabilityGraceHours, DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS);
+  assert.equal(options.allowRerunCompleted, false);
   assert.equal(DEFAULT_RETRY_INTERVAL_MINUTES, 15);
   assert.equal(DEFAULT_MAX_RETRIES, 8);
+});
+
+test("parseAutoDryRunArgs: --stage-availability-grace-hours/--allow-rerun-completed parse correctly", () => {
+  const options = parseAutoDryRunArgs(["--stage-availability-grace-hours", "6", "--allow-rerun-completed"]);
+  assert.equal(options.stageAvailabilityGraceHours, 6);
+  assert.equal(options.allowRerunCompleted, true);
+});
+
+test("parseAutoDryRunArgs: --stage-availability-grace-hours rejects a negative value", () => {
+  assert.throws(() => parseAutoDryRunArgs(["--stage-availability-grace-hours", "-1"]), /requires a non-negative number/);
 });
 
 test("parseAutoDryRunArgs: --stage-number sets from/to to the same single stage", () => {
@@ -224,7 +237,7 @@ test("resolveStageRange returns the explicit range unchanged and never touches S
   assert.deepEqual(range, { fromStage: 5, toStage: 5, skippedReason: null });
 });
 
-function fakeSupabaseClient({ grandTourId, stageRows }) {
+function fakeSupabaseClient({ grandTourId, stageRows, finalStageIds = [] }) {
   return {
     from(table) {
       if (table === "grand_tours") {
@@ -247,19 +260,37 @@ function fakeSupabaseClient({ grandTourId, stageRows }) {
         };
         return builder;
       }
+      if (table === "grandtour_stage_results") {
+        const builder = {
+          select() { return builder; },
+          in() { return builder; },
+          eq() { return builder; },
+          then(resolve) {
+            return resolve({ data: finalStageIds.map((id) => ({ stage_id: id })), error: null });
+          }
+        };
+        return builder;
+      }
       throw new Error(`Unexpected table: ${table}`);
     }
   };
 }
 
-test("resolveStageRange auto-resolves from grandtour_stages when no explicit stage is given", async () => {
+test("resolveStageRange auto-resolves the earliest eligible stage (UTC grace-cutoff, not exact calendar-date match)", async () => {
   process.env.SUPABASE_URL = "http://127.0.0.1:54321";
   process.env.SUPABASE_ANON_KEY = "anon-key";
   try {
-    const options = { fromStage: null, toStage: null, grandTourName: "Tour de France", grandTourYear: 2026, asOfDate: "2026-07-09" };
+    const options = {
+      fromStage: null,
+      toStage: null,
+      grandTourName: "Tour de France",
+      grandTourYear: 2026,
+      now: new Date("2026-07-09T23:00:00Z"),
+      stageAvailabilityGraceHours: 12
+    };
     const client = fakeSupabaseClient({
       grandTourId: "tour-1",
-      stageRows: [{ stage_number: 6, starts_at: "2026-07-09T10:00:00+00:00" }]
+      stageRows: [{ id: "stage-6", stage_number: 6, starts_at: "2026-07-09T10:00:00+00:00" }]
     });
     const range = await resolveStageRange(options, { createClient: () => client });
     assert.deepEqual(range, { fromStage: 6, toStage: 6, skippedReason: null });
@@ -269,21 +300,54 @@ test("resolveStageRange auto-resolves from grandtour_stages when no explicit sta
   }
 });
 
-test("resolveStageRange is skipped (not an error) when no stage starts on the resolved date", async () => {
+test("resolveStageRange is skipped (not an error) when no stage is eligible yet", async () => {
   process.env.SUPABASE_URL = "http://127.0.0.1:54321";
   process.env.SUPABASE_PUBLISHABLE_KEY = "publishable-key";
   try {
-    const options = { fromStage: null, toStage: null, grandTourName: "Tour de France", grandTourYear: 2026, asOfDate: "2026-07-14" };
+    const options = {
+      fromStage: null,
+      toStage: null,
+      grandTourName: "Tour de France",
+      grandTourYear: 2026,
+      now: new Date("2026-07-09T10:00:00Z"),
+      stageAvailabilityGraceHours: 12
+    };
     const client = fakeSupabaseClient({
       grandTourId: "tour-1",
-      stageRows: [{ stage_number: 6, starts_at: "2026-07-09T10:00:00+00:00" }]
+      stageRows: [{ id: "stage-6", stage_number: 6, starts_at: "2026-07-09T10:00:00+00:00" }]
     });
     const range = await resolveStageRange(options, { createClient: () => client });
     assert.equal(range.fromStage, null);
-    assert.match(range.skippedReason, /No grandtour_stages row starts on 2026-07-14/);
+    assert.equal(range.skippedReason, "No eligible stage for automatic dry-run.");
   } finally {
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_PUBLISHABLE_KEY;
+  }
+});
+
+test("resolveStageRange skips an already-finalised stage unless allowRerunCompleted is set", async () => {
+  process.env.SUPABASE_URL = "http://127.0.0.1:54321";
+  process.env.SUPABASE_ANON_KEY = "anon-key";
+  try {
+    const stageRows = [{ id: "stage-6", stage_number: 6, starts_at: "2026-07-09T10:00:00+00:00" }];
+    const now = new Date("2026-07-10T00:00:00Z");
+
+    const client = fakeSupabaseClient({ grandTourId: "tour-1", stageRows, finalStageIds: ["stage-6"] });
+    const skipped = await resolveStageRange(
+      { fromStage: null, toStage: null, grandTourName: "Tour de France", grandTourYear: 2026, now },
+      { createClient: () => client }
+    );
+    assert.equal(skipped.fromStage, null);
+    assert.equal(skipped.skippedReason, "No eligible stage for automatic dry-run.");
+
+    const rerun = await resolveStageRange(
+      { fromStage: null, toStage: null, grandTourName: "Tour de France", grandTourYear: 2026, now, allowRerunCompleted: true },
+      { createClient: () => client }
+    );
+    assert.equal(rerun.fromStage, 6);
+  } finally {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_ANON_KEY;
   }
 });
 
@@ -412,6 +476,36 @@ test("main: an unsafe (non-transient) failure on the very first attempt is never
     assert.equal(result.finalSummary.attemptsMade, 1);
     assert.equal(calls.length, 0, "an unsafe/semantic failure must never be retried");
     assert.equal(result.exitCode, 1);
+  });
+});
+
+test("main: parser drift is reported as its own final status, always exits non-zero", async () => {
+  await withTempReportDir(async (reportDir) => {
+    const driftReport = buildReport({ parserDriftDetected: true });
+    const { wait, calls } = noWaitTracking();
+
+    const result = await main(["--stage-number", "5", "--report-dir", reportDir, "--fail-on-unsafe", "false"], {
+      spawnSync: fakeSpawnSyncSequence([driftReport]),
+      wait
+    });
+
+    assert.equal(result.finalSummary.finalStatus, "parser_drift");
+    assert.equal(result.exitCode, 1);
+    assert.equal(calls.length, 0, "parser drift is never retried");
+  });
+});
+
+test("main: an unrecognized thrown error is reported as unexpected_failure", async () => {
+  await withTempReportDir(async (reportDir) => {
+    const { wait, calls } = noWaitTracking();
+    const result = await main(["--stage-number", "5", "--report-dir", reportDir], {
+      spawnSync: () => { throw new Error("something completely unexpected"); },
+      wait
+    });
+
+    assert.equal(result.finalSummary.finalStatus, "unexpected_failure");
+    assert.equal(result.exitCode, 1);
+    assert.equal(calls.length, 0);
   });
 });
 

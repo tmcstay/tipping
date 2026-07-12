@@ -38,9 +38,16 @@ test("workflow job timeout is sufficient for 1 initial + 8 retries * 15 minutes"
 
 test("artifact upload step uses if: always()", async () => {
   const source = await readWorkflow();
-  const uploadBlockMatch = source.match(/Upload auto dry-run report artifacts[\s\S]{0,600}/);
+  const uploadBlockMatch = source.match(/Upload auto dry-run report artifacts[\s\S]{0,1500}/);
   assert.ok(uploadBlockMatch, "the artifact upload step must exist");
   assert.match(uploadBlockMatch[0], /if:\s*always\(\)/);
+});
+
+test("print final summary step uses if: always()", async () => {
+  const source = await readWorkflow();
+  const stepBlockMatch = source.match(/Print final summary[\s\S]{0,1000}/);
+  assert.ok(stepBlockMatch, "the print-final-summary step must exist");
+  assert.match(stepBlockMatch[0], /if:\s*always\(\)/);
 });
 
 test("workflow never actually reads a service-role secret (prose mentioning the name is fine; an env/secrets reference is not)", async () => {
@@ -64,9 +71,58 @@ test("retry inputs (retry_interval_minutes, max_retries, no_retry) are declared 
   assert.match(source, /--retry-interval-minutes "\$RETRY_INTERVAL_MINUTES"/);
   assert.match(source, /--max-retries "\$MAX_RETRIES"/);
   assert.match(source, /--no-retry/);
-  // Defaults match the wrapper's own defaults.
-  assert.match(source, /retry_interval_minutes \|\| '15'/);
-  assert.match(source, /max_retries \|\| '8'/);
+  // Defaults match the wrapper's own defaults, applied in the "Resolve
+  // effective parameters" step rather than scattered `||` fallbacks on
+  // github.event.inputs.* throughout the run command.
+  assert.match(source, /retry_interval_minutes='15'/);
+  assert.match(source, /max_retries='8'/);
+  assert.match(source, /IN_RETRY_INTERVAL_MINUTES:-15/);
+  assert.match(source, /IN_MAX_RETRIES:-8/);
+});
+
+test("new stage-availability-grace-hours/allow-rerun-completed inputs are declared and passed through", async () => {
+  const source = await readWorkflow();
+  assert.match(source, /stage_availability_grace_hours:/);
+  assert.match(source, /allow_rerun_completed:/);
+  assert.match(source, /--stage-availability-grace-hours "\$STAGE_AVAILABILITY_GRACE_HOURS"/);
+  assert.match(source, /--allow-rerun-completed/);
+  assert.match(source, /stage_availability_grace_hours='12'/);
+  assert.match(source, /allow_rerun_completed='false'/);
+});
+
+test("effective parameters are resolved once into step outputs, not scattered as github.event.inputs.* through the run command", async () => {
+  const source = await readWorkflow();
+  assert.match(source, /Resolve effective parameters/);
+  assert.match(source, /id:\s*params/);
+  assert.match(source, />> "\$GITHUB_OUTPUT"/);
+  assert.match(source, /if \[ "\$EVENT_NAME" = "schedule" \]/);
+
+  // The run step (env: block) must only read steps.params.outputs.*, never
+  // github.event.inputs.* directly - the concurrency: block is the one
+  // documented, unavoidable exception (it runs before any step and cannot
+  // reference step outputs).
+  const runStepMatch = source.match(/Run GrandTour automatic dry-run collection[\s\S]*?run: \|[\s\S]*?(?=\n {6}- name:|$)/);
+  assert.ok(runStepMatch, "the main run step must exist");
+  assert.ok(!/github\.event\.inputs/.test(runStepMatch[0]), "the run step must read steps.params.outputs.*, not github.event.inputs.* directly");
+  assert.match(runStepMatch[0], /steps\.params\.outputs\.grand_tour_name/);
+});
+
+test("trigger diagnostics step prints event/ref/default-branch/UTC time and resolved parameters, never secrets", async () => {
+  const source = await readWorkflow();
+  const diagBlockMatch = source.match(/Print trigger diagnostics[\s\S]{0,2000}?(?=\n {6}- name:)/);
+  assert.ok(diagBlockMatch, "the trigger diagnostics step must exist");
+  const diag = diagBlockMatch[0];
+  assert.match(diag, /github\.event_name/);
+  assert.match(diag, /github\.ref/);
+  assert.match(diag, /github\.event\.repository\.default_branch/);
+  assert.match(diag, /date -u/);
+  assert.match(diag, /auto_resolution_used/);
+  assert.ok(!/secrets\./.test(diag), "the diagnostics step must never print a secret");
+});
+
+test("workflow documents that scheduled runs use only the default-branch workflow file", async () => {
+  const source = await readWorkflow();
+  assert.match(source, /schedule.*trigger.*default[- ]branch|default[- ]branch.*schedule/is);
 });
 
 test("workflow uses a concurrency group and does not cancel in-progress runs", async () => {
@@ -87,4 +143,17 @@ test("workflow supports workflow_dispatch alongside the schedule", async () => {
   const source = await readWorkflow();
   assert.match(source, /workflow_dispatch:/);
   assert.match(source, /schedule:/);
+});
+
+test("workflow builds and sends an admin notification email using SMTP secrets, never a hard-coded password", async () => {
+  const source = await readWorkflow();
+  assert.match(source, /Build admin notification email/);
+  assert.match(source, /node scripts\/grandtour-auto-dry-run-notify\.mjs/);
+  assert.match(source, /Send admin notification email/);
+  assert.match(source, /dawidd6\/action-send-mail@v4/);
+  assert.match(source, /secrets\.SMTP_SERVER/);
+  assert.match(source, /secrets\.SMTP_PORT/);
+  assert.match(source, /secrets\.SMTP_USERNAME/);
+  assert.match(source, /secrets\.SMTP_PASSWORD/);
+  assert.match(source, /steps\.notify\.outputs\.should_send == 'true'/);
 });

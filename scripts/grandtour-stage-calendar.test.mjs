@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS,
   DEFAULT_STAGE_CALENDAR_PATH,
   loadStageCalendar,
   lookupStageDate,
   parisDateISO,
   parseStageCalendarCsv,
-  resolveScheduledStage,
-  resolveStageFromGrandTourStages
+  resolveAutomaticStage,
+  resolveScheduledStage
 } from "./grandtour-stage-calendar.mjs";
 
 const SAMPLE_CSV = [
@@ -67,35 +68,60 @@ test("parisDateISO formats a fixed instant as a YYYY-MM-DD calendar date", () =>
   assert.equal(result, "2026-07-09");
 });
 
-test("resolveStageFromGrandTourStages matches a grandtour_stages row by its Paris calendar date", () => {
+test("resolveAutomaticStage: DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS is 12", () => {
+  assert.equal(DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS, 12);
+});
+
+test("resolveAutomaticStage picks a stage only once graceHours have elapsed since starts_at (UTC instant, not calendar date)", () => {
+  const rows = [{ stageNumber: 6, startsAt: "2026-07-09T10:00:00Z", isFinal: false }];
+
+  // Exactly at the cutoff instant (starts_at + 12h) - eligible.
+  const atCutoff = resolveAutomaticStage(rows, { now: new Date("2026-07-09T22:00:00Z"), graceHours: 12 });
+  assert.equal(atCutoff.stageNumber, 6);
+
+  // One millisecond before the cutoff - not yet eligible.
+  const beforeCutoff = resolveAutomaticStage(rows, { now: new Date("2026-07-09T21:59:59.999Z"), graceHours: 12 });
+  assert.equal(beforeCutoff.stageNumber, null);
+  assert.equal(beforeCutoff.reason, "No eligible stage for automatic dry-run.");
+});
+
+test("resolveAutomaticStage skips a finalised stage unless allowRerunCompleted is set", () => {
+  const rows = [{ stageNumber: 6, startsAt: "2026-07-09T10:00:00Z", isFinal: true }];
+  const now = new Date("2026-07-10T10:00:00Z");
+
+  const skipped = resolveAutomaticStage(rows, { now });
+  assert.equal(skipped.stageNumber, null);
+  assert.equal(skipped.reason, "No eligible stage for automatic dry-run.");
+
+  const rerun = resolveAutomaticStage(rows, { now, allowRerunCompleted: true });
+  assert.equal(rerun.stageNumber, 6);
+});
+
+test("resolveAutomaticStage always selects the earliest eligible stage, never the most recent prior one", () => {
   const rows = [
-    { stageNumber: 5, startsAt: "2026-07-08T10:00:00+00:00" },
-    { stageNumber: 6, startsAt: "2026-07-09T10:00:00+00:00" }
+    { stageNumber: 5, startsAt: "2026-07-08T10:00:00Z", isFinal: false },
+    { stageNumber: 6, startsAt: "2026-07-09T10:00:00Z", isFinal: false },
+    { stageNumber: 7, startsAt: "2026-07-10T10:00:00Z", isFinal: false }
   ];
-  const resolved = resolveStageFromGrandTourStages(rows, "2026-07-09");
+  const now = new Date("2026-07-11T00:00:00Z");
 
-  assert.equal(resolved.stageNumber, 6);
-  assert.equal(resolved.stageDate, "2026-07-09");
-  assert.equal(resolved.reason, null);
+  const resolved = resolveAutomaticStage(rows, { now, graceHours: 12 });
+  assert.equal(resolved.stageNumber, 5);
 });
 
-test("resolveStageFromGrandTourStages returns no stage when nothing starts on that date", () => {
-  const rows = [{ stageNumber: 5, startsAt: "2026-07-08T10:00:00+00:00" }];
-  const resolved = resolveStageFromGrandTourStages(rows, "2026-07-13");
-
+test("resolveAutomaticStage returns the exact no-eligible-stage message for an empty list", () => {
+  const resolved = resolveAutomaticStage([], { now: new Date("2026-07-10T10:00:00Z") });
   assert.equal(resolved.stageNumber, null);
-  assert.equal(resolved.stageDate, null);
-  assert.match(resolved.reason, /No grandtour_stages row starts on 2026-07-13/);
+  assert.equal(resolved.reason, "No eligible stage for automatic dry-run.");
 });
 
-test("resolveStageFromGrandTourStages ignores rows with a missing starts_at and returns no stage for an empty list", () => {
-  const rows = [{ stageNumber: 7, startsAt: null }];
-  const resolved = resolveStageFromGrandTourStages(rows, "2026-07-10");
+test("resolveAutomaticStage ignores rows with a missing or unparsable starts_at", () => {
+  const rows = [
+    { stageNumber: 6, startsAt: null, isFinal: false },
+    { stageNumber: 7, startsAt: "not-a-date", isFinal: false }
+  ];
+  const resolved = resolveAutomaticStage(rows, { now: new Date("2026-07-10T10:00:00Z") });
   assert.equal(resolved.stageNumber, null);
-
-  const empty = resolveStageFromGrandTourStages([], "2026-07-10");
-  assert.equal(empty.stageNumber, null);
-  assert.match(empty.reason, /No grandtour_stages row starts on 2026-07-10/);
 });
 
 test("loadStageCalendar reads the real TDF 2026 stage calendar and resolves stage 6 for 2026-07-09", async () => {

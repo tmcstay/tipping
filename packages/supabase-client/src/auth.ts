@@ -1,3 +1,4 @@
+import { getAuthRedirectUrl } from "./authRedirect";
 import { getSupabaseClient } from "./client";
 
 export type UserProfile = {
@@ -25,7 +26,8 @@ export async function signUpWithPassword({
     email: email.trim(),
     password,
     options: {
-      data: displayName?.trim() ? { display_name: displayName.trim() } : {}
+      data: displayName?.trim() ? { display_name: displayName.trim() } : {},
+      emailRedirectTo: getAuthRedirectUrl("/auth/callback")
     }
   });
 

@@ -1,8 +1,8 @@
-import { sendPasswordResetEmail } from "@tipping-suite/supabase-client";
+import { getAuthRedirectUrl, sendPasswordResetEmail } from "@tipping-suite/supabase-client";
 import { useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import { authStyles as styles } from "./authStyles";
 
@@ -17,7 +17,12 @@ export function ForgotPasswordScreen() {
     setLoading(true);
     setError(null);
     try {
-      await sendPasswordResetEmail(email, Linking.createURL("/reset-password"));
+      // Web always redirects to the deployed app's own /reset-password page
+      // (getAuthRedirectUrl - see docs/deployment.md); native keeps its
+      // existing Linking.createURL deep link, handled by AuthProvider's
+      // recovery-URL listener.
+      const redirectTo = Platform.OS === "web" ? getAuthRedirectUrl("/reset-password") : Linking.createURL("/reset-password");
+      await sendPasswordResetEmail(email, redirectTo);
       setSent(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to send the reset email.");

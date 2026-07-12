@@ -21,6 +21,10 @@ function fakeSupabaseClient(tableData) {
           filters.push((row) => row[column] === value);
           return builder;
         },
+        in(column, values) {
+          filters.push((row) => values.includes(row[column]));
+          return builder;
+        },
         limit() {
           return builder;
         },
@@ -53,20 +57,23 @@ test("resolveGrandTourId returns null when no matching grand tour exists", async
   assert.equal(grandTourId, null);
 });
 
-test("fetchAllGrandTourStages reads stage_number/starts_at scoped to the grand tour, sorted by stage_number ascending", async () => {
+test("fetchAllGrandTourStages reads stage_number/starts_at/isFinal scoped to the grand tour, sorted by stage_number ascending", async () => {
   const client = fakeSupabaseClient({
     grandtour_stages: [
       { id: "stage-3", grand_tour_id: "tour-1", stage_number: 3, starts_at: "2026-07-06T10:00:00+00:00" },
       { id: "stage-1", grand_tour_id: "tour-1", stage_number: 1, starts_at: "2026-07-04T10:00:00+00:00" },
       { id: "stage-9", grand_tour_id: "tour-2", stage_number: 1, starts_at: "2026-05-01T10:00:00+00:00" }
+    ],
+    grandtour_stage_results: [
+      { stage_id: "stage-1", is_final: true }
     ]
   });
 
   const stages = await fetchAllGrandTourStages(client, { grandTourId: "tour-1" });
 
   assert.deepEqual(stages, [
-    { stageNumber: 1, startsAt: "2026-07-04T10:00:00+00:00" },
-    { stageNumber: 3, startsAt: "2026-07-06T10:00:00+00:00" }
+    { stageNumber: 1, startsAt: "2026-07-04T10:00:00+00:00", isFinal: true },
+    { stageNumber: 3, startsAt: "2026-07-06T10:00:00+00:00", isFinal: false }
   ]);
 });
 
@@ -74,6 +81,17 @@ test("fetchAllGrandTourStages returns an empty array when the grand tour has no 
   const client = fakeSupabaseClient({ grandtour_stages: [] });
   const stages = await fetchAllGrandTourStages(client, { grandTourId: "tour-1" });
   assert.deepEqual(stages, []);
+});
+
+test("fetchAllGrandTourStages: a stage with no visible grandtour_stage_results row is isFinal: false, whether no result exists or a non-final draft is simply invisible to the anon key", async () => {
+  const client = fakeSupabaseClient({
+    grandtour_stages: [{ id: "stage-1", grand_tour_id: "tour-1", stage_number: 1, starts_at: "2026-07-04T10:00:00+00:00" }],
+    // No grandtour_stage_results rows at all - anon RLS would hide a
+    // non-final draft exactly like this in real Supabase.
+    grandtour_stage_results: []
+  });
+  const stages = await fetchAllGrandTourStages(client, { grandTourId: "tour-1" });
+  assert.equal(stages[0].isFinal, false);
 });
 
 test("fetchReconciliationContext reads stage/riders/teams/startlist scoped to the grand tour and maps snake_case to camelCase", async () => {

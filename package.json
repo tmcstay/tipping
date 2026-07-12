@@ -8,8 +8,8 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "npm --workspace packages/tipping-core test",
-    "test:data": "node --test scripts/tdf-data-utils.test.mjs scripts/grandtour-rider-reconciliation.test.mjs scripts/letour-official-riders.test.mjs scripts/grandtour-feed-provider.test.mjs scripts/grandtour-stage-calendar.test.mjs scripts/grandtour-reconciliation.test.mjs scripts/grandtour-reconciliation-supabase.test.mjs scripts/grandtour-apply.test.mjs scripts/grandtour-feed-import.test.mjs scripts/grandtour-admin-stage.test.mjs scripts/grandtour-auto-dry-run.test.mjs scripts/grandtour-auto-dry-run-workflow.test.mjs",
+    "test": "npm --workspace packages/tipping-core test && npm --workspace packages/supabase-client test",
+    "test:data": "node --test scripts/tdf-data-utils.test.mjs scripts/grandtour-rider-reconciliation.test.mjs scripts/letour-official-riders.test.mjs scripts/grandtour-feed-provider.test.mjs scripts/grandtour-stage-calendar.test.mjs scripts/grandtour-reconciliation.test.mjs scripts/grandtour-reconciliation-supabase.test.mjs scripts/grandtour-apply.test.mjs scripts/grandtour-feed-import.test.mjs scripts/grandtour-admin-stage.test.mjs scripts/grandtour-auto-dry-run.test.mjs scripts/grandtour-auto-dry-run-notify.test.mjs scripts/grandtour-auto-dry-run-workflow.test.mjs",
     "test:auth": "node scripts/test-auth.mjs",
     "import:tdf:2026": "node scripts/import-tdf-2026.mjs",
     "import:tdf:2026:dry-run": "node scripts/import-tdf-2026.mjs --dry-run",

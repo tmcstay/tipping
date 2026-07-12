@@ -23,6 +23,7 @@ function RootNavigator() {
         headerShown: false
       }}
     >
+      <Stack.Screen name="auth/callback" />
       <Stack.Protected guard={!user || isPasswordRecovery}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>

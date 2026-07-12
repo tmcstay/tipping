@@ -31,7 +31,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { fetchAllGrandTourStages, resolveGrandTourId } from "./grandtour-reconciliation-supabase.mjs";
-import { parisDateISO, resolveStageFromGrandTourStages } from "./grandtour-stage-calendar.mjs";
+import { DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS, resolveAutomaticStage } from "./grandtour-stage-calendar.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FEED_IMPORT_SCRIPT_PATH = path.join(__dirname, "grandtour-feed-import.mjs");
@@ -53,7 +53,9 @@ export function parseAutoDryRunArgs(argv) {
     asOfDate: null,
     retryIntervalMinutes: DEFAULT_RETRY_INTERVAL_MINUTES,
     maxRetries: DEFAULT_MAX_RETRIES,
-    noRetry: false
+    noRetry: false,
+    stageAvailabilityGraceHours: DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS,
+    allowRerunCompleted: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -105,6 +107,13 @@ export function parseAutoDryRunArgs(argv) {
       }
     } else if (argument === "--no-retry") {
       options.noRetry = true;
+    } else if (argument === "--stage-availability-grace-hours") {
+      options.stageAvailabilityGraceHours = Number(argv[++index] ?? "");
+      if (!Number.isFinite(options.stageAvailabilityGraceHours) || options.stageAvailabilityGraceHours < 0) {
+        throw new Error("--stage-availability-grace-hours requires a non-negative number");
+      }
+    } else if (argument === "--allow-rerun-completed") {
+      options.allowRerunCompleted = true;
     } else {
       throw new Error(`Unknown argument: ${argument}`);
     }
@@ -259,12 +268,20 @@ export function classifyAutoDryRunFailure(error, report) {
 /**
  * Resolves the stage range to run. Explicit --stage-number/--from-stage/
  * --to-stage always win and never touch Supabase. Otherwise, reads
- * grandtour_stages (anon key only) and picks the stage whose starts_at
- * falls on `asOfDate` (Paris calendar date, matching the existing daily
- * dry-run workflow's "today's stage" convention). `deps.createClient` is
- * injectable for tests. Called fresh on every attempt (see runAttempt)
- * so a transient Supabase issue here is retried exactly like a transient
- * letour.fr fetch issue.
+ * grandtour_stages (anon key only, including per-stage isFinal status) and
+ * picks the earliest stage eligible under resolveAutomaticStage's UTC-instant
+ * grace-cutoff rule (see scripts/grandtour-stage-calendar.mjs) - never an
+ * exact calendar-date match, so a stalled/unprocessed stage is retried on a
+ * later scheduled run instead of being silently skipped forever.
+ *
+ * `options.now` (a Date), when set, overrides "the current instant" for
+ * resolution - used by tests. `options.asOfDate` (YYYY-MM-DD) is a
+ * lower-precision fallback for the same purpose, treated as that date's UTC
+ * midnight; `options.now` wins if both are set. Neither is read from live
+ * clock time when either is supplied. `deps.createClient` is injectable for
+ * tests. Called fresh on every attempt (see runAttempt) so a transient
+ * Supabase issue here is retried exactly like a transient letour.fr fetch
+ * issue.
  */
 export async function resolveStageRange(options, deps = {}) {
   if (options.fromStage !== null && options.toStage !== null) {
@@ -289,7 +306,12 @@ export async function resolveStageRange(options, deps = {}) {
   }
 
   const stageRows = await fetchAllGrandTourStages(client, { grandTourId });
-  const resolved = resolveStageFromGrandTourStages(stageRows, options.asOfDate ?? parisDateISO());
+  const now = options.now ?? (options.asOfDate ? new Date(`${options.asOfDate}T00:00:00Z`) : new Date());
+  const resolved = resolveAutomaticStage(stageRows, {
+    now,
+    graceHours: options.stageAvailabilityGraceHours ?? DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS,
+    allowRerunCompleted: options.allowRerunCompleted ?? false
+  });
   if (resolved.stageNumber === null) {
     return { fromStage: null, toStage: null, skippedReason: resolved.reason };
   }
@@ -392,6 +414,10 @@ function buildAttemptSummary(attempt, retryable) {
 const RETRYABLE_CLASSIFICATIONS = new Set(["transient"]);
 const TERMINAL_CLASSIFICATIONS = new Set(["success", "no_eligible_stage"]);
 
+// The final summary always reports exactly one of these seven values -
+// never a bare classification string - so a scheduled run finding no
+// eligible stage (a normal daily outcome) is never confused with an actual
+// broken workflow.
 function mapClassificationToFinalStatus(classification) {
   switch (classification) {
     case "success": return "success";
@@ -399,14 +425,16 @@ function mapClassificationToFinalStatus(classification) {
     case "transient": return "transient_failure_exhausted";
     case "configuration": return "configuration_error";
     case "invalid_input": return "configuration_error";
-    default: return "unsafe_review_required"; // unsafe, parser_drift, unknown_non_retryable
+    case "unsafe": return "unsafe_review_required";
+    case "parser_drift": return "parser_drift";
+    default: return "unexpected_failure"; // unknown_non_retryable
   }
 }
 
 function computeExitCode(finalStatus, failOnUnsafe) {
   if (finalStatus === "success" || finalStatus === "no_eligible_stage") return 0;
   if (finalStatus === "unsafe_review_required") return failOnUnsafe ? 1 : 0;
-  return 1; // transient_failure_exhausted, configuration_error always fail loudly
+  return 1; // parser_drift, transient_failure_exhausted, configuration_error, unexpected_failure always fail loudly
 }
 
 function defaultWait(ms) {
@@ -493,6 +521,8 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
     attemptsMade: attemptSummaries.length,
     maxRetries: options.maxRetries,
     retryIntervalMinutes: options.retryIntervalMinutes,
+    stageAvailabilityGraceHours: options.stageAvailabilityGraceHours,
+    allowRerunCompleted: options.allowRerunCompleted,
     finalStatus,
     safeToApply,
     parserDriftDetected,
