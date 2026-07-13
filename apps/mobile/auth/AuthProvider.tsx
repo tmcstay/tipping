@@ -20,6 +20,8 @@ import {
   useState
 } from "react";
 
+import { authDebugLog } from "../lib/authDebugLog";
+
 export type AuthContextValue = {
   loading: boolean;
   session: Session | null;
@@ -67,6 +69,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     void getCurrentSession()
       .then(async (initialSession) => {
         if (!active) return;
+        authDebugLog("provider", "initial getSession resolved", { hasSession: Boolean(initialSession) });
         setSession(initialSession);
         await loadProfile(initialSession?.user.id);
       })
@@ -77,6 +80,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const { data } = getSupabaseClient().auth.onAuthStateChange(
       (event, nextSession) => {
         if (!active) return;
+        authDebugLog("provider", "onAuthStateChange", { event, hasSession: Boolean(nextSession) });
         if (event === "PASSWORD_RECOVERY") setIsPasswordRecovery(true);
         if (event === "SIGNED_OUT") setIsPasswordRecovery(false);
         setSession(nextSession);

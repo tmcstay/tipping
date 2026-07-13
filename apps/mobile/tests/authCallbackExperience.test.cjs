@@ -3,6 +3,8 @@ const test = require("node:test");
 
 const {
   decideAuthCallbackAction,
+  getAuthCallbackFlowKey,
+  isAuthCallbackPathname,
   parseHashParams,
   sanitizeInternalReturnPath
 } = require("../../../dist/mobile-tests/authCallbackExperience.js");
@@ -94,4 +96,68 @@ test("sanitizeInternalReturnPath: rejects an embedded scheme", () => {
 test("sanitizeInternalReturnPath: never sends the user back into /auth/callback (loop prevention)", () => {
   assert.equal(sanitizeInternalReturnPath("/auth/callback"), "/");
   assert.equal(sanitizeInternalReturnPath("/auth/callback?code=abc"), "/");
+});
+
+// ---------------------------------------------------------------------------
+// isAuthCallbackPathname - used by ProtectedRoute to exclude /auth/callback
+// from the global "checking your session" loading gate.
+// ---------------------------------------------------------------------------
+
+test("isAuthCallbackPathname: matches the bare route and its query/hash/sub-path variants", () => {
+  assert.equal(isAuthCallbackPathname("/auth/callback"), true);
+  assert.equal(isAuthCallbackPathname("/auth/callback?code=abc"), true);
+  assert.equal(isAuthCallbackPathname("/auth/callback#access_token=x"), true);
+  assert.equal(isAuthCallbackPathname("/auth/callback/"), true);
+});
+
+test("isAuthCallbackPathname: does not match unrelated routes, including near-miss prefixes", () => {
+  assert.equal(isAuthCallbackPathname("/"), false);
+  assert.equal(isAuthCallbackPathname("/login"), false);
+  assert.equal(isAuthCallbackPathname("/auth/callback-extra"), false);
+  assert.equal(isAuthCallbackPathname("/auth/callbacks"), false);
+});
+
+// ---------------------------------------------------------------------------
+// getAuthCallbackFlowKey - deduplicates exchange/setSession calls across
+// remounts (React Strict Mode's dev double-invoke, or a remount forced by
+// a Stack.Protected guard flip while the callback screen is still active).
+// ---------------------------------------------------------------------------
+
+test("getAuthCallbackFlowKey: the same exchange_code action always produces the same key (dedup across remounts)", () => {
+  const action = { kind: "exchange_code", code: "abc123" };
+  assert.equal(getAuthCallbackFlowKey(action), getAuthCallbackFlowKey({ ...action }));
+});
+
+test("getAuthCallbackFlowKey: a repeated effect invocation for the identical code never produces a fresh/different key", () => {
+  // Simulates React Strict Mode (or a guard-flip-forced remount) running
+  // the same effect twice for the exact same URL - the second mount must
+  // resolve to the same registry key as the first, so it reuses the
+  // in-flight/completed attempt instead of calling Supabase again.
+  const keys = new Set();
+  for (let i = 0; i < 2; i += 1) {
+    const action = decideAuthCallbackAction({ code: "abc123" });
+    keys.add(getAuthCallbackFlowKey(action));
+  }
+  assert.equal(keys.size, 1);
+});
+
+test("getAuthCallbackFlowKey: different codes produce different keys", () => {
+  assert.notEqual(
+    getAuthCallbackFlowKey({ kind: "exchange_code", code: "abc123" }),
+    getAuthCallbackFlowKey({ kind: "exchange_code", code: "xyz789" })
+  );
+});
+
+test("getAuthCallbackFlowKey: set_session is keyed on both tokens", () => {
+  const key1 = getAuthCallbackFlowKey({ kind: "set_session", accessToken: "at-1", refreshToken: "rt-1" });
+  const key2 = getAuthCallbackFlowKey({ kind: "set_session", accessToken: "at-1", refreshToken: "rt-2" });
+  assert.notEqual(key1, key2);
+});
+
+test("getAuthCallbackFlowKey: show_error and redirect_home each produce a distinct, stable key", () => {
+  assert.equal(
+    getAuthCallbackFlowKey({ kind: "show_error", message: "expired" }),
+    getAuthCallbackFlowKey({ kind: "show_error", message: "expired" })
+  );
+  assert.equal(getAuthCallbackFlowKey({ kind: "redirect_home" }), "none");
 });

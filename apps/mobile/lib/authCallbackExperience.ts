@@ -50,6 +50,29 @@ export function decideAuthCallbackAction(params: AuthCallbackParams): AuthCallba
   return { kind: "redirect_home" };
 }
 
+/**
+ * A stable string identifying "this specific callback attempt" - used by
+ * AuthCallbackScreen to deduplicate exchange/setSession calls across
+ * remounts (React Strict Mode's dev double-invoke, or a remount forced by
+ * a Stack.Protected guard flipping while this screen is still active - see
+ * its module doc comment). Two mounts that decide the exact same action
+ * share one in-flight/completed attempt instead of each independently
+ * calling Supabase, which would otherwise race a second attempt against an
+ * already-consumed one-time-use code/token pair.
+ */
+export function getAuthCallbackFlowKey(action: AuthCallbackAction): string {
+  switch (action.kind) {
+    case "exchange_code":
+      return `code:${action.code}`;
+    case "set_session":
+      return `tokens:${action.accessToken}:${action.refreshToken}`;
+    case "show_error":
+      return `error:${action.message}`;
+    case "redirect_home":
+      return "none";
+  }
+}
+
 /** Parses a URL hash fragment (e.g. "#access_token=x&refresh_token=y") into a plain object. */
 export function parseHashParams(hash: string): Record<string, string> {
   const normalized = hash.startsWith("#") ? hash.slice(1) : hash;
@@ -84,8 +107,22 @@ function isSafeInternalPath(path: string): boolean {
  */
 export function sanitizeInternalReturnPath(path: string | null | undefined): string {
   if (!path || !isSafeInternalPath(path)) return DEFAULT_SAFE_PATH;
-  if (path === "/auth/callback" || path.startsWith("/auth/callback/") || path.startsWith("/auth/callback?") || path.startsWith("/auth/callback#")) {
-    return DEFAULT_SAFE_PATH;
-  }
+  if (isAuthCallbackPathname(path)) return DEFAULT_SAFE_PATH;
   return path;
+}
+
+/**
+ * True for "/auth/callback" and any of its query/hash/sub-path variants.
+ * Used both by `sanitizeInternalReturnPath` above (a stored/passed return
+ * path must never point back into the callback route) and by
+ * `ProtectedRoute` (the global "checking your session" loading gate must
+ * never cover this route - it does its own independent session handling).
+ */
+export function isAuthCallbackPathname(pathname: string): boolean {
+  return (
+    pathname === "/auth/callback"
+    || pathname.startsWith("/auth/callback/")
+    || pathname.startsWith("/auth/callback?")
+    || pathname.startsWith("/auth/callback#")
+  );
 }
