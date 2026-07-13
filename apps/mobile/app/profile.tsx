@@ -19,6 +19,19 @@ export default function ProfileScreen() {
   const [displayName, setDisplayName] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const logOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOut();
+    } finally {
+      // Always land on sign-in, even if signOut() itself threw - never
+      // leave the user on a protected screen or on /auth/callback.
+      router.replace("/login");
+      setSigningOut(false);
+    }
+  };
 
   useEffect(() => {
     setDisplayName(profile?.display_name ?? "");
@@ -56,8 +69,8 @@ export default function ProfileScreen() {
         <Pressable onPress={() => router.push("/riders")} style={styles.secondaryButton}>
           <Text style={styles.secondaryButtonText}>Rider directory & favourites</Text>
         </Pressable>
-        <Pressable onPress={() => void signOut()} style={styles.secondaryButton}>
-          <Text style={styles.secondaryButtonText}>Log out</Text>
+        <Pressable disabled={signingOut} onPress={() => void logOut()} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>{signingOut ? "Logging out…" : "Log out"}</Text>
         </Pressable>
         {adminAccess.data ? (
           <Pressable

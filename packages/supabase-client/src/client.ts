@@ -46,7 +46,16 @@ export function createPublicSupabaseClient(config = getSupabaseConfig()) {
       storage: AsyncStorage,
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: typeof window !== "undefined"
+      // The client never auto-consumes a code/token pair from the page URL
+      // itself. /auth/callback (AuthCallbackScreen) is the single place
+      // that reads callback params and explicitly calls
+      // exchangeCodeForSession/setSession - leaving this on would race that
+      // explicit call against Supabase's own automatic handling and could
+      // silently fail a genuine confirmation (the code/verifier is
+      // single-use). The web /reset-password recovery-link flow doesn't
+      // depend on this either - AuthProvider's handleRecoveryUrl parses and
+      // applies those hash tokens independently.
+      detectSessionInUrl: false
     }
   });
 }
