@@ -94,33 +94,36 @@ export const styles = StyleSheet.create({
     borderColor: ui.colors.primary
   },
   accentChevron: {
-    color: "#FFFFFF"
+    color: "rgba(255,255,255,0.6)"
   },
   accentMeta: {
-    color: "#F4C430"
+    color: "rgba(255,255,255,0.68)"
   },
   accentTitle: {
     color: "#FFFFFF"
   },
   body: {
-    gap: 8,
-    marginTop: 12
+    gap: 10,
+    marginTop: 14
   },
   card: {
     backgroundColor: ui.colors.surface,
     borderColor: ui.colors.border,
     borderRadius: ui.radius.large,
     borderWidth: 1,
-    padding: 16,
-    ...ui.shadow
+    padding: 18,
+    shadowColor: ui.shadow.shadowColor,
+    shadowOffset: ui.shadow.shadowOffset,
+    shadowOpacity: ui.shadow.shadowOpacity,
+    shadowRadius: ui.shadow.shadowRadius
   },
   cardPressed: {
     opacity: 0.85
   },
   chevron: {
-    color: ui.colors.muted,
-    fontSize: 24,
-    fontWeight: "900",
+    color: ui.colors.faint,
+    fontSize: 20,
+    fontWeight: "600",
     marginLeft: 8
   },
   headerRow: {
@@ -132,17 +135,17 @@ export const styles = StyleSheet.create({
     flex: 1
   },
   meta: {
-    color: ui.colors.muted,
+    color: ui.colors.faint,
     fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 0.5,
+    fontWeight: "600",
+    letterSpacing: 0.3,
     textTransform: "uppercase"
   },
   title: {
     color: ui.colors.ink,
-    fontSize: 19,
-    fontWeight: "900",
-    lineHeight: 24,
-    marginTop: 4
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 21,
+    marginTop: 3
   }
 });

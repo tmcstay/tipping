@@ -11,7 +11,7 @@ type AppShellProps = PropsWithChildren<{
 }>;
 
 const navItems = [
-  { href: "/", icon: "⌂", label: "Dashboard" },
+  { href: "/", icon: "⌂", label: "Home" },
   { href: "/stages", icon: "✓", label: "Tips" },
   { href: "/leaderboard", icon: "#", label: "Leaders" },
   { href: "/results", icon: "◆", label: "Results" },
@@ -24,36 +24,32 @@ export function AppShell({ children, subtitle, title }: AppShellProps) {
   const theme = activeAppConfig.theme;
 
   return (
-    <View style={[styles.page, { backgroundColor: theme.backgroundColor }]}> 
+    <View style={[styles.page, { backgroundColor: theme.backgroundColor }]}>
       <View style={styles.header}>
         <View style={styles.headerInner}>
-        <Text style={styles.appName}>{activeAppConfig.appName}</Text>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          <Text style={styles.appName}>{activeAppConfig.appName}</Text>
+          <Text style={styles.title}>{title}</Text>
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}><View style={styles.contentInner}>{children}</View></ScrollView>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.contentInner}>{children}</View>
+      </ScrollView>
 
       <View style={styles.navWrap}>
         <View style={styles.nav}>
           {navItems.map((item) => {
-            const active =
-              item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 
             return (
               <Pressable
                 key={item.href}
                 onPress={() => router.push(item.href)}
-                style={[
-                  styles.navItem,
-                  active && { backgroundColor: theme.secondaryColor }
-                ]}
+                style={[styles.navItem, active && { backgroundColor: theme.secondaryColor }]}
               >
                 <Text style={[styles.navIcon, active && styles.navTextActive]}>{item.icon}</Text>
-                <Text style={[styles.navText, active && styles.navTextActive]}>
-                  {item.label}
-                </Text>
+                <Text style={[styles.navText, active && styles.navTextActive]}>{item.label}</Text>
               </Pressable>
             );
           })}
@@ -65,54 +61,56 @@ export function AppShell({ children, subtitle, title }: AppShellProps) {
 
 const styles = StyleSheet.create({
   appName: {
-    color: "#68746D",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 0.7,
+    color: ui.colors.faint,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.6,
     textTransform: "uppercase"
   },
   content: {
     alignItems: "center",
-    padding: 16,
-    paddingBottom: 104
+    padding: 20,
+    paddingBottom: 112
   },
-  contentInner: { gap: 14, maxWidth: 760, width: "100%" },
+  contentInner: { gap: 20, maxWidth: 720, width: "100%" },
   header: {
-    backgroundColor: ui.colors.surface,
-    borderBottomColor: ui.colors.border,
-    borderBottomWidth: 1,
-    padding: 16,
-    paddingTop: 30
+    backgroundColor: ui.colors.background,
+    paddingHorizontal: 20,
+    paddingTop: 28,
+    paddingBottom: 12
   },
-  headerInner: { alignSelf: "center", maxWidth: 760, width: "100%" },
+  headerInner: { alignSelf: "center", maxWidth: 720, width: "100%" },
   nav: {
     alignSelf: "center",
     backgroundColor: ui.colors.surface,
     borderColor: ui.colors.border,
-    borderRadius: 22,
+    borderRadius: 20,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 6,
+    gap: 4,
     padding: 6,
-    maxWidth: 760,
+    maxWidth: 720,
     width: "100%",
-    ...ui.shadow
+    shadowColor: ui.shadow.shadowColor,
+    shadowOffset: ui.shadow.shadowOffset,
+    shadowOpacity: 0.06,
+    shadowRadius: 12
   },
   navItem: {
     alignItems: "center",
-    borderRadius: 16,
+    borderRadius: 14,
     flex: 1,
     minHeight: 44,
     justifyContent: "center",
     paddingHorizontal: 4
   },
   navText: {
-    color: "#4D5A52",
+    color: ui.colors.muted,
     fontSize: 10,
-    fontWeight: "900",
+    fontWeight: "700",
     textAlign: "center"
   },
-  navIcon: { color: ui.colors.muted, fontSize: 15, fontWeight: "900", lineHeight: 17 },
+  navIcon: { color: ui.colors.muted, fontSize: 14, fontWeight: "700", lineHeight: 16 },
   navTextActive: {
     color: "#FFFFFF"
   },
@@ -128,16 +126,15 @@ const styles = StyleSheet.create({
     flex: 1
   },
   subtitle: {
-    color: "#536159",
-    fontSize: 15,
-    lineHeight: 21,
-    marginTop: 6
+    color: ui.colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4
   },
   title: {
-    color: "#12372A",
-    fontSize: 30,
-    fontWeight: "900",
-    letterSpacing: -0.7,
-    marginTop: 6
+    color: ui.colors.ink,
+    fontSize: 22,
+    fontWeight: "700",
+    marginTop: 4
   }
 });

@@ -5,60 +5,51 @@ import { ui } from "./theme";
 export type StageStatusTone = "open" | "closing_soon" | "closed" | "live" | "provisional" | "completed";
 
 export type StageStatusBadgeProps = {
-  tone: StageStatusTone;
+  /** Kept for callers that still track a semantic tone (e.g. for their own accessibility copy) - no longer drives this badge's colour, which is intentionally uniform. See the component doc comment. */
+  tone?: StageStatusTone;
   label: string;
-  /** High-emphasis rendering (e.g. <60m-remaining closing_soon, or live) - stronger colour + bold border. */
+  /** High-emphasis rendering (e.g. <60m-remaining closing_soon, or live) - the one place this badge uses the accent colour instead of neutral ink. */
   emphasis?: boolean;
 };
 
-const TONE_STYLES: Record<StageStatusTone, { background: string; text: string; border?: string }> = {
-  open: { background: ui.colors.primarySoft, text: ui.colors.primary },
-  closing_soon: { background: ui.colors.warningSoft, text: ui.colors.warning },
-  closed: { background: ui.colors.surfaceMuted, text: ui.colors.muted, border: ui.colors.border },
-  live: { background: ui.colors.danger, text: "#FFFFFF" },
-  provisional: { background: ui.colors.tttSoft, text: ui.colors.ttt },
-  completed: { background: ui.colors.primary, text: "#FFFFFF" }
-};
-
-/** Compact status pill used across the dashboard: Open / Closing soon / Closed / Live / Provisional / Completed. */
-export function StageStatusBadge({ emphasis, label, tone }: StageStatusBadgeProps) {
-  const toneStyle = TONE_STYLES[tone];
+/**
+ * One neutral chip style for every status - the previous version gave each
+ * tone its own background tint (a warm amber, a purple, a red, a full
+ * green fill), which read as decorative colour-coding rather than
+ * information. Now every badge is the same quiet neutral pill; only
+ * `emphasis` (a stage that's live, or closing within the hour) swaps in
+ * the single accent colour, so it still stands out without adding another
+ * hue to the palette.
+ */
+export function StageStatusBadge({ emphasis, label }: StageStatusBadgeProps) {
   return (
     <View
       accessibilityElementsHidden
-      style={[
-        styles.badge,
-        { backgroundColor: toneStyle.background },
-        toneStyle.border ? { borderColor: toneStyle.border, borderWidth: 1 } : null,
-        emphasis && styles.emphasis
-      ]}
+      style={[styles.badge, emphasis && styles.badgeEmphasis]}
     >
-      {tone === "closed" ? <Text style={[styles.lockIcon, { color: toneStyle.text }]}>🔒</Text> : null}
-      <Text style={[styles.text, { color: toneStyle.text }]}>{label}</Text>
+      <Text style={[styles.text, emphasis && styles.textEmphasis]}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   badge: {
-    alignItems: "center",
     alignSelf: "flex-start",
+    backgroundColor: ui.colors.surfaceMuted,
     borderRadius: ui.radius.pill,
-    flexDirection: "row",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5
+    paddingHorizontal: 9,
+    paddingVertical: 4
   },
-  emphasis: {
-    borderColor: ui.colors.danger,
-    borderWidth: 1.5
-  },
-  lockIcon: {
-    fontSize: 10
+  badgeEmphasis: {
+    backgroundColor: ui.colors.accentSoft
   },
   text: {
+    color: ui.colors.muted,
     fontSize: 11,
-    fontWeight: "900",
-    textTransform: "uppercase"
+    fontWeight: "600"
+  },
+  textEmphasis: {
+    color: ui.colors.accent,
+    fontWeight: "700"
   }
 });

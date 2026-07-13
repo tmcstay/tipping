@@ -5,13 +5,20 @@ import { ui } from "./theme";
 
 export type JerseyKind = "yellow" | "green" | "kom" | "white";
 
-const presentation: Record<JerseyKind, { label: string; color: string; text: string }> = {
-  yellow: { label: "Yellow", color: "#F2D43D", text: "#322B00" },
-  green: { label: "Green", color: "#299447", text: "#FFFFFF" },
-  kom: { label: "Polka Dot", color: "#FFF4F3", text: "#C63E37" },
-  white: { label: "White", color: "#FFFFFF", text: ui.colors.ink }
+/**
+ * Jersey colours are real, canonical information (the actual competition
+ * result), not decorative UI chrome - kept, but reduced to a small dot
+ * rather than a large coloured card, so they read as a label rather than a
+ * block of colour.
+ */
+const presentation: Record<JerseyKind, { label: string; dot: string; dotBorder?: string }> = {
+  yellow: { label: "Yellow", dot: "#F2D43D" },
+  green: { label: "Green", dot: "#299447" },
+  kom: { label: "Polka dot", dot: "#FFFFFF", dotBorder: "#C63E37" },
+  white: { label: "White", dot: "#FFFFFF", dotBorder: ui.colors.border }
 };
 
+/** A single compact row - "● Yellow  Rider Name  Team" - not a coloured card. */
 export function JerseyHolderCard({ jersey, riderName, teamName, href, accessibilityHint }: {
   jersey: JerseyKind;
   riderName?: string | null;
@@ -20,22 +27,27 @@ export function JerseyHolderCard({ jersey, riderName, teamName, href, accessibil
   accessibilityHint?: string;
 }) {
   const style = presentation[jersey];
+  // The flex-row layout lives on this inner View, never on the
+  // Pressable/Link root itself - when a Pressable is cloned by expo-router's
+  // <Link asChild> on web it can render as a real <a>, which does not
+  // reliably inherit React Native Web's implicit `display: flex` the way a
+  // plain View/Pressable does. Confirmed with a real browser: putting
+  // flexDirection directly on the Link-wrapped Pressable's style collapsed
+  // this row to stacked/vertical layout instead of the intended single line.
   const content = (
-    <>
-      <View style={styles.headerRow}>
-        <View style={[styles.jersey, { backgroundColor: style.color }]}>
-          <Text style={[styles.jerseyText, { color: style.text }]}>{jersey === "kom" ? "••" : style.label.slice(0, 1)}</Text>
-        </View>
-        {href ? <Text style={styles.chevron} accessibilityElementsHidden>›</Text> : null}
-      </View>
+    <View style={styles.rowInner}>
+      <View style={[styles.dot, { backgroundColor: style.dot }, style.dotBorder ? { borderColor: style.dotBorder, borderWidth: 1 } : null]} />
       <Text style={styles.label}>{style.label}</Text>
-      <Text numberOfLines={2} style={riderName ? styles.rider : styles.pending}>{riderName ?? "Pending"}</Text>
-      {teamName ? <Text numberOfLines={1} style={styles.team}>{teamName}</Text> : null}
-    </>
+      <View style={styles.riderColumn}>
+        <Text numberOfLines={1} style={riderName ? styles.rider : styles.pending}>{riderName ?? "Pending"}</Text>
+        {teamName ? <Text numberOfLines={1} style={styles.team}>{teamName}</Text> : null}
+      </View>
+      {href ? <Text style={styles.chevron} accessibilityElementsHidden>›</Text> : null}
+    </View>
   );
 
   if (!href) {
-    return <View style={styles.card}>{content}</View>;
+    return <View style={styles.row}>{content}</View>;
   }
 
   const pressable = (
@@ -43,7 +55,7 @@ export function JerseyHolderCard({ jersey, riderName, teamName, href, accessibil
       accessibilityHint={accessibilityHint}
       accessibilityLabel={`${style.label} jersey, ${riderName ?? "pending"}${teamName ? `, ${teamName}` : ""}`}
       accessibilityRole="button"
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
       {content}
     </Pressable>
@@ -57,14 +69,14 @@ export function JerseyHolderCard({ jersey, riderName, teamName, href, accessibil
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: ui.colors.surfaceMuted, borderColor: ui.colors.border, borderRadius: ui.radius.medium, borderWidth: 1, flexBasis: "47%", flexGrow: 1, minHeight: 142, padding: 12 },
-  cardPressed: { opacity: 0.85 },
-  chevron: { color: ui.colors.muted, fontSize: 16, fontWeight: "900" },
-  headerRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  jersey: { alignItems: "center", borderColor: ui.colors.border, borderRadius: 9, borderWidth: 1, height: 38, justifyContent: "center", width: 31 },
-  jerseyText: { fontSize: 13, fontWeight: "900", letterSpacing: -1 },
-  label: { color: ui.colors.muted, fontSize: 11, fontWeight: "900", marginTop: 9, textTransform: "uppercase" },
-  pending: { color: ui.colors.muted, fontSize: 14, fontWeight: "800", marginTop: 4 },
-  rider: { color: ui.colors.ink, fontSize: 14, fontWeight: "900", lineHeight: 18, marginTop: 4 },
-  team: { color: ui.colors.muted, fontSize: 11, marginTop: 3 }
+  chevron: { color: ui.colors.faint, fontSize: 16, fontWeight: "600" },
+  dot: { borderRadius: 6, height: 12, width: 12 },
+  label: { color: ui.colors.muted, fontSize: 12, fontWeight: "600", width: 66 },
+  pending: { color: ui.colors.faint, fontSize: 13, fontWeight: "500" },
+  rider: { color: ui.colors.ink, fontSize: 13, fontWeight: "600" },
+  riderColumn: { flex: 1 },
+  row: { justifyContent: "center", minHeight: 38 },
+  rowInner: { alignItems: "center", flexDirection: "row", gap: 10 },
+  rowPressed: { opacity: 0.6 },
+  team: { color: ui.colors.faint, fontSize: 11, marginTop: 1 }
 });

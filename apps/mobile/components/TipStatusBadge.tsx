@@ -1,6 +1,8 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { GrandTourTipStatus } from "@tipping-suite/shared-types";
 
+import { ui } from "./theme";
+
 export type TipDisplayStatus = GrandTourTipStatus | "not_started" | "missed" | "voided" | "corrected";
 
 const labels: Record<TipDisplayStatus, string> = {
@@ -17,15 +19,14 @@ const labels: Record<TipDisplayStatus, string> = {
 
 export function TipStatusBadge({ status }: { status: TipDisplayStatus }) {
   return (
-    <View style={[styles.badge, status === "draft" && styles.warning, ["missed", "voided"].includes(status) && styles.danger]}>
-      <Text style={styles.text}>{labels[status]}</Text>
+    <View style={styles.badge}>
+      <Text style={[styles.text, ["missed", "voided"].includes(status) && styles.textMuted]}>{labels[status]}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  badge: { alignSelf: "flex-start", backgroundColor: "#DCE9E1", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  danger: { backgroundColor: "#F6D8D6" },
-  text: { color: "#173A2D", fontSize: 12, fontWeight: "800", textTransform: "uppercase" },
-  warning: { backgroundColor: "#FBE8B8" }
+  badge: { alignSelf: "flex-start", backgroundColor: ui.colors.surfaceMuted, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
+  text: { color: ui.colors.ink, fontSize: 11, fontWeight: "600" },
+  textMuted: { color: ui.colors.muted }
 });

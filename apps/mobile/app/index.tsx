@@ -1,18 +1,14 @@
-import { isStageEligibleForResults, resolveCyclingStageClosureState, selectLatestEligibleStage } from "@tipping-suite/tipping-core";
-import { Redirect, useRouter } from "expo-router";
+import { resolveCyclingStageClosureState, selectLatestEligibleStage } from "@tipping-suite/tipping-core";
+import { Link, Redirect } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { CyclingStage, CyclingStageResult } from "@tipping-suite/supabase-client";
 
 import { useAuth } from "../auth/useAuth";
 import { AppShell } from "../components/AppShell";
-import { DashboardStatCard } from "../components/DashboardStatCard";
-import { EmptyState, ErrorState, SkeletonCard, SkeletonStatGrid } from "../components/DataState";
+import { EmptyState, ErrorState, SkeletonCard } from "../components/DataState";
 import { InfoCard } from "../components/InfoCard";
 import { JerseyHolderCard, type JerseyKind } from "../components/JerseyHolderCard";
-import { LockCountdownCard } from "../components/LockCountdownCard";
 import { StageStatusBadge } from "../components/StageStatusBadge";
-import { StageTypeBadge } from "../components/StageTypeBadge";
-import { TipStatusBadge, type TipDisplayStatus } from "../components/TipStatusBadge";
 import { ui } from "../components/theme";
 import {
   useCyclingCompetition,
@@ -21,11 +17,10 @@ import {
   useTdf2026Stages
 } from "../hooks/useCyclingData";
 import { useStageTipDraft } from "../hooks/useGrandTourTips";
-import { formatDateTime, formatShortDate } from "../lib/formatters";
+import { formatDateTime } from "../lib/formatters";
 import { getStageTipExperience } from "../lib/stageExperience";
 import {
   buildClosureDisplay,
-  buildHistoryStatCardLink,
   buildJerseyDashboardCardLink,
   buildLeaderboardDashboardCardLink,
   buildRankStatCardLink,
@@ -34,13 +29,6 @@ import {
 } from "../lib/stageClosureExperience";
 
 const jerseyOrder: JerseyKind[] = ["yellow", "green", "kom", "white"];
-
-function resolveTipStatus(status: string | undefined | null, locked: boolean): TipDisplayStatus {
-  if (status && ["draft", "submitted", "locked", "scored", "corrected", "voided", "deleted"].includes(status)) {
-    return status as TipDisplayStatus;
-  }
-  return locked ? "missed" : "not_started";
-}
 
 function getStageWinnerName(result: CyclingStageResult | null | undefined): string | null {
   if (!result) return null;
@@ -51,6 +39,11 @@ function getStageWinnerName(result: CyclingStageResult | null | undefined): stri
   );
 }
 
+function firstName(displayName: string | null | undefined): string {
+  if (!displayName) return "there";
+  return displayName.trim().split(/\s+/)[0] ?? "there";
+}
+
 type StageClosure = {
   stage: CyclingStage;
   result: CyclingStageResult | null;
@@ -59,20 +52,11 @@ type StageClosure = {
 };
 
 /**
- * "/" is now owned by exactly one screen (this one), registered
+ * "/" is owned by exactly one screen (this one), registered
  * unconditionally in app/_layout.tsx - never inside a Stack.Protected
- * group. Previously both this screen (guard={Boolean(user)...}) and
- * app/(auth)/index.tsx (guard={!user...}) were registered for the exact
- * same bare path "/" (route groups like "(auth)" don't add a URL segment),
- * differentiated only by which guard was active. In production that dual
- * registration produced a tight, permanent client-side navigation loop at
- * "/" - confirmed with a real browser (Playwright): "/login" (a single,
- * unambiguous path) loaded cleanly, while "/" fired hundreds of same-URL
- * history navigations per second and never settled. Fixed by removing the
- * ambiguity entirely: this screen alone decides what "/" shows, using a
- * declarative <Redirect> (not an imperative router.replace() call, which
- * has its own known Expo Router timing hazard - see AuthCallbackScreen.tsx)
- * when there's no authenticated session.
+ * group. See the git history for why (a duplicate "/" registration
+ * between this screen and the now-removed app/(auth)/index.tsx produced a
+ * real production navigation loop).
  */
 export default function HomeScreen() {
   const { isPasswordRecovery, user } = useAuth();
@@ -82,9 +66,18 @@ export default function HomeScreen() {
   return <AuthenticatedDashboard />;
 }
 
+/**
+ * Visual redesign (functionally unchanged from the previous dashboard -
+ * same data, same navigation targets, same closure/eligibility logic):
+ * user-centric hierarchy over event-centric. Every screen answers "how am
+ * I doing" (a plain-text rank/points header, no card chrome) and "what
+ * should I do next" (one action card) BEFORE any race/stage information,
+ * which is now compact secondary content rather than a stack of
+ * full-width cards. One accent colour throughout; card count on this
+ * screen dropped from 8 to 3.
+ */
 function AuthenticatedDashboard() {
-  const router = useRouter();
-  const { user } = useAuth();
+  const { profile, user } = useAuth();
   const { race, stages } = useTdf2026Stages();
   const competition = useCyclingCompetition(race.data?.id);
   const results = useCyclingStageResults(race.data?.id);
@@ -107,18 +100,18 @@ function AuthenticatedDashboard() {
     return { stage, result, isFinal, closureState };
   });
 
-  // Position 1/2: whichever needs the user's attention first - the soonest
-  // stage still open (or closing soon) for tipping, or (if none are open)
-  // a stage that's actually live right now.
+  // The stage that most needs the user's attention: the soonest stage
+  // still open (or closing soon) for tipping, or (if none are open) a
+  // stage that's actually live right now.
   const actionCandidates = stagesWithClosure
     .filter((entry) => entry.closureState === "open" || entry.closureState === "closing_soon")
     .sort((a, b) => new Date(a.stage.starts_at).getTime() - new Date(b.stage.starts_at).getTime());
   const liveCandidates = stagesWithClosure.filter((entry) => entry.closureState === "live");
   const hero = actionCandidates[0] ?? liveCandidates[0] ?? null;
 
-  // Position 3: the latest result-eligible stage, via the shared,
-  // deterministic tipping-core selector - never a future stage, never a
-  // stage row treated as a result merely because it exists.
+  // The latest result-eligible stage, via the shared, deterministic
+  // tipping-core selector - never a future stage, never a stage row
+  // treated as a result merely because it exists.
   const eligibilityCandidates = (stages.data ?? []).map((stage) => ({
     stageId: stage.id,
     stageNumber: stage.stage_number,
@@ -136,26 +129,6 @@ function AuthenticatedDashboard() {
   const leader = leaderboard.data?.[0] ?? null;
   const me = leaderboard.data?.find((row) => row.user_id === user?.id) ?? null;
 
-  // Position 5: upcoming stages, excluding whatever is already shown as
-  // the hero so the same stage never appears twice on the first screen.
-  const upcomingStages = stagesWithClosure
-    .filter((entry) => new Date(entry.stage.starts_at).getTime() > now.getTime() && entry.stage.id !== hero?.stage.id)
-    .sort((a, b) => new Date(a.stage.starts_at).getTime() - new Date(b.stage.starts_at).getTime())
-    .slice(0, 3);
-
-  // Position 6: recent results, excluding the one already shown as
-  // "latest completed stage" above - same eligibility rule, just the next
-  // few instead of only the most recent.
-  const recentResults = eligibilityCandidates
-    .filter((candidate) => candidate.isFinal && candidate.stageId !== latestStage?.id && isStageEligibleForResults(candidate, now))
-    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())
-    .slice(0, 3)
-    .map((candidate) => ({
-      stage: stages.data?.find((s) => s.id === candidate.stageId) ?? null,
-      result: results.data?.find((r) => r.stage_id === candidate.stageId) ?? null
-    }))
-    .filter((entry): entry is { stage: CyclingStage; result: CyclingStageResult } => Boolean(entry.stage && entry.result));
-
   const heroDisplay = hero
     ? buildClosureDisplay({
         state: hero.closureState,
@@ -167,7 +140,6 @@ function AuthenticatedDashboard() {
       })
     : null;
   const heroExperience = hero ? getStageTipExperience(hero.stage.stage_type) : null;
-  const heroDisplayStatus = hero ? resolveTipStatus(currentTip.data?.status, !(heroDisplay?.editable ?? false)) : "not_started";
   const heroLink = hero
     ? buildStageDashboardCardLink({
         stageId: hero.stage.id,
@@ -194,15 +166,14 @@ function AuthenticatedDashboard() {
     : null;
   const leaderboardLink = buildLeaderboardDashboardCardLink(competition.data?.name ?? null);
   const rankLink = buildRankStatCardLink();
-  const historyLink = buildHistoryStatCardLink();
 
   return (
-    <AppShell title="Dashboard" subtitle="Your race day, tips, and league — all in one place.">
+    <AppShell title={`Hi ${firstName(profile?.display_name)}`}>
       {initialLoading ? (
         <>
+          <SkeletonCard lines={1} />
           <SkeletonCard lines={4} />
-          <SkeletonStatGrid />
-          <SkeletonCard lines={2} />
+          <SkeletonCard lines={5} />
         </>
       ) : null}
 
@@ -210,30 +181,42 @@ function AuthenticatedDashboard() {
 
       {!initialLoading && !initialError ? (
         <>
-          {/* Position 1/2: action required, or live */}
+          {/* "How am I doing?" - plain text, no card chrome. */}
+          <Link asChild href={rankLink.href}>
+            <Pressable
+              accessibilityHint={rankLink.accessibilityHint}
+              accessibilityLabel={me ? `Your position: rank ${me.rank} of ${leaderboard.data?.length ?? 0}, ${me.total_score} points` : "Your position, not yet scored"}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.statusHeader, pressed && styles.statusHeaderPressed]}
+            >
+              <View style={styles.statusRow}>
+                <View>
+                  <Text style={styles.statusValue}>{me ? `#${me.rank}` : "-"}</Text>
+                  <Text style={styles.statusLabel}>Your rank</Text>
+                </View>
+                <View style={styles.statusDivider} />
+                <View>
+                  <Text style={styles.statusValue}>{me ? me.total_score : "-"}</Text>
+                  <Text style={styles.statusLabel}>Points</Text>
+                </View>
+              </View>
+            </Pressable>
+          </Link>
+
+          {/* "What should I do next?" - the one action card. */}
           {hero && heroDisplay && heroExperience && heroLink ? (
             <InfoCard
               accent
               accessibilityHint={heroLink.accessibilityHint}
               accessibilityLabel={heroLink.accessibilityLabel}
               href={heroLink.href}
-              meta={formatShortDate(hero.stage.starts_at)}
-              title={`Stage ${hero.stage.stage_number}: ${hero.stage.start_location ?? "TBC"} → ${hero.stage.finish_location ?? "TBC"}`}
+              meta={`Stage ${hero.stage.stage_number}${heroExperience.isTtt ? " · Team time trial" : ""}`}
+              title={`${hero.stage.start_location ?? "TBC"} → ${hero.stage.finish_location ?? "TBC"}`}
             >
-              <View style={styles.heroTopRow}>
-                <StageTypeBadge stageType={hero.stage.stage_type} />
-                <Text style={styles.heroDistance}>{hero.stage.distance_km ? `${hero.stage.distance_km} km` : "Distance TBC"}</Text>
-              </View>
-              {heroExperience.isTtt ? (
-                <View style={styles.tttBanner}>
-                  <Text style={styles.tttText}>Team Time Trial — pick teams for the stage result</Text>
-                </View>
-              ) : null}
               <View style={styles.heroStatusRow}>
                 <StageStatusBadge emphasis={heroDisplay.emphasis} label={heroDisplay.badgeLabel} tone={hero.closureState} />
-                <TipStatusBadge status={heroDisplayStatus} />
+                <Text style={[styles.heroClosure, heroDisplay.emphasis && styles.heroClosureEmphasis]}>{heroDisplay.primaryLabel}</Text>
               </View>
-              <Text style={[styles.heroClosure, heroDisplay.emphasis && styles.heroClosureEmphasis]}>{heroDisplay.primaryLabel}</Text>
               {heroDisplay.editable ? (
                 <Text style={styles.heroProgress}>
                   {buildSelectionProgressLabel(currentTip.data?.selections?.length ?? 0)}
@@ -245,80 +228,41 @@ function AuthenticatedDashboard() {
             </InfoCard>
           ) : (
             <EmptyState
-              title="No active stage right now"
-              message="There's nothing to tip at the moment — check back closer to the next stage."
+              title="Nothing to do right now"
+              message="You're all caught up - check back closer to the next stage."
             />
           )}
 
-          {hero ? (
-            <LockCountdownCard
-              isFinal={hero.isFinal}
-              locksAt={hero.stage.locks_at}
-              manualLockedAt={hero.stage.manual_locked_at}
-              startsAt={hero.stage.starts_at}
-            />
-          ) : null}
+          {/* Secondary: competition context, compact. A plain container -
+              each row below is its own independent link (never nested
+              inside another Pressable/Link), since they navigate to
+              genuinely different destinations. */}
+          <InfoCard meta={competition.data?.name ?? "Overall"} title="Competition">
+            {latestStage && latestResult && latestResultLink ? (
+              <Link asChild href={latestResultLink.href}>
+                <Pressable
+                  accessibilityHint={latestResultLink.accessibilityHint}
+                  accessibilityLabel={latestResultLink.accessibilityLabel}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.summaryRow, pressed && styles.raceLinkRowPressed]}
+                >
+                  <View style={styles.summaryRowInner}>
+                    <View style={styles.summaryTextColumn}>
+                      <Text style={styles.summaryLabel}>Stage {latestStage.stage_number} result</Text>
+                      <Text style={styles.summaryValue}>{getStageWinnerName(latestResult) ?? "Pending"}</Text>
+                    </View>
+                    <Text style={styles.summaryMeta}>
+                      {latestTip.data?.score ? `+${latestTip.data.score.total_score} pts` : "Pending"}
+                    </Text>
+                  </View>
+                </Pressable>
+              </Link>
+            ) : null}
 
-          {/* Position 3: latest completed stage */}
-          <InfoCard
-            accessibilityHint={latestResultLink?.accessibilityHint}
-            accessibilityLabel={latestResultLink?.accessibilityLabel}
-            href={latestResultLink?.href}
-            meta={latestStage ? `Stage ${latestStage.stage_number}` : "No result yet"}
-            title="Latest result"
-          >
-            {latestStage && latestResult ? (
-              <>
-                <View style={styles.resultTopRow}>
-                  <StageTypeBadge stageType={latestStage.stage_type} />
-                  <StageStatusBadge label="Completed" tone="completed" />
-                </View>
-                <Text style={styles.resultLabel}>{getStageTipExperience(latestStage.stage_type).isTtt ? "Winning team" : "Stage winner"}</Text>
-                <Text style={styles.resultWinner}>{getStageWinnerName(latestResult) ?? "Pending"}</Text>
-                <Text style={styles.resultPoints}>{latestTip.data?.score ? `You scored ${latestTip.data.score.total_score} points` : "Your score is pending"}</Text>
-              </>
-            ) : (
-              <Text style={styles.copy}>No official stage results are available yet.</Text>
-            )}
-          </InfoCard>
-
-          {/* Position 4: user competition summary */}
-          {leaderboard.loading ? (
-            <SkeletonStatGrid />
-          ) : (
-            <View style={styles.statGrid}>
-              <DashboardStatCard
-                accessibilityHint={rankLink.accessibilityHint}
-                accessibilityLabel={me ? `Your position: rank ${me.rank}` : rankLink.accessibilityLabel}
-                helper={me ? `${me.total_score} points` : "Appears after scoring"}
-                href={rankLink.href}
-                label="My position"
-                value={me ? `#${me.rank}` : "—"}
-              />
-              <DashboardStatCard
-                accessibilityHint={rankLink.accessibilityHint}
-                accessibilityLabel="Points behind the leader"
-                helper="points"
-                href={rankLink.href}
-                label="Behind leader"
-                value={me && leader ? `${Math.max(0, leader.total_score - me.total_score)}` : "—"}
-              />
-              <DashboardStatCard
-                accessibilityHint={historyLink.accessibilityHint}
-                accessibilityLabel={historyLink.accessibilityLabel}
-                helper="points scored"
-                href={historyLink.href}
-                label="Last stage"
-                value={latestTip.data?.score ? `+${latestTip.data.score.total_score}` : "—"}
-              />
-            </View>
-          )}
-
-          <InfoCard title="Current jersey holders" meta={latestStage ? `After stage ${latestStage.stage_number}` : "Awaiting results"}>
-            <View style={styles.jerseyGrid}>
+            <View style={styles.jerseyList}>
               {jerseyOrder.map((jersey) => {
                 const rider = latestResult?.jerseyResults.find((entry) => entry.jersey_type === jersey)?.rider;
-                const jerseyLink = buildJerseyDashboardCardLink(jersey === "kom" ? "Polka Dot" : jersey.charAt(0).toUpperCase() + jersey.slice(1));
+                const jerseyLink = buildJerseyDashboardCardLink(jersey === "kom" ? "Polka dot" : jersey.charAt(0).toUpperCase() + jersey.slice(1));
                 return (
                   <JerseyHolderCard
                     accessibilityHint={jerseyLink.accessibilityHint}
@@ -331,80 +275,55 @@ function AuthenticatedDashboard() {
                 );
               })}
             </View>
-          </InfoCard>
 
-          <InfoCard
-            accessibilityHint={leaderboardLink.accessibilityHint}
-            accessibilityLabel={leaderboardLink.accessibilityLabel}
-            href={leaderboardLink.href}
-            meta={competition.data?.name ?? "Overall"}
-            title="Mini leaderboard"
-          >
-            {leaderboard.loading ? null : leaderboard.data?.slice(0, 5).map((row) => {
-              const currentUser = row.user_id === user?.id;
-              return (
-                <View key={row.id} style={[styles.leaderRow, currentUser && styles.currentUserRow]}>
-                  <View style={styles.rankBubble}><Text style={styles.rankText}>{row.rank}</Text></View>
-                  <View style={styles.leaderCopy}>
-                    <Text style={styles.leaderName}>{row.display_name}{currentUser ? " (You)" : ""}</Text>
-                    <Text style={styles.leaderMeta}>{row.stages_tipped} stages tipped</Text>
+            {leaderboard.data?.length ? (
+              <Link asChild href={leaderboardLink.href}>
+                <Pressable
+                  accessibilityHint={leaderboardLink.accessibilityHint}
+                  accessibilityLabel={leaderboardLink.accessibilityLabel}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.raceLinkRow, styles.summaryFooterRow, pressed && styles.raceLinkRowPressed]}
+                >
+                  <View style={styles.raceLinkRowInner}>
+                    <Text style={styles.summaryFooter}>
+                      {me ? `You're #${me.rank} of ${leaderboard.data.length}` : `${leader?.display_name ?? "Leader"} is #1 with ${leader?.total_score ?? 0} pts`}
+                    </Text>
+                    <Text style={styles.chevron}>›</Text>
                   </View>
-                  <Text style={styles.leaderPoints}>{row.total_score}</Text>
-                </View>
-              );
-            })}
-            {!leaderboard.loading && !leaderboard.error && !leaderboard.data?.length ? (
-              <Text style={styles.copy}>Leaderboard appears after the first scoring run.</Text>
+                </Pressable>
+              </Link>
             ) : null}
           </InfoCard>
 
-          {/* Position 5: upcoming stages */}
-          <InfoCard title="Upcoming stages" meta="Next on the road">
-            {upcomingStages.length === 0 ? (
-              <Text style={styles.copy}>No further stages are scheduled right now.</Text>
-            ) : (
-              upcomingStages.map(({ stage: candidate }) => (
-                <Pressable
-                  accessibilityHint="Double tap to view this stage"
-                  accessibilityLabel={`Stage ${candidate.stage_number}, ${candidate.start_location ?? "TBC"} to ${candidate.finish_location ?? "TBC"}, ${formatShortDate(candidate.starts_at)}`}
-                  accessibilityRole="button"
-                  key={candidate.id}
-                  onPress={() => router.push(`/stages/${candidate.id}`)}
-                  style={({ pressed }) => [styles.upcomingRow, pressed && styles.rowPressed]}
-                >
-                  <View style={styles.stageNumber}><Text style={styles.stageNumberText}>{candidate.stage_number}</Text></View>
-                  <View style={styles.leaderCopy}>
-                    <Text style={styles.leaderName}>{candidate.start_location ?? "TBC"} → {candidate.finish_location ?? "TBC"}</Text>
-                    <Text style={styles.leaderMeta}>{formatShortDate(candidate.starts_at)}</Text>
-                  </View>
+          {/* Race information: secondary navigation, not the focus. */}
+          <View style={styles.raceLinks}>
+            <Link asChild href="/stages">
+              <Pressable
+                accessibilityHint="Double tap to view the stage schedule"
+                accessibilityLabel="Race schedule"
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.raceLinkRow, pressed && styles.raceLinkRowPressed]}
+              >
+                <View style={styles.raceLinkRowInner}>
+                  <Text style={styles.raceLinkText}>Race schedule</Text>
                   <Text style={styles.chevron}>›</Text>
-                </Pressable>
-              ))
-            )}
-          </InfoCard>
-
-          {/* Position 6: recent results */}
-          <InfoCard
-            accessibilityHint="Double tap to view all stage results"
-            accessibilityLabel="Recent results"
-            href="/results"
-            meta="Recently finished"
-            title="Recent results"
-          >
-            {recentResults.length === 0 ? (
-              <Text style={styles.copy}>No other stage results are available yet.</Text>
-            ) : (
-              recentResults.map(({ stage: pastStage, result: pastResult }) => (
-                <View key={pastStage.id} style={styles.recentResultRow}>
-                  <View style={styles.stageNumber}><Text style={styles.stageNumberText}>{pastStage.stage_number}</Text></View>
-                  <View style={styles.leaderCopy}>
-                    <Text style={styles.leaderName}>{getStageWinnerName(pastResult) ?? "Pending"}</Text>
-                    <Text style={styles.leaderMeta}>{formatShortDate(pastStage.starts_at)}</Text>
-                  </View>
                 </View>
-              ))
-            )}
-          </InfoCard>
+              </Pressable>
+            </Link>
+            <Link asChild href="/results">
+              <Pressable
+                accessibilityHint="Double tap to view all stage results"
+                accessibilityLabel="All results"
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.raceLinkRow, pressed && styles.raceLinkRowPressed]}
+              >
+                <View style={styles.raceLinkRowInner}>
+                  <Text style={styles.raceLinkText}>All results</Text>
+                  <Text style={styles.chevron}>›</Text>
+                </View>
+              </Pressable>
+            </Link>
+          </View>
         </>
       ) : null}
 
@@ -414,38 +333,34 @@ function AuthenticatedDashboard() {
 }
 
 const styles = StyleSheet.create({
-  chevron: { color: ui.colors.muted, fontSize: 26 },
-  copy: { color: ui.colors.muted, fontSize: 14, lineHeight: 20 },
-  currentUserRow: { backgroundColor: ui.colors.primarySoft, borderRadius: ui.radius.small, paddingHorizontal: 8 },
-  disclaimer: { color: ui.colors.muted, fontSize: 12, lineHeight: 18, textAlign: "center" },
-  heroButton: { alignItems: "center", backgroundColor: ui.colors.accent, borderRadius: ui.radius.medium, justifyContent: "center", minHeight: 54, marginTop: 4, paddingHorizontal: 16 },
+  chevron: { color: ui.colors.faint, fontSize: 18, fontWeight: "600" },
+  disclaimer: { color: ui.colors.faint, fontSize: 11, lineHeight: 16, textAlign: "center" },
+  heroButton: { alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: ui.radius.medium, justifyContent: "center", minHeight: 48, marginTop: 6, paddingHorizontal: 16 },
   heroButtonSecondary: { backgroundColor: "rgba(255,255,255,0.14)" },
-  heroButtonText: { color: ui.colors.primary, fontSize: 16, fontWeight: "900" },
+  heroButtonText: { color: ui.colors.primary, fontSize: 15, fontWeight: "700" },
   heroButtonTextSecondary: { color: "#FFFFFF" },
-  heroClosure: { color: "#E7F1EA", fontSize: 14, fontWeight: "800" },
-  heroClosureEmphasis: { color: "#FFD9D6" },
-  heroDistance: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" },
-  heroProgress: { color: "#C9E3D3", fontSize: 12, fontWeight: "700" },
-  heroStatusRow: { alignItems: "center", flexDirection: "row", gap: 10 },
-  heroTopRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  jerseyGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  leaderCopy: { flex: 1 },
-  leaderMeta: { color: ui.colors.muted, fontSize: 12, marginTop: 2 },
-  leaderName: { color: ui.colors.ink, fontSize: 14, fontWeight: "900" },
-  leaderPoints: { color: ui.colors.primary, fontSize: 18, fontWeight: "900" },
-  leaderRow: { alignItems: "center", flexDirection: "row", gap: 10, minHeight: 48 },
-  rankBubble: { alignItems: "center", backgroundColor: ui.colors.primarySoft, borderRadius: 18, height: 36, justifyContent: "center", width: 36 },
-  rankText: { color: ui.colors.primary, fontWeight: "900" },
-  recentResultRow: { alignItems: "center", flexDirection: "row", gap: 10, minHeight: 48 },
-  resultLabel: { color: ui.colors.muted, fontSize: 11, fontWeight: "900", textTransform: "uppercase" },
-  resultPoints: { color: ui.colors.success, fontSize: 13, fontWeight: "800" },
-  resultTopRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  resultWinner: { color: ui.colors.primary, fontSize: 22, fontWeight: "900" },
-  rowPressed: { opacity: 0.7 },
-  stageNumber: { alignItems: "center", backgroundColor: ui.colors.primary, borderRadius: 12, height: 40, justifyContent: "center", width: 40 },
-  stageNumberText: { color: "#FFFFFF", fontWeight: "900" },
-  statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  tttBanner: { alignSelf: "flex-start", backgroundColor: ui.colors.tttSoft, borderRadius: ui.radius.pill, paddingHorizontal: 11, paddingVertical: 7 },
-  tttText: { color: ui.colors.ttt, fontSize: 12, fontWeight: "900" },
-  upcomingRow: { alignItems: "center", borderBottomColor: ui.colors.border, borderBottomWidth: 1, flexDirection: "row", gap: 10, minHeight: 58 }
+  heroClosure: { color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "600" },
+  heroClosureEmphasis: { color: "#FFFFFF", fontWeight: "700" },
+  heroProgress: { color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 6 },
+  heroStatusRow: { alignItems: "center", flexDirection: "row", gap: 8 },
+  jerseyList: { gap: 2, marginTop: 4 },
+  raceLinkRow: { justifyContent: "center", minHeight: 44, paddingHorizontal: 4 },
+  raceLinkRowInner: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
+  raceLinkRowPressed: { opacity: 0.6 },
+  raceLinkText: { color: ui.colors.ink, fontSize: 14, fontWeight: "500" },
+  raceLinks: { gap: 0 },
+  statusDivider: { backgroundColor: ui.colors.border, height: 32, width: 1 },
+  statusHeader: { paddingHorizontal: 4, paddingVertical: 4 },
+  statusHeaderPressed: { opacity: 0.7 },
+  statusLabel: { color: ui.colors.muted, fontSize: 12, fontWeight: "500", marginTop: 2 },
+  statusRow: { alignItems: "center", flexDirection: "row", gap: 24 },
+  statusValue: { color: ui.colors.ink, fontSize: 34, fontWeight: "700", letterSpacing: -0.5 },
+  summaryFooter: { color: ui.colors.muted, fontSize: 12 },
+  summaryFooterRow: { marginTop: 8, minHeight: 32, paddingHorizontal: 0 },
+  summaryLabel: { color: ui.colors.faint, fontSize: 11, fontWeight: "600", textTransform: "uppercase" },
+  summaryMeta: { color: ui.colors.muted, fontSize: 13, fontWeight: "600" },
+  summaryRow: { borderBottomColor: ui.colors.border, borderBottomWidth: 1, justifyContent: "center", minHeight: 44, paddingBottom: 10, marginBottom: 6 },
+  summaryRowInner: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
+  summaryTextColumn: { flex: 1 },
+  summaryValue: { color: ui.colors.ink, fontSize: 14, fontWeight: "600", marginTop: 2 }
 });
