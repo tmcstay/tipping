@@ -1,6 +1,6 @@
 import { getSupabaseClient } from "@tipping-suite/supabase-client";
-import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { Redirect, useLocalSearchParams, usePathname } from "expo-router";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 
 import { useAuth } from "../auth/useAuth";
@@ -28,7 +28,7 @@ const SESSION_PROPAGATION_TIMEOUT_MS = 5000;
 type ScreenState =
   | { status: "working" }
   | { status: "awaiting_session" }
-  | { status: "redirecting" }
+  | { status: "redirecting"; destination: string }
   | { status: "error"; message: string };
 
 /**
@@ -42,25 +42,33 @@ type ScreenState =
  * and no race between "automatic" and "explicit" handling of the same
  * one-time-use code.
  *
- * Two production bugs, both fixed here:
+ * Three production bugs, all fixed here:
  *
- * 1. **Competing redirects.** A successful exchange makes AuthProvider's
+ * 1. **"Attempted to navigate before mounting the Root Layout component."**
+ *    A real, reproducible error (confirmed with a headless browser against
+ *    production): an imperative `router.replace(...)` call inside a
+ *    `useEffect` that can fire on this screen's very first mount (the
+ *    `redirect_home` case - no callback params at all) raced Expo Router's
+ *    own navigator-ready timing. This screen now never calls
+ *    `router.replace` imperatively - it sets `{status: "redirecting",
+ *    destination}` and renders a declarative `<Redirect href={destination}
+ *    />` instead, which is Expo Router's own documented-safe mechanism for
+ *    exactly this "redirect once ready" situation.
+ * 2. **Competing redirects.** A successful exchange makes AuthProvider's
  *    session update, which flips the root `Stack.Protected` guards
  *    (app/_layout.tsx) - and per Expo Router's own docs, a guard flip
  *    mutates navigation history and can redirect on its own, at the same
- *    moment this screen's own `router.replace` was about to fire. Two
- *    independent things deciding "where to go next" at once produced the
- *    reported flashing/looping. Fixed by making this screen the single
- *    owner of the decision: after a successful exchange it moves to
- *    "awaiting_session" and only calls `router.replace` once `useAuth()`'s
- *    `user` has actually caught up (bounded by
- *    SESSION_PROPAGATION_TIMEOUT_MS as a fallback) - by the time we
- *    navigate, the guard has already settled, so there's nothing left to
- *    race.
- * 2. **Remount re-triggering the exchange.** If this screen is remounted
+ *    moment this screen's own redirect was about to fire. Fixed by making
+ *    this screen the single owner of the decision: after a successful
+ *    exchange it moves to "awaiting_session" and only renders its own
+ *    `<Redirect>` once `useAuth()`'s `user` has actually caught up
+ *    (bounded by SESSION_PROPAGATION_TIMEOUT_MS as a fallback) - by the
+ *    time it redirects, the guard has already settled, so there's nothing
+ *    left to race.
+ * 3. **Remount re-triggering the exchange.** If this screen is remounted
  *    while an exchange is in flight (the guard flip above forcing a
  *    remount, or React Strict Mode's dev double-invoke), a fresh
- *    `handledRef` would previously start a *second* exchange call against
+ *    per-mount ref would previously start a *second* exchange call against
  *    the same, now-being-or-already-consumed one-time-use code, which
  *    fails and can strand the flow in an error/spinner cycle. Fixed with a
  *    module-level (not component-state) in-flight/completed registry keyed
@@ -80,7 +88,6 @@ type FlowResult = { error: string | null };
 const flowRegistry = new Map<string, Promise<FlowResult>>();
 
 export function AuthCallbackScreen() {
-  const router = useRouter();
   const pathname = usePathname();
   const { loading: authLoading, user } = useAuth();
   const params = useLocalSearchParams<{
@@ -90,16 +97,6 @@ export function AuthCallbackScreen() {
     next?: string;
   }>();
   const [state, setState] = useState<ScreenState>({ status: "working" });
-  const redirectedRef = useRef(false);
-  const safeNextRef = useRef("/");
-
-  const redirectOnce = (destination: string, source: string) => {
-    if (redirectedRef.current) return;
-    redirectedRef.current = true;
-    authDebugLog("callback", "redirect", { source, destination });
-    setState({ status: "redirecting" });
-    router.replace(destination);
-  };
 
   // Phase 1: decide the action once per mount and process it (reusing any
   // in-flight/completed attempt for the same callback signature - see the
@@ -117,7 +114,7 @@ export function AuthCallbackScreen() {
       access_token: hashParams.access_token ?? null,
       refresh_token: hashParams.refresh_token ?? null
     });
-    safeNextRef.current = sanitizeInternalReturnPath(params.next ?? null);
+    const safeNext = sanitizeInternalReturnPath(params.next ?? null);
     const flowKey = getAuthCallbackFlowKey(action);
 
     let cancelled = false;
@@ -139,6 +136,7 @@ export function AuthCallbackScreen() {
         setState({ status: "error", message: result.error });
         return;
       }
+      authDebugLog("callback", "exchange succeeded, awaiting session propagation", { destination: safeNext });
       setState({ status: "awaiting_session" });
     };
 
@@ -149,7 +147,8 @@ export function AuthCallbackScreen() {
       case "redirect_home":
         clearTimeout(timeout);
         cancelled = true;
-        redirectOnce(safeNextRef.current, "no-callback-params");
+        authDebugLog("callback", "redirect", { source: "no-callback-params", destination: safeNext });
+        setState({ status: "redirecting", destination: safeNext });
         break;
       case "exchange_code":
       case "set_session": {
@@ -178,26 +177,32 @@ export function AuthCallbackScreen() {
   }, []);
 
   // Phase 2: once the exchange has succeeded, this is the ONLY place that
-  // decides when it's safe to navigate - it waits for AuthProvider's own
+  // decides when it's safe to redirect - it waits for AuthProvider's own
   // session state to reflect the new session (so the root Stack.Protected
-  // guards have already settled by the time we call router.replace,
-  // instead of racing them) and is the sole owner of that redirect.
+  // guards have already settled by the time the <Redirect> below renders,
+  // instead of racing them) and is the sole owner of that decision.
   useEffect(() => {
     if (state.status !== "awaiting_session") return;
 
     authDebugLog("callback", "awaiting session propagation", { authLoading, hasUser: Boolean(user) });
+    const safeNext = sanitizeInternalReturnPath(params.next ?? null);
     if (!authLoading && user) {
-      redirectOnce(safeNextRef.current, "session-confirmed");
+      authDebugLog("callback", "redirect", { source: "session-confirmed", destination: safeNext });
+      setState({ status: "redirecting", destination: safeNext });
       return;
     }
 
     const fallback = setTimeout(() => {
       authDebugLog("callback", "session propagation timed out - redirecting anyway", {});
-      redirectOnce(safeNextRef.current, "session-propagation-timeout");
+      setState({ status: "redirecting", destination: safeNext });
     }, SESSION_PROPAGATION_TIMEOUT_MS);
     return () => clearTimeout(fallback);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status, authLoading, user]);
+
+  if (state.status === "redirecting") {
+    return <Redirect href={state.destination} />;
+  }
 
   if (state.status === "error") {
     return (
@@ -209,7 +214,10 @@ export function AuthCallbackScreen() {
             The confirmation link may have expired or already been used. Try signing up again, or sign in if your
             account is already confirmed.
           </Text>
-          <Pressable onPress={() => router.replace("/login")} style={styles.button}>
+          <Pressable
+            onPress={() => setState({ status: "redirecting", destination: "/login" })}
+            style={styles.button}
+          >
             <Text style={styles.buttonText}>Back to sign in</Text>
           </Pressable>
         </View>
@@ -220,9 +228,7 @@ export function AuthCallbackScreen() {
   return (
     <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
       <View style={styles.card}>
-        <Text style={styles.title}>
-          {state.status === "redirecting" ? "Taking you into the app…" : "Confirming your account…"}
-        </Text>
+        <Text style={styles.title}>Confirming your account…</Text>
         <ActivityIndicator />
       </View>
     </ScrollView>

@@ -23,12 +23,24 @@ function RootNavigator() {
         headerShown: false
       }}
     >
+      {/*
+        "auth/callback" and "index" are both registered unconditionally,
+        outside every Stack.Protected group - each screen decides its own
+        auth-gated content internally (via useAuth()/<Redirect>) rather
+        than being swapped in/out by a guard. "index" used to be inside the
+        guard={Boolean(user)...} group below, while app/(auth)/index.tsx
+        (now removed) was inside the guard={!user...} group - both claimed
+        the exact same bare path "/", which produced a real, reproducible
+        infinite navigation loop in production (see app/index.tsx's doc
+        comment for how this was confirmed and why the fix is structural,
+        not a race-condition patch).
+      */}
       <Stack.Screen name="auth/callback" />
+      <Stack.Screen name="index" />
       <Stack.Protected guard={!user || isPasswordRecovery}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
       <Stack.Protected guard={Boolean(user) && !isPasswordRecovery}>
-        <Stack.Screen name="index" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="leaderboard" />
         <Stack.Screen name="results" />

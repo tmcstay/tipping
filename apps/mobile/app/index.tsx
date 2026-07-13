@@ -1,5 +1,5 @@
 import { isStageEligibleForResults, resolveCyclingStageClosureState, selectLatestEligibleStage } from "@tipping-suite/tipping-core";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { CyclingStage, CyclingStageResult } from "@tipping-suite/supabase-client";
 
@@ -58,7 +58,31 @@ type StageClosure = {
   closureState: ReturnType<typeof resolveCyclingStageClosureState>;
 };
 
+/**
+ * "/" is now owned by exactly one screen (this one), registered
+ * unconditionally in app/_layout.tsx - never inside a Stack.Protected
+ * group. Previously both this screen (guard={Boolean(user)...}) and
+ * app/(auth)/index.tsx (guard={!user...}) were registered for the exact
+ * same bare path "/" (route groups like "(auth)" don't add a URL segment),
+ * differentiated only by which guard was active. In production that dual
+ * registration produced a tight, permanent client-side navigation loop at
+ * "/" - confirmed with a real browser (Playwright): "/login" (a single,
+ * unambiguous path) loaded cleanly, while "/" fired hundreds of same-URL
+ * history navigations per second and never settled. Fixed by removing the
+ * ambiguity entirely: this screen alone decides what "/" shows, using a
+ * declarative <Redirect> (not an imperative router.replace() call, which
+ * has its own known Expo Router timing hazard - see AuthCallbackScreen.tsx)
+ * when there's no authenticated session.
+ */
 export default function HomeScreen() {
+  const { isPasswordRecovery, user } = useAuth();
+  if (!user || isPasswordRecovery) {
+    return <Redirect href="/login" />;
+  }
+  return <AuthenticatedDashboard />;
+}
+
+function AuthenticatedDashboard() {
   const router = useRouter();
   const { user } = useAuth();
   const { race, stages } = useTdf2026Stages();
