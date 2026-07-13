@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Link } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ui } from "./theme";
 
@@ -11,26 +12,55 @@ const presentation: Record<JerseyKind, { label: string; color: string; text: str
   white: { label: "White", color: "#FFFFFF", text: ui.colors.ink }
 };
 
-export function JerseyHolderCard({ jersey, riderName, teamName }: {
+export function JerseyHolderCard({ jersey, riderName, teamName, href, accessibilityHint }: {
   jersey: JerseyKind;
   riderName?: string | null;
   teamName?: string | null;
+  href?: string;
+  accessibilityHint?: string;
 }) {
   const style = presentation[jersey];
-  return (
-    <View style={styles.card}>
-      <View style={[styles.jersey, { backgroundColor: style.color }]}>
-        <Text style={[styles.jerseyText, { color: style.text }]}>{jersey === "kom" ? "••" : style.label.slice(0, 1)}</Text>
+  const content = (
+    <>
+      <View style={styles.headerRow}>
+        <View style={[styles.jersey, { backgroundColor: style.color }]}>
+          <Text style={[styles.jerseyText, { color: style.text }]}>{jersey === "kom" ? "••" : style.label.slice(0, 1)}</Text>
+        </View>
+        {href ? <Text style={styles.chevron} accessibilityElementsHidden>›</Text> : null}
       </View>
       <Text style={styles.label}>{style.label}</Text>
       <Text numberOfLines={2} style={riderName ? styles.rider : styles.pending}>{riderName ?? "Pending"}</Text>
       {teamName ? <Text numberOfLines={1} style={styles.team}>{teamName}</Text> : null}
-    </View>
+    </>
+  );
+
+  if (!href) {
+    return <View style={styles.card}>{content}</View>;
+  }
+
+  const pressable = (
+    <Pressable
+      accessibilityHint={accessibilityHint}
+      accessibilityLabel={`${style.label} jersey, ${riderName ?? "pending"}${teamName ? `, ${teamName}` : ""}`}
+      accessibilityRole="button"
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+    >
+      {content}
+    </Pressable>
+  );
+
+  return (
+    <Link asChild href={href}>
+      {pressable}
+    </Link>
   );
 }
 
 const styles = StyleSheet.create({
   card: { backgroundColor: ui.colors.surfaceMuted, borderColor: ui.colors.border, borderRadius: ui.radius.medium, borderWidth: 1, flexBasis: "47%", flexGrow: 1, minHeight: 142, padding: 12 },
+  cardPressed: { opacity: 0.85 },
+  chevron: { color: ui.colors.muted, fontSize: 16, fontWeight: "900" },
+  headerRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   jersey: { alignItems: "center", borderColor: ui.colors.border, borderRadius: 9, borderWidth: 1, height: 38, justifyContent: "center", width: 31 },
   jerseyText: { fontSize: 13, fontWeight: "900", letterSpacing: -1 },
   label: { color: ui.colors.muted, fontSize: 11, fontWeight: "900", marginTop: 9, textTransform: "uppercase" },

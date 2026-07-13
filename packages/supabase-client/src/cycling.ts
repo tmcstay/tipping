@@ -308,26 +308,46 @@ export async function listStageStartlist(stageId: string): Promise<CyclingStartl
   }));
 }
 
-export async function getCyclingStageResult(stageId: string): Promise<CyclingStageResult | null> {
+/**
+ * Both result queries below filter `is_final = true` (already RLS-enforced
+ * for the anon/publishable key regardless - see the RLS note in
+ * hydrateCyclingStageResults' callers) AND `grandtour_stages.starts_at <=
+ * now`, as the earliest-reliable-layer defensive filter from
+ * isStageEligibleForResults (packages/tipping-core/src/stage-eligibility.ts)
+ * - a stage row existing (or even an is_final row existing, in the event of
+ * bad/test data) is never treated as a real, displayable result if its
+ * scheduled start is still in the future. `now` is injectable for tests;
+ * defaults to the real clock.
+ */
+export async function getCyclingStageResult(
+  stageId: string,
+  now: Date = new Date()
+): Promise<CyclingStageResult | null> {
   const client = getSupabaseClient();
   const { data: result, error: resultError } = await client
     .from("grandtour_stage_results")
-    .select("id,stage_id")
+    .select("id,stage_id,grandtour_stages!inner(starts_at)")
     .eq("stage_id", stageId)
     .eq("is_final", true)
+    .lte("grandtour_stages.starts_at", now.toISOString())
     .maybeSingle();
   if (resultError) throw resultError;
   if (!result) return null;
 
-  return (await hydrateCyclingStageResults([result]))[0] ?? null;
+  const { grandtour_stages: _stage, ...bareResult } = result;
+  return (await hydrateCyclingStageResults([bareResult]))[0] ?? null;
 }
 
-export async function listCyclingStageResults(raceId: string): Promise<CyclingStageResult[]> {
+export async function listCyclingStageResults(
+  raceId: string,
+  now: Date = new Date()
+): Promise<CyclingStageResult[]> {
   const { data, error } = await getSupabaseClient()
     .from("grandtour_stage_results")
-    .select("id,stage_id,grandtour_stages!inner(grand_tour_id)")
+    .select("id,stage_id,grandtour_stages!inner(grand_tour_id,starts_at)")
     .eq("grandtour_stages.grand_tour_id", raceId)
-    .eq("is_final", true);
+    .eq("is_final", true)
+    .lte("grandtour_stages.starts_at", now.toISOString());
   if (error) throw error;
   return hydrateCyclingStageResults((data ?? []).map(({ grandtour_stages: _stage, ...result }) => result));
 }

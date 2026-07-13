@@ -1,3 +1,4 @@
+import { isStageEligibleForResults } from "@tipping-suite/tipping-core";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text } from "react-native";
 
@@ -12,11 +13,18 @@ export default function ResultsScreen() {
   const { race, stages } = useTdf2026Stages();
   const results = useCyclingStageResults(race.data?.id);
   const loading = race.loading || stages.loading || results.loading;
-  const ordered = [...(results.data ?? [])].sort((a, b) => {
-    const aStage = stages.data?.find((stage) => stage.id === a.stage_id)?.stage_number ?? 0;
-    const bStage = stages.data?.find((stage) => stage.id === b.stage_id)?.stage_number ?? 0;
-    return bStage - aStage;
-  });
+  const now = new Date();
+  // Defensive final-layer check (packages/supabase-client's query already
+  // filters is_final/starts_at at the earliest layer) - a stage row is
+  // never shown as a result here unless it's genuinely eligible, sorted
+  // deterministically by actual start time (never insertion order).
+  const ordered = [...(results.data ?? [])]
+    .map((result) => ({ result, stage: stages.data?.find((stage) => stage.id === result.stage_id) ?? null }))
+    .filter((entry): entry is { result: typeof entry.result; stage: NonNullable<typeof entry.stage> } =>
+      Boolean(entry.stage) && isStageEligibleForResults({ startsAt: entry.stage!.starts_at, isFinal: true }, now)
+    )
+    .sort((a, b) => new Date(b.stage.starts_at).getTime() - new Date(a.stage.starts_at).getTime())
+    .map((entry) => entry.result);
 
   return (
     <AppShell title="Stage results" subtitle="Official stage placings, jersey holders, and your scoring context.">

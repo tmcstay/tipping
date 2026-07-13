@@ -1,3 +1,4 @@
+import { resolveCyclingStageClosureState } from "@tipping-suite/tipping-core";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -29,7 +30,16 @@ export default function StageListScreen() {
         <EmptyState message="No active stages are available yet. Check back when the next race schedule is published." />
       ) : null}
       {!loading && !race.error && !stages.error && stages.data?.map((stage) => {
-        const locked = new Date(stage.locks_at).getTime() <= Date.now();
+        // Shared source of truth (packages/tipping-core) rather than a
+        // separate hand-rolled `now >= locks_at` comparison - also picks up
+        // an admin manual_locked_at override, which the old inline check
+        // silently ignored.
+        const closureState = resolveCyclingStageClosureState({
+          startsAt: stage.starts_at,
+          locksAt: stage.locks_at,
+          manualLockedAt: stage.manual_locked_at
+        });
+        const locked = closureState !== "open" && closureState !== "closing_soon";
         const experience = getStageTipExperience(stage.stage_type);
         return (
           <Pressable key={stage.id} onPress={() => router.push(`/stages/${stage.id}`)}>

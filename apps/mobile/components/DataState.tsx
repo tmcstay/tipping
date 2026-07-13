@@ -31,11 +31,44 @@ export function ErrorState({ error, onRetry }: DataStateProps) {
   );
 }
 
-export function EmptyState({ message }: { message: string }) {
+export function EmptyState({ message, title }: { message: string; title?: string }) {
   return (
     <View style={styles.panel}>
-      <Text style={styles.title}>Nothing here yet</Text>
+      <Text style={styles.title}>{title ?? "Nothing here yet"}</Text>
       <Text style={styles.copy}>{message}</Text>
+    </View>
+  );
+}
+
+/**
+ * A loading placeholder sized to match a real InfoCard (same radius/border/
+ * padding/shadow), so the layout never jumps once real content replaces it.
+ * `lines` controls how many body placeholder bars render below the title
+ * bar - tune per section to roughly match that section's real content
+ * height.
+ */
+export function SkeletonCard({ lines = 2 }: { lines?: number }) {
+  return (
+    <View style={styles.panel}>
+      <View style={styles.skeletonMetaBar} />
+      <View style={styles.skeletonTitleBar} />
+      {Array.from({ length: lines }).map((_, index) => (
+        <View key={index} style={[styles.skeletonLineBar, index === lines - 1 && styles.skeletonLineBarShort]} />
+      ))}
+    </View>
+  );
+}
+
+/** Matches the dashboard's 3-up DashboardStatCard row so the stat grid doesn't jump on load. */
+export function SkeletonStatGrid() {
+  return (
+    <View style={styles.skeletonStatGrid}>
+      {[0, 1, 2].map((index) => (
+        <View key={index} style={styles.skeletonStatCard}>
+          <View style={styles.skeletonLabelBar} />
+          <View style={styles.skeletonValueBar} />
+        </View>
+      ))}
     </View>
   );
 }
@@ -73,5 +106,23 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   loadingDot: { backgroundColor: ui.colors.accent, borderRadius: 8, height: 12, marginBottom: 8, width: 12 },
-  stateCopy: { flex: 1 }
+  stateCopy: { flex: 1 },
+  skeletonLabelBar: { backgroundColor: ui.colors.border, borderRadius: 4, height: 10, width: "60%" },
+  skeletonLineBar: { backgroundColor: ui.colors.border, borderRadius: 4, height: 12, marginTop: 10, width: "100%" },
+  skeletonLineBarShort: { width: "70%" },
+  skeletonMetaBar: { backgroundColor: ui.colors.border, borderRadius: 4, height: 10, width: "35%" },
+  skeletonStatCard: {
+    backgroundColor: ui.colors.surface,
+    borderColor: ui.colors.border,
+    borderRadius: ui.radius.large,
+    borderWidth: 1,
+    flex: 1,
+    gap: 10,
+    minHeight: 96,
+    minWidth: 136,
+    padding: 14
+  },
+  skeletonStatGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  skeletonTitleBar: { backgroundColor: ui.colors.border, borderRadius: 4, height: 18, marginTop: 8, width: "80%" },
+  skeletonValueBar: { backgroundColor: ui.colors.border, borderRadius: 4, height: 22, width: "40%" }
 });
