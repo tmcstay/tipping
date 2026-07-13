@@ -85,6 +85,10 @@ export function parseAutoDryRunArgs(argv) {
         throw new Error("--to-stage requires a positive integer");
       }
     } else if (argument === "--fail-on-unsafe") {
+      // Deprecated/inert: parsed only for CLI/workflow backward
+      // compatibility. computeExitCode() below no longer consults this -
+      // an unsafe_review_required outcome is a valid completed dry run and
+      // always exits 0, regardless of this flag's value.
       const value = (argv[++index] ?? "").toLowerCase();
       if (!["true", "false"].includes(value)) throw new Error("--fail-on-unsafe requires 'true' or 'false'");
       options.failOnUnsafe = value === "true";
@@ -267,12 +271,22 @@ export function classifyAutoDryRunFailure(error, report) {
 
 /**
  * Resolves the stage range to run. Explicit --stage-number/--from-stage/
- * --to-stage always win and never touch Supabase. Otherwise, reads
- * grandtour_stages (anon key only, including per-stage isFinal status) and
- * picks the earliest stage eligible under resolveAutomaticStage's UTC-instant
- * grace-cutoff rule (see scripts/grandtour-stage-calendar.mjs) - never an
- * exact calendar-date match, so a stalled/unprocessed stage is retried on a
- * later scheduled run instead of being silently skipped forever.
+ * --to-stage always win (`resolutionSource: "manual_input"`) and never
+ * touch Supabase. Otherwise, reads grandtour_stages (anon key only,
+ * including per-stage isFinal status) and picks a stage via
+ * resolveAutomaticStage's UTC-instant grace-cutoff rule (see
+ * scripts/grandtour-stage-calendar.mjs): normally the most recently
+ * started eligible stage (`"database_schedule"`), falling back to an
+ * older still-unresolved eligible stage if the latest one is already
+ * finalised and reruns are disabled (`"unresolved_stage"`) - never an
+ * exact calendar-date match, and never a hardcoded stage number, so a
+ * stalled/unprocessed stage is retried on a later scheduled run instead
+ * of being silently skipped forever, and a stage that can never become
+ * final through this pipeline (e.g. an unconfirmed TTT) never
+ * permanently starves out later stages either. Logs the resolution
+ * source, selected stage number/start time, current time, and why, on
+ * every call - see resolveAutomaticStage's doc comment for the full
+ * rationale (including the real "stuck on stage 1" bug this replaced).
  *
  * `options.now` (a Date), when set, overrides "the current instant" for
  * resolution - used by tests. `options.asOfDate` (YYYY-MM-DD) is a
@@ -285,7 +299,17 @@ export function classifyAutoDryRunFailure(error, report) {
  */
 export async function resolveStageRange(options, deps = {}) {
   if (options.fromStage !== null && options.toStage !== null) {
-    return { fromStage: options.fromStage, toStage: options.toStage, skippedReason: null };
+    const resolutionSource = "manual_input";
+    console.log(`Stage resolution source: ${resolutionSource}`);
+    console.log(`Selected stage number(s): ${options.fromStage}-${options.toStage} (explicit input, database not consulted)`);
+    return {
+      fromStage: options.fromStage,
+      toStage: options.toStage,
+      skippedReason: null,
+      resolutionSource,
+      selectedStartsAt: null,
+      reason: `Explicit --stage-number/--from-stage/--to-stage was supplied (${options.fromStage}-${options.toStage}); auto-resolution was not used.`
+    };
   }
 
   const url = process.env.SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -302,7 +326,10 @@ export async function resolveStageRange(options, deps = {}) {
 
   const grandTourId = await resolveGrandTourId(client, { name: options.grandTourName, year: options.grandTourYear });
   if (!grandTourId) {
-    return { fromStage: null, toStage: null, skippedReason: `No grand_tours record found for name=${options.grandTourName} year=${options.grandTourYear}.` };
+    const reason = `No grand_tours record found for name=${options.grandTourName} year=${options.grandTourYear}.`;
+    console.log(`Stage resolution source: none`);
+    console.log(`Why: ${reason}`);
+    return { fromStage: null, toStage: null, skippedReason: reason, resolutionSource: "none", selectedStartsAt: null, reason };
   }
 
   const stageRows = await fetchAllGrandTourStages(client, { grandTourId });
@@ -312,10 +339,34 @@ export async function resolveStageRange(options, deps = {}) {
     graceHours: options.stageAvailabilityGraceHours ?? DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS,
     allowRerunCompleted: options.allowRerunCompleted ?? false
   });
+
+  // Required logging (resolution source, selected stage, its start time,
+  // the current time, and why it was eligible) so a scheduled run's log is
+  // self-explanatory without needing to reproduce the decision locally.
+  console.log(`Stage resolution source: ${resolved.resolutionSource}`);
+  console.log(`Current time (UTC): ${now.toISOString()}`);
+  console.log(`Selected stage number: ${resolved.stageNumber ?? "(none)"}`);
+  console.log(`Selected stage start time: ${resolved.startsAt ?? "(none)"}`);
+  console.log(`Why: ${resolved.reason}`);
+
   if (resolved.stageNumber === null) {
-    return { fromStage: null, toStage: null, skippedReason: resolved.reason };
+    return {
+      fromStage: null,
+      toStage: null,
+      skippedReason: resolved.reason,
+      resolutionSource: resolved.resolutionSource,
+      selectedStartsAt: null,
+      reason: resolved.reason
+    };
   }
-  return { fromStage: resolved.stageNumber, toStage: resolved.stageNumber, skippedReason: null };
+  return {
+    fromStage: resolved.stageNumber,
+    toStage: resolved.stageNumber,
+    skippedReason: null,
+    resolutionSource: resolved.resolutionSource,
+    selectedStartsAt: resolved.startsAt,
+    reason: resolved.reason
+  };
 }
 
 function pad2(value) {
@@ -431,9 +482,29 @@ function mapClassificationToFinalStatus(classification) {
   }
 }
 
-function computeExitCode(finalStatus, failOnUnsafe) {
-  if (finalStatus === "success" || finalStatus === "no_eligible_stage") return 0;
-  if (finalStatus === "unsafe_review_required") return failOnUnsafe ? 1 : 0;
+/**
+ * A completed dry run whose worst outcome is "a human needs to review this"
+ * (unsafe_review_required - e.g. a TTT stage whose official team-result
+ * source isn't confirmed, or unmatched/ambiguous riders) is a valid,
+ * successfully-completed collection run, not a technical failure - it
+ * produced a real report and there's nothing to retry or fix in CI. Exit
+ * code 1 is reserved for genuine technical failures: an unhandled
+ * exception, a provider/network request that failed after every retry was
+ * exhausted (transient_failure_exhausted), invalid configuration (missing
+ * credentials, bad CLI input), a letour.fr markup change the parser can no
+ * longer read (parser_drift), or any other unrecognised failure
+ * (unexpected_failure). `finalError` (a thrown exception's message) is
+ * checked first and unconditionally forces exit 1 - a completed report was
+ * genuinely never produced in that case.
+ *
+ * The `--fail-on-unsafe` flag/option is intentionally no longer consulted
+ * here (kept parsed, for CLI/workflow backward compatibility, but inert) -
+ * a valid review-required outcome must never fail the job regardless of
+ * how that flag is set.
+ */
+function computeExitCode(finalStatus, finalError) {
+  if (finalError) return 1;
+  if (finalStatus === "success" || finalStatus === "no_eligible_stage" || finalStatus === "unsafe_review_required") return 0;
   return 1; // parser_drift, transient_failure_exhausted, configuration_error, unexpected_failure always fail loudly
 }
 
@@ -505,8 +576,17 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
 
   const finishedAt = new Date();
   const finalStatus = mapClassificationToFinalStatus(finalAttempt.classification);
-  const exitCode = computeExitCode(finalStatus, options.failOnUnsafe);
+  const finalErrorMessage = finalAttempt.error ? (finalAttempt.error.message ?? String(finalAttempt.error)) : null;
+  const exitCode = computeExitCode(finalStatus, finalErrorMessage);
   const { safeToApply, parserDriftDetected, blockers } = extractSafetyFields(finalAttempt.report);
+
+  // A review-required outcome is a valid, completed dry run - surface it as
+  // a GitHub Actions warning annotation (visible on the job summary/PR
+  // checks UI) rather than a failed step, since exitCode is 0 for this case.
+  if (finalStatus === "unsafe_review_required") {
+    const blockerText = blockers.length > 0 ? blockers.join(" ") : "See the final summary and uploaded report for details.";
+    console.log(`::warning title=GrandTour review required::${blockerText}`);
+  }
 
   const finalSummary = {
     runId,
@@ -527,7 +607,7 @@ export async function main(argv = process.argv.slice(2), deps = {}) {
     safeToApply,
     parserDriftDetected,
     blockers,
-    finalError: finalAttempt.error ? (finalAttempt.error.message ?? String(finalAttempt.error)) : null,
+    finalError: finalErrorMessage,
     attempts: attemptSummaries
   };
 

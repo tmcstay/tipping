@@ -155,5 +155,50 @@ test("workflow builds and sends an admin notification email using SMTP secrets, 
   assert.match(source, /secrets\.SMTP_PORT/);
   assert.match(source, /secrets\.SMTP_USERNAME/);
   assert.match(source, /secrets\.SMTP_PASSWORD/);
+  assert.match(source, /secrets\.ADMIN_EMAIL/);
   assert.match(source, /steps\.notify\.outputs\.should_send == 'true'/);
+});
+
+test("SMTP secrets are mapped into job-level env vars, never referenced directly inside an if: expression", async () => {
+  const source = await readWorkflow();
+
+  // Job-level `env:` block mapping every SMTP secret (plus the recipient)
+  // to a plain env var - this is what makes it safe to test them in `if:`.
+  assert.match(source, /env:\s*\n\s*SMTP_SERVER:\s*\$\{\{\s*secrets\.SMTP_SERVER\s*\}\}/);
+  assert.match(source, /SMTP_PORT:\s*\$\{\{\s*secrets\.SMTP_PORT\s*\}\}/);
+  assert.match(source, /SMTP_USERNAME:\s*\$\{\{\s*secrets\.SMTP_USERNAME\s*\}\}/);
+  assert.match(source, /SMTP_PASSWORD:\s*\$\{\{\s*secrets\.SMTP_PASSWORD\s*\}\}/);
+  assert.match(source, /ADMIN_EMAIL:\s*\$\{\{\s*secrets\.ADMIN_EMAIL\s*\}\}/);
+
+  // No `if:` line anywhere in the file may reference secrets.* directly.
+  const ifLines = source.split("\n").filter((line) => /^\s*if:/.test(line) || /^\s*(always\(\)|env\.)/.test(line.trim()));
+  for (const line of ifLines) {
+    assert.ok(!/secrets\./.test(line), `if-expression line must not reference secrets.* directly: ${line}`);
+  }
+});
+
+test("the mail step is guarded on env.SMTP_*/env.ADMIN_EMAIL all being non-empty, and never fails the job when they are not set", async () => {
+  const source = await readWorkflow();
+  const mailStepMatch = source.match(/Send admin notification email[\s\S]*?(?=\n {6}- name:)/);
+  assert.ok(mailStepMatch, "the mail step must exist");
+  const mailStep = mailStepMatch[0];
+
+  assert.match(mailStep, /always\(\)/);
+  assert.match(mailStep, /env\.SMTP_SERVER\s*!=\s*''/);
+  assert.match(mailStep, /env\.SMTP_PORT\s*!=\s*''/);
+  assert.match(mailStep, /env\.SMTP_USERNAME\s*!=\s*''/);
+  assert.match(mailStep, /env\.SMTP_PASSWORD\s*!=\s*''/);
+  assert.match(mailStep, /env\.ADMIN_EMAIL\s*!=\s*''/);
+});
+
+test("a separate step notices (without failing the job) when SMTP is not configured", async () => {
+  const source = await readWorkflow();
+  const noticeStepMatch = source.match(/- name: Notify - SMTP not configured[\s\S]*?(?=\n {6}- name:|$)/);
+  assert.ok(noticeStepMatch, "an SMTP-not-configured notice step must exist");
+  const noticeStep = noticeStepMatch[0];
+
+  assert.match(noticeStep, /always\(\)/);
+  assert.match(noticeStep, /::notice/);
+  // Must never itself set a failing exit code / use `exit 1` etc.
+  assert.ok(!/exit 1/.test(noticeStep));
 });

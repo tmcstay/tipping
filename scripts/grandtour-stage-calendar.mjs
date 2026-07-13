@@ -62,7 +62,25 @@ export const DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS = 12;
  * stage's results weren't ready in time for the day it raced, the next
  * day's exact-date match would move straight past it and it would NEVER
  * be automatically re-attempted - `stage.starts_at` would simply no
- * longer equal "today". This version instead:
+ * longer equal "today".
+ *
+ * **Second bug, fixed here:** the version of this function that replaced
+ * the one above always picked the EARLIEST eligible non-final stage. That
+ * self-heals a stalled stage in the common case, but has its own failure
+ * mode: a stage that can structurally never become `isFinal` through this
+ * pipeline - a TTT, whose official team-result source is never
+ * auto-confirmed (see the TTT safety rule in
+ * scripts/grandtour-reconciliation.mjs) - stays "eligible and not final"
+ * forever, and "earliest eligible" means it gets re-selected on every
+ * single scheduled run, permanently starving every later stage of
+ * automatic attention even after the TTT has already been correctly,
+ * repeatedly flagged for manual review. This is exactly what produced a
+ * real run whose report showed `stageNumber: 1,
+ * finalStatus: "unsafe_review_required"` day after day - indistinguishable
+ * from a genuine "silently defaults to stage 1" bug even though the
+ * selection logic itself never hardcoded `1` anywhere.
+ *
+ * The fixed algorithm:
  *
  *   1. Compares `now` and `starts_at` as real instants (UTC), never as a
  *      timezone-dependent calendar-date string - the runner's local date
@@ -72,16 +90,27 @@ export const DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS = 12;
  *      race, official results, and letour.fr's own publishing pipeline
  *      time to actually finish, rather than checking (and likely finding
  *      "not published yet") the instant a stage starts.
- *   3. Skips any stage already finalised (`isFinal: true`) unless
- *      `allowRerunCompleted` is explicitly set - once a stage is done,
- *      stop re-checking it automatically every day.
- *   4. Among everything still eligible, always picks the EARLIEST one
- *      (lowest starts_at, tie-broken by stage number) - never "the most
- *      recent prior stage" - so a stalled/unprocessed earlier stage is
- *      what gets picked up next, not silently skipped in favour of a
- *      later one.
+ *   3. Among everything eligible, prefers the MOST RECENTLY STARTED stage
+ *      - what today's run actually needs to look at - as long as it isn't
+ *      already finalised (or `allowRerunCompleted` is set). This is
+ *      `resolutionSource: "database_schedule"`.
+ *   4. If that latest eligible stage IS already finalised and reruns are
+ *      disabled, falls back to the most recent eligible stage (older than
+ *      that one) that is NOT finalised - `resolutionSource:
+ *      "unresolved_stage"` - so a genuine straggler (a stage still
+ *      awaiting review while a later one has already been completed) is
+ *      never permanently skipped just because something newer finished
+ *      first. This still never regresses all the way back to an early,
+ *      structurally-unresolvable stage (like a TTT) once there is any
+ *      other unresolved stage newer than it.
+ *   5. If every eligible stage is already finalised (or none are eligible
+ *      at all), returns `stageNumber: null` / `resolutionSource: "none"` -
+ *      never a hardcoded fallback stage.
  *
  * `stageRows` entries are `{ stageNumber, startsAt, isFinal }`.
+ * `resolveStageRange` in scripts/grandtour-auto-dry-run.mjs adds a fourth
+ * resolutionSource value, `"manual_input"`, for the case this function is
+ * never even called (an explicit stage was supplied).
  */
 export function resolveAutomaticStage(stageRows, {
   now = new Date(),
@@ -90,24 +119,56 @@ export function resolveAutomaticStage(stageRows, {
 } = {}) {
   const cutoffMs = now.getTime() - graceHours * 60 * 60 * 1000;
 
+  // Descending: most recently started first, so "the latest eligible
+  // stage" is always eligible[0].
   const eligible = (stageRows ?? [])
     .filter((row) => row.startsAt)
     .map((row) => ({ ...row, startsAtMs: new Date(row.startsAt).getTime() }))
     .filter((row) => !Number.isNaN(row.startsAtMs))
     .filter((row) => row.startsAtMs <= cutoffMs)
-    .filter((row) => allowRerunCompleted || !row.isFinal)
-    .sort((a, b) => a.startsAtMs - b.startsAtMs || a.stageNumber - b.stageNumber);
+    .sort((a, b) => b.startsAtMs - a.startsAtMs || b.stageNumber - a.stageNumber);
 
   if (eligible.length === 0) {
     return {
       stageNumber: null,
-      reason: "No eligible stage for automatic dry-run."
+      startsAt: null,
+      resolutionSource: "none",
+      reason: `No stage has started at least ${graceHours}h before ${now.toISOString()} yet - nothing is eligible for automatic dry-run.`
     };
   }
 
-  const selected = eligible[0];
+  const latest = eligible[0];
+  if (allowRerunCompleted || !latest.isFinal) {
+    return {
+      stageNumber: latest.stageNumber,
+      startsAt: latest.startsAt,
+      resolutionSource: "database_schedule",
+      reason: `Stage ${latest.stageNumber} is the most recently started eligible stage (started ${latest.startsAt}, >= ${graceHours}h before ${now.toISOString()})${latest.isFinal ? ", already finalised, but allow-rerun-completed is set" : " and is not yet finalised"}.`
+    };
+  }
+
+  // The latest eligible stage is already finalised and reruns are
+  // disabled - look further back for the most recent eligible stage that
+  // is still unresolved, rather than giving up or reusing the finalised
+  // one. This is what stops a permanently-unresolvable earlier stage
+  // (e.g. a TTT) from starving out later stages: as soon as ANY later
+  // stage exists and is unresolved, it wins; an early stage like that is
+  // only ever picked again once it is genuinely the sole unresolved
+  // eligible stage left.
+  const straggler = eligible.slice(1).find((row) => !row.isFinal);
+  if (straggler) {
+    return {
+      stageNumber: straggler.stageNumber,
+      startsAt: straggler.startsAt,
+      resolutionSource: "unresolved_stage",
+      reason: `Stage ${latest.stageNumber} (the most recently started eligible stage) is already finalised and allow-rerun-completed is not set, so Stage ${straggler.stageNumber} (started ${straggler.startsAt}) was selected instead - it is eligible but still has no finalised result.`
+    };
+  }
+
   return {
-    stageNumber: selected.stageNumber,
-    reason: `Stage ${selected.stageNumber} started at ${selected.startsAt} (>= ${graceHours}h before ${now.toISOString()}) and is not yet finalised${allowRerunCompleted ? " (allow-rerun-completed is set, so finalised stages were also eligible)" : ""}.`
+    stageNumber: null,
+    startsAt: null,
+    resolutionSource: "none",
+    reason: `Every eligible stage (started at least ${graceHours}h before ${now.toISOString()}) is already finalised and allow-rerun-completed is not set - nothing left to automatically dry-run.`
   };
 }

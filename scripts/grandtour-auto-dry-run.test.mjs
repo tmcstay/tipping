@@ -231,10 +231,13 @@ test("classifyAutoDryRunFailure: an unrecognized thrown error is unknown_non_ret
 // resolveStageRange
 // ---------------------------------------------------------------------------
 
-test("resolveStageRange returns the explicit range unchanged and never touches Supabase", async () => {
+test("resolveStageRange returns the explicit range unchanged, tags it manual_input, and never touches Supabase", async () => {
   const options = { fromStage: 5, toStage: 5 };
   const range = await resolveStageRange(options, { createClient: () => { throw new Error("should not be called"); } });
-  assert.deepEqual(range, { fromStage: 5, toStage: 5, skippedReason: null });
+  assert.equal(range.fromStage, 5);
+  assert.equal(range.toStage, 5);
+  assert.equal(range.skippedReason, null);
+  assert.equal(range.resolutionSource, "manual_input");
 });
 
 function fakeSupabaseClient({ grandTourId, stageRows, finalStageIds = [] }) {
@@ -276,7 +279,7 @@ function fakeSupabaseClient({ grandTourId, stageRows, finalStageIds = [] }) {
   };
 }
 
-test("resolveStageRange auto-resolves the earliest eligible stage (UTC grace-cutoff, not exact calendar-date match)", async () => {
+test("resolveStageRange auto-resolves the latest eligible stage (UTC grace-cutoff, not exact calendar-date match), tagged database_schedule", async () => {
   process.env.SUPABASE_URL = "http://127.0.0.1:54321";
   process.env.SUPABASE_ANON_KEY = "anon-key";
   try {
@@ -293,7 +296,40 @@ test("resolveStageRange auto-resolves the earliest eligible stage (UTC grace-cut
       stageRows: [{ id: "stage-6", stage_number: 6, starts_at: "2026-07-09T10:00:00+00:00" }]
     });
     const range = await resolveStageRange(options, { createClient: () => client });
-    assert.deepEqual(range, { fromStage: 6, toStage: 6, skippedReason: null });
+    assert.equal(range.fromStage, 6);
+    assert.equal(range.toStage, 6);
+    assert.equal(range.skippedReason, null);
+    assert.equal(range.resolutionSource, "database_schedule");
+  } finally {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_ANON_KEY;
+  }
+});
+
+test("resolveStageRange never defaults to stage 1: with stage 1 permanently unresolved (e.g. an unconfirmed TTT) and a later stage also unresolved, the later stage is selected", async () => {
+  process.env.SUPABASE_URL = "http://127.0.0.1:54321";
+  process.env.SUPABASE_ANON_KEY = "anon-key";
+  try {
+    const options = {
+      fromStage: null,
+      toStage: null,
+      grandTourName: "Tour de France",
+      grandTourYear: 2026,
+      now: new Date("2026-07-09T23:00:00Z"),
+      stageAvailabilityGraceHours: 12
+    };
+    const client = fakeSupabaseClient({
+      grandTourId: "tour-1",
+      stageRows: [
+        { id: "stage-1", stage_number: 1, starts_at: "2026-07-04T10:00:00+00:00" },
+        { id: "stage-6", stage_number: 6, starts_at: "2026-07-09T10:00:00+00:00" }
+      ],
+      finalStageIds: []
+    });
+    const range = await resolveStageRange(options, { createClient: () => client });
+    assert.equal(range.fromStage, 6, "must select the latest unresolved stage, not silently default to stage 1");
+    assert.equal(range.toStage, 6);
+    assert.equal(range.resolutionSource, "database_schedule");
   } finally {
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_ANON_KEY;
@@ -318,7 +354,7 @@ test("resolveStageRange is skipped (not an error) when no stage is eligible yet"
     });
     const range = await resolveStageRange(options, { createClient: () => client });
     assert.equal(range.fromStage, null);
-    assert.equal(range.skippedReason, "No eligible stage for automatic dry-run.");
+    assert.equal(range.resolutionSource, "none");
   } finally {
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_PUBLISHABLE_KEY;
@@ -338,13 +374,37 @@ test("resolveStageRange skips an already-finalised stage unless allowRerunComple
       { createClient: () => client }
     );
     assert.equal(skipped.fromStage, null);
-    assert.equal(skipped.skippedReason, "No eligible stage for automatic dry-run.");
+    assert.equal(skipped.resolutionSource, "none");
 
     const rerun = await resolveStageRange(
       { fromStage: null, toStage: null, grandTourName: "Tour de France", grandTourYear: 2026, now, allowRerunCompleted: true },
       { createClient: () => client }
     );
     assert.equal(rerun.fromStage, 6);
+    assert.equal(rerun.resolutionSource, "database_schedule");
+  } finally {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_ANON_KEY;
+  }
+});
+
+test("resolveStageRange: completed stages are not rerun when allowRerunCompleted is false, even with a newer unresolved stage present", async () => {
+  process.env.SUPABASE_URL = "http://127.0.0.1:54321";
+  process.env.SUPABASE_ANON_KEY = "anon-key";
+  try {
+    const stageRows = [
+      { id: "stage-5", stage_number: 5, starts_at: "2026-07-08T10:00:00+00:00" },
+      { id: "stage-6", stage_number: 6, starts_at: "2026-07-09T10:00:00+00:00" }
+    ];
+    const now = new Date("2026-07-10T00:00:00Z");
+    const client = fakeSupabaseClient({ grandTourId: "tour-1", stageRows, finalStageIds: ["stage-6"] });
+
+    const range = await resolveStageRange(
+      { fromStage: null, toStage: null, grandTourName: "Tour de France", grandTourYear: 2026, now },
+      { createClient: () => client }
+    );
+    assert.equal(range.fromStage, 5, "stage 6 is already finalised, so the still-unresolved straggler (5) is selected instead");
+    assert.equal(range.resolutionSource, "unresolved_stage");
   } finally {
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_ANON_KEY;
@@ -462,7 +522,7 @@ test("main: transient failures exhaust all retries and fail the run", async () =
   });
 });
 
-test("main: an unsafe (non-transient) failure on the very first attempt is never retried", async () => {
+test("main: an unsafe (non-transient) failure on the very first attempt is never retried, and is a valid completed dry run (exit 0, not a crash)", async () => {
   await withTempReportDir(async (reportDir) => {
     const unsafeReport = buildReport({ overallSafeToApply: false, blockers: ["1 rider match(es) are ambiguous."], stageFetchStatus: "ok" });
     const { wait, calls } = noWaitTracking();
@@ -473,9 +533,68 @@ test("main: an unsafe (non-transient) failure on the very first attempt is never
     });
 
     assert.equal(result.finalSummary.finalStatus, "unsafe_review_required");
+    assert.equal(result.finalSummary.finalError, null, "a review-required outcome produced a real report - there is no crash/error to report");
     assert.equal(result.finalSummary.attemptsMade, 1);
     assert.equal(calls.length, 0, "an unsafe/semantic failure must never be retried");
+    assert.equal(result.exitCode, 0, "unsafe_review_required is a valid completed dry run, not a technical failure - it must exit 0");
+  });
+});
+
+test("main: a TTT stage's unconfirmed-team-result blocker is still classified unsafe_review_required (the TTT safety rule is preserved) and exits 0", async () => {
+  await withTempReportDir(async (reportDir) => {
+    const ttBlockerReport = buildReport({
+      overallSafeToApply: false,
+      blockers: ["Stage is a TTT; official team-result source is not confirmed, so it remains warning-only and is never safe to apply."],
+      stageFetchStatus: "ok"
+    });
+    const { wait, calls } = noWaitTracking();
+
+    const result = await main(["--stage-number", "1", "--report-dir", reportDir], {
+      spawnSync: fakeSpawnSyncSequence([ttBlockerReport]),
+      wait
+    });
+
+    assert.equal(result.finalSummary.finalStatus, "unsafe_review_required");
+    assert.equal(result.finalSummary.safeToApply, false, "a TTT must never be reported as safe to apply, regardless of the exit-code fix");
+    assert.ok(result.finalSummary.blockers.some((blocker) => /TTT/.test(blocker)));
+    assert.equal(calls.length, 0);
+    assert.equal(result.exitCode, 0);
+  });
+});
+
+test("main: unsafe_review_required prints a GitHub warning annotation with the blockers", async () => {
+  await withTempReportDir(async (reportDir) => {
+    const unsafeReport = buildReport({ overallSafeToApply: false, blockers: ["1 rider match(es) are ambiguous."], stageFetchStatus: "ok" });
+    const { wait } = noWaitTracking();
+    const logged = [];
+    const originalLog = console.log;
+    console.log = (...args) => { logged.push(args.join(" ")); };
+    try {
+      await main(["--stage-number", "5", "--report-dir", reportDir], {
+        spawnSync: fakeSpawnSyncSequence([unsafeReport]),
+        wait
+      });
+    } finally {
+      console.log = originalLog;
+    }
+    assert.ok(
+      logged.some((line) => line.includes("::warning title=GrandTour review required::") && line.includes("1 rider match(es) are ambiguous.")),
+      "must print a GitHub warning annotation naming the blockers"
+    );
+  });
+});
+
+test("main: a genuine finalError (e.g. an unexpected exception) always exits 1, even though unsafe_review_required now exits 0", async () => {
+  await withTempReportDir(async (reportDir) => {
+    const { wait, calls } = noWaitTracking();
+    const result = await main(["--stage-number", "5", "--report-dir", reportDir], {
+      spawnSync: () => { throw new Error("something completely unexpected"); },
+      wait
+    });
+
+    assert.ok(result.finalSummary.finalError, "finalError must be populated for a genuine crash");
     assert.equal(result.exitCode, 1);
+    assert.equal(calls.length, 0);
   });
 });
 

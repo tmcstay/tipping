@@ -78,11 +78,12 @@ test("resolveAutomaticStage picks a stage only once graceHours have elapsed sinc
   // Exactly at the cutoff instant (starts_at + 12h) - eligible.
   const atCutoff = resolveAutomaticStage(rows, { now: new Date("2026-07-09T22:00:00Z"), graceHours: 12 });
   assert.equal(atCutoff.stageNumber, 6);
+  assert.equal(atCutoff.resolutionSource, "database_schedule");
 
   // One millisecond before the cutoff - not yet eligible.
   const beforeCutoff = resolveAutomaticStage(rows, { now: new Date("2026-07-09T21:59:59.999Z"), graceHours: 12 });
   assert.equal(beforeCutoff.stageNumber, null);
-  assert.equal(beforeCutoff.reason, "No eligible stage for automatic dry-run.");
+  assert.equal(beforeCutoff.resolutionSource, "none");
 });
 
 test("resolveAutomaticStage skips a finalised stage unless allowRerunCompleted is set", () => {
@@ -91,13 +92,14 @@ test("resolveAutomaticStage skips a finalised stage unless allowRerunCompleted i
 
   const skipped = resolveAutomaticStage(rows, { now });
   assert.equal(skipped.stageNumber, null);
-  assert.equal(skipped.reason, "No eligible stage for automatic dry-run.");
+  assert.equal(skipped.resolutionSource, "none");
 
   const rerun = resolveAutomaticStage(rows, { now, allowRerunCompleted: true });
   assert.equal(rerun.stageNumber, 6);
+  assert.equal(rerun.resolutionSource, "database_schedule");
 });
 
-test("resolveAutomaticStage always selects the earliest eligible stage, never the most recent prior one", () => {
+test("resolveAutomaticStage selects the LATEST eligible unresolved stage, never the earliest, so a permanently-unresolvable early stage (e.g. an unconfirmed TTT) cannot starve out later stages forever", () => {
   const rows = [
     { stageNumber: 5, startsAt: "2026-07-08T10:00:00Z", isFinal: false },
     { stageNumber: 6, startsAt: "2026-07-09T10:00:00Z", isFinal: false },
@@ -106,13 +108,52 @@ test("resolveAutomaticStage always selects the earliest eligible stage, never th
   const now = new Date("2026-07-11T00:00:00Z");
 
   const resolved = resolveAutomaticStage(rows, { now, graceHours: 12 });
-  assert.equal(resolved.stageNumber, 5);
+  assert.equal(resolved.stageNumber, 7);
+  assert.equal(resolved.resolutionSource, "database_schedule");
 });
 
-test("resolveAutomaticStage returns the exact no-eligible-stage message for an empty list", () => {
+test("resolveAutomaticStage falls back to the latest unresolved straggler when the very latest eligible stage is already finalised and reruns are disabled", () => {
+  const rows = [
+    { stageNumber: 1, startsAt: "2026-07-04T10:00:00Z", isFinal: false }, // e.g. a TTT that can never be finalised through this pipeline
+    { stageNumber: 4, startsAt: "2026-07-07T10:00:00Z", isFinal: true },
+    { stageNumber: 5, startsAt: "2026-07-08T10:00:00Z", isFinal: false }, // applied draft, not yet finalised
+    { stageNumber: 6, startsAt: "2026-07-09T10:00:00Z", isFinal: true }
+  ];
+  const now = new Date("2026-07-11T00:00:00Z");
+
+  const resolved = resolveAutomaticStage(rows, { now, graceHours: 12 });
+  assert.equal(resolved.stageNumber, 5, "the latest eligible stage (6) is already final, so the algorithm steps back to the most recent unresolved one (5), never all the way back to stage 1");
+  assert.equal(resolved.resolutionSource, "unresolved_stage");
+});
+
+test("resolveAutomaticStage only re-selects a stuck-forever stage (e.g. an unconfirmed TTT) once it is genuinely the sole unresolved eligible stage left", () => {
+  const rows = [
+    { stageNumber: 1, startsAt: "2026-07-04T10:00:00Z", isFinal: false },
+    { stageNumber: 2, startsAt: "2026-07-05T10:00:00Z", isFinal: true }
+  ];
+  const now = new Date("2026-07-11T00:00:00Z");
+
+  const resolved = resolveAutomaticStage(rows, { now, graceHours: 12 });
+  assert.equal(resolved.stageNumber, 1);
+  assert.equal(resolved.resolutionSource, "unresolved_stage");
+});
+
+test("resolveAutomaticStage returns none when every eligible stage is already finalised", () => {
+  const rows = [
+    { stageNumber: 1, startsAt: "2026-07-04T10:00:00Z", isFinal: true },
+    { stageNumber: 2, startsAt: "2026-07-05T10:00:00Z", isFinal: true }
+  ];
+  const now = new Date("2026-07-11T00:00:00Z");
+
+  const resolved = resolveAutomaticStage(rows, { now, graceHours: 12 });
+  assert.equal(resolved.stageNumber, null);
+  assert.equal(resolved.resolutionSource, "none");
+});
+
+test("resolveAutomaticStage returns the exact no-eligible-stage resolutionSource for an empty list, and never a hardcoded stage", () => {
   const resolved = resolveAutomaticStage([], { now: new Date("2026-07-10T10:00:00Z") });
   assert.equal(resolved.stageNumber, null);
-  assert.equal(resolved.reason, "No eligible stage for automatic dry-run.");
+  assert.equal(resolved.resolutionSource, "none");
 });
 
 test("resolveAutomaticStage ignores rows with a missing or unparsable starts_at", () => {

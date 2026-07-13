@@ -123,6 +123,21 @@ jobs:
     # is 360 minutes if that's ever needed.
     timeout-minutes: 180
 
+    # Job-level so both the mail step's `if:` guard and the "SMTP not
+    # configured" notice step below can read the same values. GitHub
+    # Actions `if:` expressions cannot safely reference `secrets.*`
+    # directly (there is no reliable "is this secret set" check against the
+    # secrets context) - env vars are the documented way to gate a step on
+    # whether a secret was actually provided. `with:` values on the mail
+    # step itself still reference `secrets.*` directly (that's fine and
+    # normal - only `if:` needs the env-var indirection).
+    env:
+      SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -344,15 +359,24 @@ jobs:
           node scripts/grandtour-auto-dry-run-notify.mjs "${{ steps.final_summary.outputs.summary_file }}" --run-url "$RUN_URL" --out-dir tmp
 
       - name: Send admin notification email
-        # Only the two GitHub-side conditions below decide whether this
-        # step runs at all - "should this outcome page anyone" is decided
-        # entirely by the previous step/script, not here.
-        #
-        # Requires four repository secrets (SMTP credentials for the
-        # sending mailbox) - see docs/GRANDTOUR_APPLY_MODE_PRODUCTION_READINESS_CHECKLIST.md
-        # §17.9 for setup. The recipient address is not a secret; update it
-        # directly below if it ever changes.
-        if: always() && steps.notify.outputs.should_send == 'true'
+        # Requires five repository secrets (SMTP credentials for the
+        # sending mailbox, plus the destination address) - see
+        # docs/GRANDTOUR_APPLY_MODE_PRODUCTION_READINESS_CHECKLIST.md §17.9
+        # for setup. Guarded on the job-level env vars above (mapped from
+        # secrets.*, since `if:` cannot safely reference secrets.* itself)
+        # so this step is skipped entirely - not failed - when any of them
+        # are missing; "Notify - SMTP not configured" below prints a
+        # visible notice for that case instead. Missing SMTP configuration
+        # must never change the workflow's overall result from success to
+        # failure.
+        if: >
+          always() &&
+          steps.notify.outputs.should_send == 'true' &&
+          env.SMTP_SERVER != '' &&
+          env.SMTP_PORT != '' &&
+          env.SMTP_USERNAME != '' &&
+          env.SMTP_PASSWORD != '' &&
+          env.ADMIN_EMAIL != ''
         uses: dawidd6/action-send-mail@v4
         with:
           server_address: ${{ secrets.SMTP_SERVER }}
@@ -361,8 +385,21 @@ jobs:
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: ${{ steps.notify.outputs.subject }}
           body: file://${{ steps.notify.outputs.body_path }}
-          to: tmcstay@gmail.com
+          to: ${{ secrets.ADMIN_EMAIL }}
           from: GrandTour Automation <${{ secrets.SMTP_USERNAME }}>
+
+      - name: Notify - SMTP not configured
+        # Purely informational - never fails the job. Only prints when this
+        # run actually had something worth emailing about
+        # (steps.notify.outputs.should_send == 'true') but couldn't, because
+        # one or more of the SMTP_SERVER/SMTP_PORT/SMTP_USERNAME/
+        # SMTP_PASSWORD/ADMIN_EMAIL secrets are missing.
+        if: >
+          always() &&
+          steps.notify.outputs.should_send == 'true' &&
+          (env.SMTP_SERVER == '' || env.SMTP_PORT == '' || env.SMTP_USERNAME == '' || env.SMTP_PASSWORD == '' || env.ADMIN_EMAIL == '')
+        run: |
+          echo "::notice title=GrandTour admin email skipped::This run's outcome would normally email the admin, but one or more of the SMTP_SERVER/SMTP_PORT/SMTP_USERNAME/SMTP_PASSWORD/ADMIN_EMAIL repository secrets are not configured, so the email step was skipped. See docs/GRANDTOUR_APPLY_MODE_PRODUCTION_READINESS_CHECKLIST.md §17.9 to configure them. This does not affect the job's pass/fail result."
 
       - name: Upload auto dry-run report artifacts
         # Always uploads, even when the run step fails (exhausted retries,
