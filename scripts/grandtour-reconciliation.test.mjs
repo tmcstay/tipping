@@ -8,9 +8,11 @@ import {
   checkStartlistMembership,
   classifyRiderMatch,
   classifyTeamMatch,
+  deriveTeamResultFromRiderRows,
   detectDuplicateBibConflicts,
   reconcileJerseyHolders,
-  reconcileStageResult
+  reconcileStageResult,
+  reconcileTeamTimeTrialResult
 } from "./grandtour-reconciliation.mjs";
 
 const FIXTURES_DIR = path.resolve("test", "fixtures", "reconciliation");
@@ -545,4 +547,222 @@ test("buildReconciliationReport overallSafeToApply is false when any stage is un
 
   assert.equal(buildReconciliationReport({ stageReconciliations: [safeStage, unsafeStage] }).overallSafeToApply, false);
   assert.equal(buildReconciliationReport({ stageReconciliations: [] }).overallSafeToApply, false);
+});
+
+// Real subset of parsed rider rows from a live fetch of TDF 2026 Stage 1
+// (2026-07-14) — confirms the UCI "N=1" TTT rule (team time = time of the
+// team's first rider across the line; every other rider individually
+// timed), which is the whole basis for deriving a team result from this
+// same rider-ranking data without a separate letour.fr team table.
+const STAGE_1_RIDER_ROWS = [
+  { position: 1, rider_name: "J. VINGEGAARD", bib_number: 11, team_name: "TEAM VISMA | LEASE A BIKE", time: "00h 21' 47''" },
+  { position: 2, rider_name: "F. GANNA", bib_number: 84, team_name: "NETCOMPANY INEOS CYCLING TEAM", time: "00h 21' 55''" },
+  { position: 3, rider_name: "T. POGACAR", bib_number: 1, team_name: "UAE TEAM EMIRATES XRG", time: "00h 21' 59''" },
+  { position: 6, rider_name: "I. DEL TORO", bib_number: 2, team_name: "UAE TEAM EMIRATES XRG", time: "00h 22' 13''" },
+  { position: 7, rider_name: "D. PIGANZOLI", bib_number: 18, team_name: "TEAM VISMA | LEASE A BIKE", time: "00h 22' 15''" },
+  { position: 9, rider_name: "T. FOSS", bib_number: 83, team_name: "NETCOMPANY INEOS CYCLING TEAM", time: "00h 22' 25''" },
+  { position: 43, rider_name: "S. KUSS", bib_number: 15, team_name: "TEAM VISMA | LEASE A BIKE", time: "00h 23' 45''" }
+];
+
+test("deriveTeamResultFromRiderRows ranks teams by their fastest rider's time (UCI N=1 TTT rule)", () => {
+  const { teams, unparsedTeamNames } = deriveTeamResultFromRiderRows(STAGE_1_RIDER_ROWS);
+
+  assert.deepEqual(unparsedTeamNames, []);
+  assert.equal(teams.length, 3);
+
+  assert.deepEqual(teams[0], {
+    position: 1,
+    teamName: "TEAM VISMA | LEASE A BIKE",
+    teamTimeSeconds: 21 * 60 + 47,
+    firstRiderName: "J. VINGEGAARD",
+    firstRiderBibNumber: 11,
+    riderCount: 3,
+    ridersWithTimeCount: 3
+  });
+  assert.deepEqual(teams[1], {
+    position: 2,
+    teamName: "NETCOMPANY INEOS CYCLING TEAM",
+    teamTimeSeconds: 21 * 60 + 55,
+    firstRiderName: "F. GANNA",
+    firstRiderBibNumber: 84,
+    riderCount: 2,
+    ridersWithTimeCount: 2
+  });
+  assert.deepEqual(teams[2], {
+    position: 3,
+    teamName: "UAE TEAM EMIRATES XRG",
+    teamTimeSeconds: 21 * 60 + 59,
+    firstRiderName: "T. POGACAR",
+    firstRiderBibNumber: 1,
+    riderCount: 2,
+    ridersWithTimeCount: 2
+  });
+
+  // A teammate finishing well behind the team's first rider (Piganzoli, 28s
+  // behind Vingegaard) must never make Visma's derived team time slower -
+  // the minimum, not an average, is the whole point of the N=1 rule.
+  assert.equal(teams[0].teamTimeSeconds < teams[1].teamTimeSeconds, true);
+});
+
+test("deriveTeamResultFromRiderRows excludes riders with no team_name and reports teams with zero parseable times separately", () => {
+  const rows = [
+    { rider_name: "No Team Rider", bib_number: 200, team_name: null, time: "00h 20' 00''" },
+    { rider_name: "DNF Rider", bib_number: 201, team_name: "ALL DNF TEAM", time: "-" },
+    { rider_name: "Real Rider", bib_number: 202, team_name: "REAL TEAM", time: "00h 25' 00''" }
+  ];
+
+  const { teams, unparsedTeamNames } = deriveTeamResultFromRiderRows(rows);
+
+  assert.equal(teams.length, 1);
+  assert.equal(teams[0].teamName, "REAL TEAM");
+  assert.deepEqual(unparsedTeamNames, ["ALL DNF TEAM"]);
+});
+
+test("deriveTeamResultFromRiderRows treats a rider missing a real time as a non-fastest teammate, not a team-blocking failure", () => {
+  const rows = [
+    { rider_name: "Fast Rider", bib_number: 300, team_name: "MIXED TEAM", time: "00h 20' 00''" },
+    { rider_name: "Dropped Rider", bib_number: 301, team_name: "MIXED TEAM", time: "-" }
+  ];
+
+  const { teams, unparsedTeamNames } = deriveTeamResultFromRiderRows(rows);
+
+  assert.deepEqual(unparsedTeamNames, []);
+  assert.equal(teams.length, 1);
+  assert.equal(teams[0].firstRiderName, "Fast Rider");
+  assert.equal(teams[0].riderCount, 2);
+  assert.equal(teams[0].ridersWithTimeCount, 1);
+});
+
+test("deriveTeamResultFromRiderRows returns empty teams for no input", () => {
+  assert.deepEqual(deriveTeamResultFromRiderRows([]), { teams: [], unparsedTeamNames: [] });
+  assert.deepEqual(deriveTeamResultFromRiderRows(undefined), { teams: [], unparsedTeamNames: [] });
+});
+
+const STAGE_1_EXISTING_TEAMS = [
+  { id: "team-visma", code: null, name: "Team Visma | Lease a Bike", shortName: null },
+  { id: "team-ineos", code: null, name: "Netcompany Ineos Cycling Team", shortName: null },
+  { id: "team-uae", code: null, name: "UAE Team Emirates XRG", shortName: null }
+];
+
+test("reconcileTeamTimeTrialResult matches every derived team against existing teams and reports no blockers when they all resolve", () => {
+  const { teams, blockers } = reconcileTeamTimeTrialResult(STAGE_1_RIDER_ROWS, { existingTeams: STAGE_1_EXISTING_TEAMS });
+
+  assert.deepEqual(blockers, []);
+  assert.equal(teams.length, 3);
+  assert.deepEqual(
+    teams.map((team) => ({ position: team.position, teamName: team.teamName, teamId: team.teamId, matchedBy: team.matchedBy })),
+    [
+      { position: 1, teamName: "TEAM VISMA | LEASE A BIKE", teamId: "team-visma", matchedBy: "name" },
+      { position: 2, teamName: "NETCOMPANY INEOS CYCLING TEAM", teamId: "team-ineos", matchedBy: "name" },
+      { position: 3, teamName: "UAE TEAM EMIRATES XRG", teamId: "team-uae", matchedBy: "name" }
+    ]
+  );
+});
+
+test("reconcileTeamTimeTrialResult blocks on a derived team with no matching existing team", () => {
+  const { teams, blockers } = reconcileTeamTimeTrialResult(STAGE_1_RIDER_ROWS, { existingTeams: STAGE_1_EXISTING_TEAMS.slice(0, 2) });
+
+  assert.equal(teams.length, 3);
+  assert.equal(teams[2].teamId, null);
+  assert.ok(blockers.some((blocker) => blocker.includes("UAE TEAM EMIRATES XRG") && blocker.includes("no matching existing team")));
+});
+
+test("reconcileTeamTimeTrialResult surfaces a team with no parseable rider time as a blocker", () => {
+  const rows = [...STAGE_1_RIDER_ROWS, { rider_name: "X", bib_number: 999, team_name: "GHOST TEAM", time: "-" }];
+  const { blockers } = reconcileTeamTimeTrialResult(rows, { existingTeams: STAGE_1_EXISTING_TEAMS });
+
+  assert.ok(blockers.some((blocker) => blocker.includes("GHOST TEAM") && blocker.includes("could not be derived")));
+});
+
+test("reconcileStageResult populates tttTeamResult (with its blockers folded in) for a TTT stage, and leaves it empty for a non-TTT stage", async () => {
+  const { existingRiders, existingTeams: fixtureExistingTeams } = await loadContext();
+
+  const tttResult = reconcileStageResult({
+    stageNumber: 1,
+    stageType: "ttt",
+    parsedStageResult: { stage_number: 1, riders: STAGE_1_RIDER_ROWS },
+    existingStage: { id: "stage-record-1", stageNumber: 1, stageType: "team_time_trial", stageDate: "2026-07-04" },
+    existingRiders,
+    existingTeams: STAGE_1_EXISTING_TEAMS
+  });
+
+  assert.equal(tttResult.isTtt, true);
+  assert.equal(tttResult.tttTeamResult.teams.length, 3);
+  assert.equal(tttResult.tttTeamResult.blockers.length, 0);
+  // This stage's existingStage carries no ttt_timing_rule (unset), so it's
+  // still unconditionally unsafe — only ttt_timing_rule='individual_time'
+  // is supported (see the next test below for that case).
+  assert.equal(tttResult.tttTimingRule, null);
+  assert.equal(tttResult.isSupportedTtt, false);
+  assert.equal(tttResult.safeToApply, false);
+  assert.ok(tttResult.blockers.some((blocker) => blocker.includes("TTT")));
+
+  const roadResult = reconcileStageResult({
+    stageNumber: 2,
+    stageType: "road",
+    parsedStageResult: { stage_number: 2, riders: [] },
+    existingStage: { id: "stage-record-2", stageNumber: 2, stageType: "hilly", stageDate: "2026-07-05" },
+    existingRiders,
+    existingTeams: fixtureExistingTeams
+  });
+
+  assert.equal(roadResult.isTtt, false);
+  assert.deepEqual(roadResult.tttTeamResult, { teams: [], blockers: [] });
+});
+
+// Self-contained rider/startlist/jersey-holder fixtures matching
+// STAGE_1_RIDER_ROWS (unlike loadContext()'s fixture riders, which are
+// unrelated fictional data) - needed because a genuinely clean
+// safeToApply=true result requires every parsed rider matched and on the
+// startlist, plus all four jersey holders, not just clean team matching.
+const STAGE_1_EXISTING_RIDERS = STAGE_1_RIDER_ROWS.map((row, index) => ({
+  id: `rider-${index + 1}`,
+  bibNumber: row.bib_number,
+  normalizedName: row.rider_name.toLowerCase(),
+  teamId: STAGE_1_EXISTING_TEAMS.find((team) => team.name.toUpperCase() === row.team_name)?.id ?? null
+}));
+const STAGE_1_EXISTING_STARTLIST = STAGE_1_EXISTING_RIDERS.map((rider) => ({ riderId: rider.id, status: "confirmed" }));
+const STAGE_1_JERSEY_HOLDERS = [
+  { jerseyType: "yellow", parsedRiderName: "J. VINGEGAARD", bibNumber: 11 },
+  { jerseyType: "green", parsedRiderName: "F. GANNA", bibNumber: 84 },
+  { jerseyType: "kom", parsedRiderName: "T. POGACAR", bibNumber: 1 },
+  { jerseyType: "white", parsedRiderName: "I. DEL TORO", bibNumber: 2 }
+];
+
+test("reconcileStageResult is safe to apply for a TTT stage whose ttt_timing_rule is individual_time, once the derived team result reconciles cleanly", async () => {
+  const result = reconcileStageResult({
+    stageNumber: 1,
+    stageType: "ttt",
+    parsedStageResult: { stage_number: 1, riders: STAGE_1_RIDER_ROWS, jersey_holders: STAGE_1_JERSEY_HOLDERS },
+    existingStage: { id: "stage-record-1", stageNumber: 1, stageType: "team_time_trial", tttTimingRule: "individual_time", stageDate: "2026-07-04" },
+    existingRiders: STAGE_1_EXISTING_RIDERS,
+    existingTeams: STAGE_1_EXISTING_TEAMS,
+    existingStartlist: STAGE_1_EXISTING_STARTLIST
+  });
+
+  assert.equal(result.isTtt, true);
+  assert.equal(result.tttTimingRule, "individual_time");
+  assert.equal(result.isSupportedTtt, true);
+  assert.equal(result.tttTeamResult.teams.length, 3);
+  assert.deepEqual(result.tttTeamResult.blockers, []);
+  assert.deepEqual(result.blockers, []);
+  assert.equal(result.safeToApply, true);
+});
+
+test("reconcileStageResult stays unsafe for a TTT stage whose ttt_timing_rule is 'team_time' (older shared-block-time rule, not derivable yet), even with otherwise-clean rider/team/jersey matches", async () => {
+  const result = reconcileStageResult({
+    stageNumber: 1,
+    stageType: "ttt",
+    parsedStageResult: { stage_number: 1, riders: STAGE_1_RIDER_ROWS, jersey_holders: STAGE_1_JERSEY_HOLDERS },
+    existingStage: { id: "stage-record-1", stageNumber: 1, stageType: "team_time_trial", tttTimingRule: "team_time", stageDate: "2026-07-04" },
+    existingRiders: STAGE_1_EXISTING_RIDERS,
+    existingTeams: STAGE_1_EXISTING_TEAMS,
+    existingStartlist: STAGE_1_EXISTING_STARTLIST
+  });
+
+  assert.equal(result.isSupportedTtt, false);
+  assert.equal(result.safeToApply, false);
+  assert.deepEqual(result.blockers, [
+    "Stage is a TTT with ttt_timing_rule=team_time; only individual_time TTT stages are supported for apply, so it remains warning-only and is never safe to apply."
+  ]);
 });

@@ -21,6 +21,7 @@ import {
   mapRowsToResultLines,
   selectJerseyHolderParams,
   selectTopNRows,
+  selectTopNTeamResultLines,
   validateReportForApply
 } from "./grandtour-apply.mjs";
 
@@ -142,14 +143,31 @@ export async function runApply(options, deps = {}) {
     throw new Error(`Report at ${options.fromReportPath} failed apply validation:\n- ${errors.join("\n- ")}`);
   }
 
-  const { rows, error: selectionError } = selectTopNRows(stage.parsedRiders);
-  if (selectionError) {
-    throw new Error(selectionError);
-  }
+  // A supported (ttt_timing_rule='individual_time') TTT stage builds team
+  // result lines from the already-matched tttTeamResult.teams instead of
+  // rider result lines - see selectTopNTeamResultLines/reconcileStageResult.
+  // Every other stage (non-TTT, or an unsupported-timing-rule TTT, which
+  // validateReportForApply already refused above) takes the original
+  // rider-line path unchanged.
+  let resultLines = [];
+  let teamResultLines = [];
+  if (stage.isSupportedTtt) {
+    const { resultLines: teamLines, error: teamSelectionError } = selectTopNTeamResultLines(stage.tttTeamResult?.teams);
+    if (teamSelectionError) {
+      throw new Error(teamSelectionError);
+    }
+    teamResultLines = teamLines;
+  } else {
+    const { rows, error: selectionError } = selectTopNRows(stage.parsedRiders);
+    if (selectionError) {
+      throw new Error(selectionError);
+    }
 
-  const { resultLines, error: mappingError } = mapRowsToResultLines(rows, stage.matchedRiders);
-  if (mappingError) {
-    throw new Error(mappingError);
+    const { resultLines: riderLines, error: mappingError } = mapRowsToResultLines(rows, stage.matchedRiders);
+    if (mappingError) {
+      throw new Error(mappingError);
+    }
+    resultLines = riderLines;
   }
 
   const { jerseyHolderParams, error: jerseyError } = selectJerseyHolderParams(stage);
@@ -157,7 +175,7 @@ export async function runApply(options, deps = {}) {
     throw new Error(jerseyError);
   }
 
-  const rpcParams = buildApplyRpcParams({ report, stage, resultLines, jerseyHolderParams, reason: options.reason, requestId: options.requestId });
+  const rpcParams = buildApplyRpcParams({ report, stage, resultLines, teamResultLines, jerseyHolderParams, reason: options.reason, requestId: options.requestId });
 
   const createClient = deps.createClient ?? (await import("@supabase/supabase-js")).createClient;
   const client = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });

@@ -10,6 +10,7 @@ import {
   scoreGrandTourStage,
   type GrandTourAdminJerseyHolder,
   type GrandTourAdminResultLine,
+  type GrandTourAdminTeamResultLine,
   type GrandTourOfficialCheckReport,
   type GrandTourStageAdminSummary
 } from "@tipping-suite/supabase-client";
@@ -23,6 +24,7 @@ import {
   getGrandTourAdminActionLabel,
   getStageReviewWarnings,
   isStageDataComplete,
+  isTttStageType,
   type GrandTourAdminAction
 } from "../lib/grandtourAdminExperience";
 import {
@@ -81,7 +83,10 @@ export function GrandTourStageAdminCard({ currentUserId, grandTourName, grandTou
   const [detailsLoaded, setDetailsLoaded] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [lines, setLines] = useState<GrandTourAdminResultLine[]>([]);
+  const [teamLines, setTeamLines] = useState<GrandTourAdminTeamResultLine[]>([]);
   const [jerseyHolders, setJerseyHolders] = useState<GrandTourAdminJerseyHolder[]>([]);
+
+  const isTtt = isTttStageType(summary.stageType);
 
   const [confirmingMarkChecked, setConfirmingMarkChecked] = useState(false);
 
@@ -101,8 +106,9 @@ export function GrandTourStageAdminCard({ currentUserId, grandTourName, grandTou
     setDetailsLoading(true);
     setDetailsError(null);
     try {
-      const details = await getGrandTourStageAdminReviewDetails(summary.stageId);
+      const details = await getGrandTourStageAdminReviewDetails(summary.stageId, summary.stageType);
       setLines(details.lines);
+      setTeamLines(details.teamLines);
       setJerseyHolders(details.jerseyHolders);
       setDetailsLoaded(true);
     } catch (error) {
@@ -394,8 +400,21 @@ export function GrandTourStageAdminCard({ currentUserId, grandTourName, grandTou
               {applyMessage ? <Text style={styles.successText}>{applyMessage}</Text> : null}
               {applyError ? <Text style={styles.errorText}>{applyError}</Text> : null}
 
-              <Text style={styles.reviewHeading}>Parsed top 10 result lines</Text>
-              {checkSummary.topResultLines.length === 0 ? (
+              <Text style={styles.reviewHeading}>{checkSummary.isTtt ? "Parsed top 10 team result lines" : "Parsed top 10 result lines"}</Text>
+              {checkSummary.isTtt ? (
+                checkSummary.topTeamLines.length === 0 ? (
+                  <Text style={styles.emptyCopy}>No team result lines derived.</Text>
+                ) : (
+                  <View style={styles.table}>
+                    {checkSummary.topTeamLines.map((line) => (
+                      <View key={`check-team-${line.position}-${line.teamName}`} style={styles.tableRow}>
+                        <Text style={styles.tablePosition}>{line.position}</Text>
+                        <Text style={styles.tableRider}>{line.teamName}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )
+              ) : checkSummary.topResultLines.length === 0 ? (
                 <Text style={styles.emptyCopy}>No result lines parsed.</Text>
               ) : (
                 <View style={styles.table}>
@@ -458,8 +477,21 @@ export function GrandTourStageAdminCard({ currentUserId, grandTourName, grandTou
           ) : null}
           {!detailsLoading && !detailsError && detailsLoaded ? (
             <>
-              <Text style={styles.reviewHeading}>Official top 10 result lines</Text>
-              {lines.length === 0 ? (
+              <Text style={styles.reviewHeading}>{isTtt ? "Official top 10 team result lines" : "Official top 10 result lines"}</Text>
+              {isTtt ? (
+                teamLines.length === 0 ? (
+                  <Text style={styles.emptyCopy}>No team result lines loaded yet.</Text>
+                ) : (
+                  <View style={styles.table}>
+                    {teamLines.map((line) => (
+                      <View key={`${line.position}-${line.teamId}`} style={styles.tableRow}>
+                        <Text style={styles.tablePosition}>{line.position}</Text>
+                        <Text style={styles.tableRider}>{line.teamName}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )
+              ) : lines.length === 0 ? (
                 <Text style={styles.emptyCopy}>No result lines loaded yet.</Text>
               ) : (
                 <View style={styles.table}>

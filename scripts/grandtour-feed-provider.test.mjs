@@ -15,6 +15,7 @@ import {
   extractGeneralClassificationAjaxUrls,
   fetchLetourJerseyHolders,
   parseLetourClassificationLeader,
+  parseLetourElapsedTime,
   parseLetourRankingStageRows
 } from "./grandtour-feed-provider.mjs";
 
@@ -267,6 +268,29 @@ test("parse letour ranking page rows for TTT stage emits individual timing warni
   assert.equal(parsed.stageResult.riders.length, 1);
   assert.equal(parsed.individualTimingRows.length, 1);
   assert.equal(parsed.warnings[0], "TTT individual timing rows found, but official team result source was not found.");
+});
+
+test("parseLetourElapsedTime parses real hh'mm''ss'' markup into whole seconds", () => {
+  // Exact strings confirmed by fetching a live TDF 2026 Stage 1 rankings
+  // page on 2026-07-14: Vingegaard (fastest) and his own Visma teammate
+  // Piganzoli, whose real crossing time is 28s slower - direct evidence
+  // riders are individually timed, not sharing one team block time.
+  assert.equal(parseLetourElapsedTime("00h 21' 47''"), 21 * 60 + 47);
+  assert.equal(parseLetourElapsedTime("00h 22' 15''"), 22 * 60 + 15);
+  assert.equal(parseLetourElapsedTime("01h 02' 03''"), 3600 + 2 * 60 + 3);
+});
+
+test("parseLetourElapsedTime accepts the alternate mm'ss\" seconds marker", () => {
+  assert.equal(parseLetourElapsedTime("00h 45' 34\""), 45 * 60 + 34);
+});
+
+test("parseLetourElapsedTime returns null for placeholders, gaps, and malformed input", () => {
+  assert.equal(parseLetourElapsedTime("-"), null);
+  assert.equal(parseLetourElapsedTime("+ 00h 00' 08''"), null);
+  assert.equal(parseLetourElapsedTime(""), null);
+  assert.equal(parseLetourElapsedTime(null), null);
+  assert.equal(parseLetourElapsedTime(undefined), null);
+  assert.equal(parseLetourElapsedTime("21' 47''"), null);
 });
 
 // Row markup confirmed against a real letour.fr stage-rankings page and its

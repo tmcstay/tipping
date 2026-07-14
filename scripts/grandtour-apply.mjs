@@ -113,11 +113,18 @@ export function validateReportForApply({ report, confirmProvider, confirmStage, 
   if (stage.missingStageRecord !== false) {
     errors.push(`report.reconciliation.stages[0].missingStageRecord must be false (got ${JSON.stringify(stage.missingStageRecord)}).`);
   }
-  if (stage.isTtt !== false) {
-    errors.push(`report.reconciliation.stages[0].isTtt must be false; TTT stages are never safe to apply (got ${JSON.stringify(stage.isTtt)}).`);
-  }
-  if (["team_time_trial", "ttt"].includes(stage.stageType)) {
-    errors.push(`report.reconciliation.stages[0].stageType is ${JSON.stringify(stage.stageType)}; TTT stages are never safe to apply.`);
+  // A TTT stage is apply-eligible only when reconcileStageResult() has
+  // already determined it's the one supported case (ttt_timing_rule =
+  // 'individual_time', see grandtour-reconciliation.mjs). Every other TTT
+  // stage - and every non-TTT stage - keeps the original, unconditional
+  // "isTtt must be false" gate.
+  if (stage.isSupportedTtt !== true) {
+    if (stage.isTtt !== false) {
+      errors.push(`report.reconciliation.stages[0].isTtt must be false unless the stage is a supported (individual_time) TTT stage (got isTtt=${JSON.stringify(stage.isTtt)}, isSupportedTtt=${JSON.stringify(stage.isSupportedTtt)}).`);
+    }
+    if (["team_time_trial", "ttt"].includes(stage.stageType)) {
+      errors.push(`report.reconciliation.stages[0].stageType is ${JSON.stringify(stage.stageType)}; only individual_time TTT stages are supported for apply (got ttt_timing_rule=${JSON.stringify(stage.tttTimingRule)}).`);
+    }
   }
   if (stage.startlistValidationPassed !== true) {
     errors.push(`report.reconciliation.stages[0].startlistValidationPassed must be true (got ${JSON.stringify(stage.startlistValidationPassed)}).`);
@@ -237,6 +244,59 @@ export function mapRowsToResultLines(rows, matchedRiders) {
 }
 
 /**
+ * TTT equivalent of selectTopNRows + mapRowsToResultLines combined into
+ * one step: unlike a parsed rider row, each entry in
+ * stage.tttTeamResult.teams (reconcileTeamTimeTrialResult in
+ * grandtour-reconciliation.mjs) already carries its own resolved teamId
+ * and derived position, so there's no separate matched-lookup pass needed
+ * here. Same v1 policy as the rider path (spec §14.1): exactly 10 rows
+ * required, never a "top 5" fallback - a real Grand Tour TTT always has
+ * far more than 10 starting teams.
+ */
+export function selectTopNTeamResultLines(teams) {
+  const positionedTeams = [...(teams ?? [])].filter((team) => Number.isInteger(team.position));
+
+  const positionCounts = new Map();
+  for (const team of positionedTeams) {
+    positionCounts.set(team.position, (positionCounts.get(team.position) ?? 0) + 1);
+  }
+  const duplicatePositions = [...positionCounts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([position]) => position)
+    .sort((a, b) => a - b);
+  if (duplicatePositions.length > 0) {
+    return {
+      resultLines: null,
+      error: `Derived TTT team result contains duplicate position value(s) (${duplicatePositions.join(", ")}); refusing to apply until the derived data is unambiguous.`
+    };
+  }
+
+  const sortedTeams = [...positionedTeams].sort((a, b) => a.position - b.position);
+  const selected = sortedTeams.filter((team) => team.position >= 1 && team.position <= 10);
+
+  if (selected.length !== 10) {
+    return {
+      resultLines: null,
+      error: `Stage has ${selected.length} derived team result row(s) with a valid position in 1-10 (of ${sortedTeams.length} total derived teams); v1 apply mode requires exactly 10 and cannot apply this TTT stage otherwise.`
+    };
+  }
+
+  for (const team of selected) {
+    if (!team.teamId) {
+      return {
+        resultLines: null,
+        error: `Derived TTT team result at position ${team.position} ("${team.teamName}") has no matched teamId. This should be impossible when safeToApply is true; refusing to apply.`
+      };
+    }
+  }
+
+  return {
+    resultLines: selected.map((team) => ({ team_id: team.teamId, actual_position: team.position })),
+    error: null
+  };
+}
+
+/**
  * Selects the four reconciled jersey-holder rows (yellow, green, kom, white)
  * to apply, per stage.jerseyHolders. Requires all four to already be
  * status "matched" — this should be unreachable when safeToApply is true
@@ -273,8 +333,15 @@ export function selectJerseyHolderParams(stage) {
  * p_jersey_holders carries the four reconciled classification leaders
  * (selectJerseyHolderParams above) so the RPC can upsert
  * grandtour_stage_jersey_holders in the same call as the stage result.
+ *
+ * Exactly one of resultLines/teamResultLines should be non-empty: rider
+ * lines for a non-TTT (or unsupported-timing-rule TTT) stage,
+ * team lines (selectTopNTeamResultLines above) for a supported
+ * (ttt_timing_rule='individual_time') TTT stage — the RPC itself refuses
+ * a payload that gets this backwards (see
+ * 20260714020000_grandtour_apply_ttt_individual_time_result.sql).
  */
-export function buildApplyRpcParams({ report, stage, resultLines, jerseyHolderParams, reason = null, requestId = null }) {
+export function buildApplyRpcParams({ report, stage, resultLines = [], teamResultLines = [], jerseyHolderParams, reason = null, requestId = null }) {
   const stageFetchEntry = Array.isArray(report.stageFetchMetadata)
     ? report.stageFetchMetadata.find((entry) => entry.stageNumber === stage.stageNumber)
     : null;
@@ -296,7 +363,8 @@ export function buildApplyRpcParams({ report, stage, resultLines, jerseyHolderPa
     p_finalize: false,
     p_reason: reason ?? `applied via grandtour-feed-import.mjs --apply --confirm-stage=${stage.stageNumber}`,
     p_request_id: requestId ?? `apply-${stage.stageNumber}-${Date.now()}`,
-    p_jersey_holders: jerseyHolderParams ?? []
+    p_jersey_holders: jerseyHolderParams ?? [],
+    p_team_result_lines: teamResultLines
   };
 }
 

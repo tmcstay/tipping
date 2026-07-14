@@ -17,6 +17,11 @@ export type OfficialCheckResultLine = {
   teamName: string;
 };
 
+export type OfficialCheckTeamResultLine = {
+  position: number;
+  teamName: string;
+};
+
 export type OfficialCheckJerseyHolder = {
   jerseyType: string;
   riderName: string | null;
@@ -44,6 +49,14 @@ export type OfficialCheckSummary = {
   topResultLines: OfficialCheckResultLine[];
   jerseyHolders: OfficialCheckJerseyHolder[];
   jerseyFetchMetadata: OfficialCheckJerseyFetchStatus[];
+  // True for a TTT stage - topResultLines above is always empty in that
+  // case (individual finishing positions aren't the applied result for a
+  // TTT), and topTeamLines is the derived team result instead. False/empty
+  // for a non-TTT stage, and vice versa - never both populated at once,
+  // mirroring reconcileStageResult's own isTtt/parsedRiders vs
+  // tttTeamResult split.
+  isTtt: boolean;
+  topTeamLines: OfficialCheckTeamResultLine[];
 };
 
 export function summarizeOfficialCheckReport(
@@ -56,16 +69,28 @@ export function summarizeOfficialCheckReport(
     .filter((entry) => entry.stageNumber === stageNumber)
     .map((entry) => ({ jerseyType: entry.jerseyType ?? entry.classification, status: entry.status }));
 
-  const topResultLines: OfficialCheckResultLine[] = (stage?.parsedRiders ?? [])
-    .slice()
-    .sort((a, b) => a.position - b.position)
-    .slice(0, 10)
-    .map((rider) => ({
-      position: rider.position,
-      riderName: rider.rider_name,
-      bibNumber: rider.bib_number ?? null,
-      teamName: rider.team_name
-    }));
+  const isTtt = stage?.isTtt === true;
+
+  const topResultLines: OfficialCheckResultLine[] = isTtt
+    ? []
+    : (stage?.parsedRiders ?? [])
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .slice(0, 10)
+      .map((rider) => ({
+        position: rider.position,
+        riderName: rider.rider_name,
+        bibNumber: rider.bib_number ?? null,
+        teamName: rider.team_name
+      }));
+
+  const topTeamLines: OfficialCheckTeamResultLine[] = isTtt
+    ? (stage?.tttTeamResult?.teams ?? [])
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .slice(0, 10)
+      .map((team) => ({ position: team.position, teamName: team.teamName }))
+    : [];
 
   const jerseyHolders: OfficialCheckJerseyHolder[] = (stage?.jerseyHolders ?? []).map((holder) => ({
     jerseyType: holder.jerseyType,
@@ -84,11 +109,13 @@ export function summarizeOfficialCheckReport(
     safeToApply: stage?.safeToApply ?? null,
     overallSafeToApply: report.reconciliation?.overallSafeToApply ?? null,
     blockers: stage?.blockers ?? [],
-    resultLineCount: stage?.matchedRiders?.length ?? topResultLines.length,
+    resultLineCount: isTtt ? topTeamLines.length : (stage?.matchedRiders?.length ?? topResultLines.length),
     jerseyHolderCount: jerseyHolders.length,
     topResultLines,
     jerseyHolders,
-    jerseyFetchMetadata
+    jerseyFetchMetadata,
+    isTtt,
+    topTeamLines
   };
 }
 

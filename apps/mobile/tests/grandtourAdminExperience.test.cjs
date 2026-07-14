@@ -10,7 +10,8 @@ const {
   getGrandTourAdminActionAvailability,
   getGrandTourAdminActionLabel,
   getStageReviewWarnings,
-  isStageDataComplete
+  isStageDataComplete,
+  isTttStageType
 } = require("../../../dist/mobile-tests/grandtourAdminExperience.js");
 
 function baseSummary(overrides = {}) {
@@ -101,6 +102,15 @@ test("getStageReviewWarnings reports missing lines and jerseys with exact counts
     "Only 7 of 10 result lines loaded.",
     "Only 2 of 4 jersey holders loaded."
   ]);
+});
+
+test("isTttStageType matches both real stage_type spellings and rejects everything else", () => {
+  assert.equal(isTttStageType("ttt"), true);
+  assert.equal(isTttStageType("team_time_trial"), true);
+  assert.equal(isTttStageType("road"), false);
+  assert.equal(isTttStageType("individual_time_trial"), false);
+  assert.equal(isTttStageType(null), false);
+  assert.equal(isTttStageType(undefined), false);
 });
 
 test("buildMarkCheckedConfirmationMessage includes the stage number and an ISO timestamp", () => {

@@ -26,9 +26,11 @@
  *   - Only accepts provider "official-letour" for now.
  *   - Refuses to apply (422) if the freshly-fetched report is not safe -
  *     it re-validates with the exact same validateReportForApply/
- *     selectTopNRows/mapRowsToResultLines/selectJerseyHolderParams
- *     functions the CLI uses (scripts/grandtour-apply.mjs), so this route
- *     can never apply something the CLI path would refuse.
+ *     selectTopNRows/mapRowsToResultLines/selectJerseyHolderParams (or,
+ *     for a supported individual_time TTT stage,
+ *     selectTopNTeamResultLines) functions the CLI uses
+ *     (scripts/grandtour-apply.mjs), so this route can never apply
+ *     something the CLI path would refuse.
  */
 
 import { runDryRunReconcile } from "../../../../../scripts/grandtour-feed-import.mjs";
@@ -38,6 +40,7 @@ import {
   mapRowsToResultLines,
   selectJerseyHolderParams,
   selectTopNRows,
+  selectTopNTeamResultLines,
   validateReportForApply
 } from "../../../../../scripts/grandtour-apply.mjs";
 
@@ -162,16 +165,31 @@ export async function handleApplyOfficialResult(req, res, deps = {}) {
     return;
   }
 
-  const { rows, error: selectionError } = selectTopNRows(stage.parsedRiders);
-  if (selectionError) {
-    sendJson(res, 422, { ok: false, error: selectionError, report });
-    return;
-  }
+  // A supported (ttt_timing_rule='individual_time') TTT stage applies team
+  // result lines instead of rider result lines - see
+  // scripts/grandtour-feed-import.mjs's runApply, which this route mirrors.
+  let resultLines = [];
+  let teamResultLines = [];
+  if (stage.isSupportedTtt) {
+    const { resultLines: teamLines, error: teamSelectionError } = selectTopNTeamResultLines(stage.tttTeamResult?.teams);
+    if (teamSelectionError) {
+      sendJson(res, 422, { ok: false, error: teamSelectionError, report });
+      return;
+    }
+    teamResultLines = teamLines;
+  } else {
+    const { rows, error: selectionError } = selectTopNRows(stage.parsedRiders);
+    if (selectionError) {
+      sendJson(res, 422, { ok: false, error: selectionError, report });
+      return;
+    }
 
-  const { resultLines, error: mappingError } = mapRowsToResultLines(rows, stage.matchedRiders);
-  if (mappingError) {
-    sendJson(res, 422, { ok: false, error: mappingError, report });
-    return;
+    const { resultLines: riderLines, error: mappingError } = mapRowsToResultLines(rows, stage.matchedRiders);
+    if (mappingError) {
+      sendJson(res, 422, { ok: false, error: mappingError, report });
+      return;
+    }
+    resultLines = riderLines;
   }
 
   const { jerseyHolderParams, error: jerseyError } = selectJerseyHolderParams(stage);
@@ -184,6 +202,7 @@ export async function handleApplyOfficialResult(req, res, deps = {}) {
     report,
     stage,
     resultLines,
+    teamResultLines,
     jerseyHolderParams,
     reason: reason ?? `applied via admin UI (Run Official Check -> Apply Official Result) by ${userData.user.email ?? userData.user.id}`,
     requestId: `apply-ui-${stageNumber}-${Date.now()}`

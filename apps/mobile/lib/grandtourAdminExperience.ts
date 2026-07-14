@@ -9,6 +9,21 @@ export type GrandTourStageAdminSummaryLike = {
 export type GrandTourAdminAction = "mark-checked" | "finalise" | "score";
 
 /**
+ * Whether a grandtour_stages.stage_type value is a TTT - the same set the
+ * RPC layer checks (apply_grandtour_official_stage_result,
+ * mark_grandtour_stage_result_checked, finalize_grandtour_stage_result).
+ * Used by the admin card to decide whether "Review Results"/"Latest
+ * official check" should render team result lines
+ * (grandtour_stage_team_result_lines) instead of rider result lines - it
+ * does NOT decide whether that TTT stage is actually apply-eligible
+ * (ttt_timing_rule='individual_time' is a separate, RPC-enforced concern,
+ * not a UI display concern).
+ */
+export function isTttStageType(stageType: string | null | undefined): boolean {
+  return stageType === "ttt" || stageType === "team_time_trial";
+}
+
+/**
  * Pure button-gating rules for the GrandTour admin stage panel. Mirrors
  * (but does not replace) the RPCs' own server-side gates in
  * mark_grandtour_stage_result_checked/finalize_grandtour_stage_result/

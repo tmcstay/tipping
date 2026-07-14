@@ -54,6 +54,28 @@ export function stripHtml(value) {
   return decodeHtmlEntities(String(value).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim());
 }
 
+// Parses an official-letour absolute elapsed-time string (the ranking
+// table's "Times" column, e.g. "00h 21' 47''", confirmed by fetching a live
+// stage-rankings page on 2026-07-14 and inspecting the raw decoded markup)
+// into whole seconds. Returns null for anything that isn't a genuine
+// elapsed time - a "-" placeholder, a "+"-prefixed gap string, or
+// missing/malformed markup - never coerces those to 0, which would make a
+// placeholder or DNF row silently look like the fastest time to any caller
+// comparing times (e.g. deriveTeamResultFromRiderRows in
+// grandtour-reconciliation.mjs). The seconds marker accepts either two
+// straight single quotes (what live markup decodes to: "&#039;&#039;") or
+// one straight double quote, since a hand-written fixture elsewhere in this
+// codebase uses the latter for a shorter mm'ss" shape - both are accepted
+// here as long as the hours segment is present, matching only the format
+// actually confirmed live.
+export function parseLetourElapsedTime(timeString) {
+  if (typeof timeString !== "string") return null;
+  const match = timeString.trim().match(/^(\d+)h\s*(\d+)'\s*(\d+)(?:''|")$/);
+  if (!match) return null;
+  const [, hours, minutes, seconds] = match;
+  return Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds);
+}
+
 export function letourRankingPageUrl(stageNumber) {
   return `https://www.letour.fr/en/rankings/stage-${stageNumber}`;
 }

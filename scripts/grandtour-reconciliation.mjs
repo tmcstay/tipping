@@ -1,3 +1,4 @@
+import { parseLetourElapsedTime } from "./grandtour-feed-provider.mjs";
 import { normalizeRiderName, normalizeTeamName } from "./tdf-data-utils.mjs";
 
 /**
@@ -7,6 +8,85 @@ import { normalizeRiderName, normalizeTeamName } from "./tdf-data-utils.mjs";
  * grandtour-reconciliation-supabase.mjs for the thin, read-only query layer
  * that supplies existingRiders/existingTeams/existingStage.
  */
+
+/**
+ * Derives an official TTT team classification from the same parsed
+ * individual-rider rows already used for every other stage (position,
+ * rider_name, bib_number, team_name, time). letour.fr does not publish a
+ * separate team-classification table for TTT stages (confirmed: no such
+ * tab/AJAX source exists on the rankings hub, unlike the four
+ * jersey-classification sub-tabs scraped by
+ * extractGeneralClassificationAjaxUrls) — but it doesn't need to, because
+ * Tour de France TTT stages have used the UCI's "N=1" scoring rule since it
+ * was introduced at the 2023 Paris–Nice: a team's official time is the
+ * time of the FIRST rider from that team to cross the line, and every
+ * other rider is timed individually from then on. Confirmed against real
+ * Stage 1 2026 data: teammates have distinct times, not a shared block
+ * time, and each team's minimum time is a real rider's own recorded time —
+ * never an average, a guess, or an invented value.
+ *
+ * Groups parsedRiders by team_name, takes each team's minimum
+ * parseLetourElapsedTime(time) as that team's official stage time, and
+ * ranks teams ascending by that value (position 1 = fastest team). Riders
+ * with a null/unparseable time (a "-" placeholder, a DNF/DNS row, or
+ * malformed markup) are excluded from the minimum but don't exclude their
+ * team, as long as at least one teammate has a real parseable time.
+ *
+ * Returns `{ teams, unparsedTeamNames }`. `teams` is ascending by
+ * `teamTimeSeconds`, each entry: `{ position, teamName, teamTimeSeconds,
+ * firstRiderName, firstRiderBibNumber, riderCount, ridersWithTimeCount }`.
+ * `unparsedTeamNames` lists any team_name present in parsedRiders whose
+ * every rider had an unparseable time — a real gap the caller must
+ * surface as a blocker, never silently drop the team.
+ */
+export function deriveTeamResultFromRiderRows(parsedRiders) {
+  const byTeam = new Map();
+  for (const rider of parsedRiders ?? []) {
+    const teamName = rider?.team_name ?? null;
+    if (!teamName) continue;
+    const riders = byTeam.get(teamName) ?? [];
+    riders.push(rider);
+    byTeam.set(teamName, riders);
+  }
+
+  const teams = [];
+  const unparsedTeamNames = [];
+
+  for (const [teamName, riders] of byTeam) {
+    let fastest = null;
+    let ridersWithTimeCount = 0;
+    for (const rider of riders) {
+      const seconds = parseLetourElapsedTime(rider.time);
+      if (seconds === null) continue;
+      ridersWithTimeCount += 1;
+      if (fastest === null || seconds < fastest.seconds) {
+        fastest = {
+          seconds,
+          riderName: rider.rider_name ?? null,
+          bibNumber: Number.isInteger(rider.bib_number) ? rider.bib_number : null
+        };
+      }
+    }
+    if (fastest === null) {
+      unparsedTeamNames.push(teamName);
+      continue;
+    }
+    teams.push({
+      teamName,
+      teamTimeSeconds: fastest.seconds,
+      firstRiderName: fastest.riderName,
+      firstRiderBibNumber: fastest.bibNumber,
+      riderCount: riders.length,
+      ridersWithTimeCount
+    });
+  }
+
+  const ranked = teams
+    .sort((a, b) => a.teamTimeSeconds - b.teamTimeSeconds)
+    .map((team, index) => ({ position: index + 1, ...team }));
+
+  return { teams: ranked, unparsedTeamNames };
+}
 
 export function classifyRiderMatch(parsedRider, existingRiders) {
   const normalizedName = normalizeRiderName(parsedRider.rider_name ?? "");
@@ -240,6 +320,43 @@ export function detectDuplicateBibConflicts(parsedRiders) {
 }
 
 /**
+ * Matches a derived TTT team result (deriveTeamResultFromRiderRows) against
+ * existing GrandTour teams, the same way individual riders/jersey holders
+ * are matched elsewhere in this module — reusing classifyTeamMatch's own
+ * precedence (team code, then normalized name). Read-only.
+ *
+ * Returns `{ teams, blockers }`. `teams` preserves derivation order
+ * (position 1 = fastest team, per the UCI N=1 rule); each entry carries the
+ * matched `teamId`/`matchedBy` (null if unmatched/ambiguous) alongside the
+ * original derivation fields, so a future apply step can build
+ * grandtour_stage_team_result_lines rows directly from this without a
+ * second lookup. `blockers` covers an unmatched/ambiguous derived team, and
+ * (via deriveTeamResultFromRiderRows's own unparsedTeamNames) any team with
+ * zero riders carrying a real finishing time — nothing here decides
+ * overall safeToApply; the caller folds these blockers in like any other.
+ */
+export function reconcileTeamTimeTrialResult(parsedRiders, { existingTeams = [] } = {}) {
+  const { teams, unparsedTeamNames } = deriveTeamResultFromRiderRows(parsedRiders);
+  const blockers = [];
+
+  const matchedTeamResults = teams.map((team) => {
+    const match = classifyTeamMatch(team.teamName, existingTeams);
+    if (match.status === "unmatched") {
+      blockers.push(`Derived TTT team result "${team.teamName}" has no matching existing team.`);
+    } else if (match.status === "ambiguous") {
+      blockers.push(`Derived TTT team result "${team.teamName}" matches ${match.candidateIds.length} existing teams.`);
+    }
+    return { ...team, teamId: match.teamId, matchedBy: match.matchedBy };
+  });
+
+  for (const teamName of unparsedTeamNames) {
+    blockers.push(`No rider on team "${teamName}" has a parseable finishing time; a team result could not be derived for it.`);
+  }
+
+  return { teams: matchedTeamResults, blockers };
+}
+
+/**
  * Reconciles one parsed official-letour stage result against existing
  * GrandTour records. Read-only: never mutates its inputs and never talks to
  * Supabase itself.
@@ -254,11 +371,32 @@ export function reconcileStageResult({
   existingStartlist = []
 }) {
   // Stage 1 is always TTT for the 2026 route; team_time_trial stage_type is
-  // the authoritative signal otherwise. Individual timing rows are parsed for
-  // TTT stages, but there is no confirmed official team-result source yet, so
-  // TTT stages must never be reported as safe to apply (see docs/grandtour-results-feed.md).
+  // the authoritative signal otherwise.
   const isTtt = stageType === "ttt" || stageNumber === 1;
   const parsedRiders = parsedStageResult?.riders ?? [];
+
+  // The official team-result source *is* now confirmed for TTT stages —
+  // see deriveTeamResultFromRiderRows/reconcileTeamTimeTrialResult above:
+  // Tour de France TTT stages are scored under the UCI's N=1 rule, so a
+  // team's official time is simply the fastest of its own riders' already-
+  // parsed individual times, and letour.fr publishes no separate team table
+  // to cross-check against anyway. tttTeamResult is computed for every TTT
+  // stage regardless of timing rule, so a dry-run report always shows
+  // whether the derived team result reconciles cleanly.
+  //
+  // But that derivation is only *correct* for the UCI's "N=1" rule
+  // (grandtour_stages.ttt_timing_rule = 'individual_time', e.g. TDF 2026
+  // Stage 1). A stage using the older shared-block-time rule ('team_time',
+  // or an unset/unknown rule) needs different derivation logic this
+  // codebase doesn't have yet, so it must stay unconditionally unsafe to
+  // apply - see the blocker below, which mirrors the same carve-out
+  // apply_grandtour_official_stage_result() enforces server-side
+  // (20260714020000_grandtour_apply_ttt_individual_time_result.sql).
+  const tttTimingRule = existingStage?.tttTimingRule ?? null;
+  const isSupportedTtt = isTtt && tttTimingRule === "individual_time";
+  const tttTeamResult = isTtt
+    ? reconcileTeamTimeTrialResult(parsedRiders, { existingTeams })
+    : { teams: [], blockers: [] };
 
   const duplicateBibConflicts = detectDuplicateBibConflicts(parsedRiders);
 
@@ -301,7 +439,10 @@ export function reconcileStageResult({
         : `${matchedRidersMissingFromStartlist.length} matched rider(s) are not on the stage ${stageNumber} startlist.`
     );
   }
-  if (isTtt) blockers.push("Stage is a TTT; official team-result source is not confirmed, so it remains warning-only and is never safe to apply.");
+  if (isTtt && !isSupportedTtt) {
+    blockers.push(`Stage is a TTT with ttt_timing_rule=${tttTimingRule ?? "(unknown)"}; only individual_time TTT stages are supported for apply, so it remains warning-only and is never safe to apply.`);
+  }
+  if (isSupportedTtt) blockers.push(...tttTeamResult.blockers);
   blockers.push(...jerseyBlockers);
 
   return {
@@ -325,6 +466,20 @@ export function reconcileStageResult({
     // guess (e.g. "stage 1 is always ttt") rather than a DB read.
     stageType: existingStage?.stageType ?? null,
     isTtt,
+    // Only meaningful when isTtt is true; null for a non-TTT stage. See
+    // isSupportedTtt below.
+    tttTimingRule,
+    // True only for a TTT stage whose ttt_timing_rule is 'individual_time'
+    // - the one case this codebase can derive and apply a team result for.
+    // A future apply step (scripts/grandtour-apply.mjs) should gate on
+    // this, not on isTtt alone, when deciding whether to build team result
+    // lines instead of refusing the stage outright.
+    isSupportedTtt,
+    // Only populated for a TTT stage (see reconcileTeamTimeTrialResult
+    // above): the derived, team-matched TTT result and its own blockers,
+    // already folded into the overall blockers list above when
+    // isSupportedTtt. Empty/unused for a non-TTT stage.
+    tttTeamResult,
     missingStageRecord,
     // The raw parsed rider rows for this stage (position, rider_name,
     // bib_number, team_name, time, gap), verbatim from parsedStageResult.

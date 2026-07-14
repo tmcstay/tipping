@@ -113,6 +113,40 @@ test("summarizeOfficialCheckReport filters jersey fetch metadata to the requeste
   assert.equal(summary.jerseyFetchMetadata[0].jerseyType, "yellow");
 });
 
+test("summarizeOfficialCheckReport derives team result lines for a TTT stage instead of individual rider lines", () => {
+  const report = buildReport();
+  report.reconciliation.stages[0].isTtt = true;
+  report.reconciliation.stages[0].isSupportedTtt = true;
+  report.reconciliation.stages[0].tttTeamResult = {
+    blockers: [],
+    teams: [
+      { position: 2, teamId: "team-b", teamName: "Team B" },
+      { position: 1, teamId: "team-a", teamName: "Team A" }
+    ]
+  };
+
+  const summary = summarizeOfficialCheckReport(report, 5);
+
+  assert.equal(summary.isTtt, true);
+  assert.deepEqual(summary.topResultLines, []);
+  assert.deepEqual(summary.topTeamLines.map((line) => line.position), [1, 2]);
+  assert.equal(summary.topTeamLines[0].teamName, "Team A");
+  assert.equal(summary.resultLineCount, 2);
+});
+
+test("summarizeOfficialCheckReport caps derived team lines at 10 for a TTT stage", () => {
+  const report = buildReport();
+  report.reconciliation.stages[0].isTtt = true;
+  report.reconciliation.stages[0].tttTeamResult = {
+    blockers: [],
+    teams: Array.from({ length: 15 }, (_, index) => ({ position: index + 1, teamId: `team-${index + 1}`, teamName: `Team ${index + 1}` }))
+  };
+
+  const summary = summarizeOfficialCheckReport(report, 5);
+  assert.equal(summary.topTeamLines.length, 10);
+  assert.equal(summary.topTeamLines[9].position, 10);
+});
+
 test("getOfficialCheckStatusMessage returns the exact required copy when safe", () => {
   assert.equal(getOfficialCheckStatusMessage(true), OFFICIAL_CHECK_SAFE_MESSAGE);
   assert.equal(OFFICIAL_CHECK_SAFE_MESSAGE, "Official check passed. Review result details before applying.");

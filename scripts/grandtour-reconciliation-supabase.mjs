@@ -67,7 +67,7 @@ export async function fetchReconciliationContext(client, { grandTourId, stageNum
   ] = await Promise.all([
     client
       .from("grandtour_stages")
-      .select("id, stage_number, stage_type, starts_at")
+      .select("id, stage_number, stage_type, ttt_timing_rule, starts_at")
       .eq("grand_tour_id", grandTourId)
       .eq("stage_number", stageNumber)
       .maybeSingle(),
@@ -103,6 +103,14 @@ export async function fetchReconciliationContext(client, { grandTourId, stageNum
           id: stage.id,
           stageNumber: stage.stage_number,
           stageType: stage.stage_type,
+          // Only meaningful for a TTT stage_type; null for every other
+          // stage. Distinguishes the UCI "N=1" individual_time rule (the
+          // only one this codebase can derive a team result for - see
+          // deriveTeamResultFromRiderRows/reconcileTeamTimeTrialResult in
+          // grandtour-reconciliation.mjs) from the older shared-block-time
+          // team_time rule, which has no derivation logic yet and must
+          // stay blocked.
+          tttTimingRule: stage.ttt_timing_rule ?? null,
           // Date portion of starts_at (UTC), e.g. "2026-07-05" from
           // "2026-07-05T10:00:00+00:00" — a plain calendar-date field
           // doesn't exist on grandtour_stages, so this is the closest

@@ -48,6 +48,12 @@ export type GrandTourAdminResultLine = {
   teamName: string | null;
 };
 
+export type GrandTourAdminTeamResultLine = {
+  position: number;
+  teamId: string;
+  teamName: string;
+};
+
 export type GrandTourAdminJerseyHolder = {
   jerseyType: "yellow" | "green" | "kom" | "white";
   riderId: string;
@@ -58,6 +64,13 @@ export type GrandTourAdminJerseyHolder = {
 
 export type GrandTourStageReviewDetails = {
   lines: GrandTourAdminResultLine[];
+  // Only populated for a TTT stage (see getGrandTourStageAdminReviewDetails'
+  // stageType param below) - a non-TTT stage always gets an empty array
+  // here, and `lines` above is empty for a TTT stage in turn. Never both
+  // populated at once, mirroring grandtour_stage_result_lines/
+  // grandtour_stage_team_result_lines themselves never both having rows
+  // for the same stage result.
+  teamLines: GrandTourAdminTeamResultLine[];
   jerseyHolders: GrandTourAdminJerseyHolder[];
 };
 
@@ -92,6 +105,15 @@ export async function isGrandTourAdmin(userId: string | null | undefined): Promi
   return Boolean(membership && membership.role === "admin" && membership.status === "active");
 }
 
+// Matches the same TTT stage_type set used throughout the RPCs/scripts
+// layer (e.g. apply_grandtour_official_stage_result). Local to this file
+// rather than imported from apps/mobile's grandtourAdminExperience.ts,
+// since packages/supabase-client must not depend on the app that consumes
+// it.
+function isTttStageTypeValue(stageType: string | null | undefined): boolean {
+  return stageType === "ttt" || stageType === "team_time_trial";
+}
+
 export async function listGrandTourStageAdminSummaries(raceId: string): Promise<GrandTourStageAdminSummary[]> {
   const client = getSupabaseClient();
 
@@ -104,6 +126,7 @@ export async function listGrandTourStageAdminSummaries(raceId: string): Promise<
   const stageRows = stages ?? [];
   if (stageRows.length === 0) return [];
   const stageIds = stageRows.map((stage) => stage.id);
+  const isTttByStageId = new Map(stageRows.map((stage) => [stage.id, isTttStageTypeValue(stage.stage_type)]));
 
   const { data: results, error: resultsError } = await client
     .from("grandtour_stage_results")
@@ -121,6 +144,18 @@ export async function listGrandTourStageAdminSummaries(raceId: string): Promise<
   const lineCountByResultId = new Map<string, number>();
   for (const row of lineRows ?? []) {
     lineCountByResultId.set(row.stage_result_id, (lineCountByResultId.get(row.stage_result_id) ?? 0) + 1);
+  }
+
+  // Same shape, for TTT stages (see the comment on GrandTourStageReviewDetails'
+  // teamLines field - a given stage result only ever has rows in one of
+  // these two tables, never both).
+  const { data: teamLineRows, error: teamLineError } = resultIds.length > 0
+    ? await client.from("grandtour_stage_team_result_lines").select("stage_result_id").in("stage_result_id", resultIds)
+    : { data: [] as { stage_result_id: string }[], error: null };
+  if (teamLineError) throw teamLineError;
+  const teamLineCountByResultId = new Map<string, number>();
+  for (const row of teamLineRows ?? []) {
+    teamLineCountByResultId.set(row.stage_result_id, (teamLineCountByResultId.get(row.stage_result_id) ?? 0) + 1);
   }
 
   const { data: jerseyRows, error: jerseyError } = await client
@@ -183,7 +218,14 @@ export async function listGrandTourStageAdminSummaries(raceId: string): Promise<
       stageResultId: result?.id ?? null,
       isFinal: result?.is_final ?? false,
       reviewStatus: result?.review_status ?? null,
-      resultLineCount: result ? lineCountByResultId.get(result.id) ?? 0 : 0,
+      // A TTT stage's result lines live in grandtour_stage_team_result_lines,
+      // never grandtour_stage_result_lines - count whichever table actually
+      // applies to this stage_type, so canMarkChecked/isStageDataComplete
+      // (which both just compare resultLineCount === 10) work unmodified
+      // for a TTT stage too.
+      resultLineCount: result
+        ? (isTttByStageId.get(stage.id) ? teamLineCountByResultId.get(result.id) : lineCountByResultId.get(result.id)) ?? 0
+        : 0,
       jerseyHolderCount: jerseyCountByStageId.get(stage.id) ?? 0,
       scoreCount: agg.count,
       totalScoreAwarded: agg.total,
@@ -197,21 +239,24 @@ export async function listGrandTourStageAdminSummaries(raceId: string): Promise<
 
 /**
  * Fetches the reviewable detail an admin needs to actually look at before
- * mark-checking a stage: the top-10 result lines and four jersey holders,
- * with rider/team names resolved. Draft (not-yet-final) rows are only
- * readable by an admin session under RLS ("Admins can manage GrandTour
+ * mark-checking a stage: the top-10 result lines (rider lines for a
+ * non-TTT/unsupported-TTT stage, team lines for an individual_time TTT
+ * stage - see `stageType`) and four jersey holders, with rider/team names
+ * resolved. Draft (not-yet-final) rows are only readable by an admin
+ * session under RLS ("Admins can manage GrandTour result lines"/"team
  * result lines"/"jersey holders" `for all` policies) - this deliberately
  * does not filter on is_final, so it works before finalisation too, which
  * is the whole point of a pre-action review step.
  *
- * Every query here is scoped to a single table (grandtour_stage_results,
- * grandtour_stage_result_lines, grandtour_stage_jersey_holders,
- * grandtour_riders, grandtour_teams), resolved and joined client-side -
- * the same no-join-multiplication approach as listGrandTourStageAdminSummaries
- * and the CLI's fetchStageState.
+ * `stageType` is the caller's already-loaded `grandtour_stages.stage_type`
+ * (e.g. from `GrandTourStageAdminSummary.stageType`) - this function never
+ * re-fetches it itself, to keep it a single-purpose, no-join-multiplication
+ * read the same way listGrandTourStageAdminSummaries and the CLI's
+ * fetchStageState already are.
  */
-export async function getGrandTourStageAdminReviewDetails(stageId: string): Promise<GrandTourStageReviewDetails> {
+export async function getGrandTourStageAdminReviewDetails(stageId: string, stageType: string | null): Promise<GrandTourStageReviewDetails> {
   const client = getSupabaseClient();
+  const isTtt = isTttStageTypeValue(stageType);
 
   const { data: result, error: resultError } = await client
     .from("grandtour_stage_results")
@@ -220,7 +265,7 @@ export async function getGrandTourStageAdminReviewDetails(stageId: string): Prom
     .maybeSingle();
   if (resultError) throw resultError;
 
-  const { data: lineRows, error: lineError } = result
+  const { data: lineRows, error: lineError } = result && !isTtt
     ? await client
       .from("grandtour_stage_result_lines")
       .select("actual_position, rider_id")
@@ -228,6 +273,15 @@ export async function getGrandTourStageAdminReviewDetails(stageId: string): Prom
       .order("actual_position")
     : { data: [] as { actual_position: number; rider_id: string }[], error: null };
   if (lineError) throw lineError;
+
+  const { data: teamLineRows, error: teamLineError } = result && isTtt
+    ? await client
+      .from("grandtour_stage_team_result_lines")
+      .select("actual_position, team_id")
+      .eq("stage_result_id", result.id)
+      .order("actual_position")
+    : { data: [] as { actual_position: number; team_id: string }[], error: null };
+  if (teamLineError) throw teamLineError;
 
   const { data: jerseyRows, error: jerseyError } = await client
     .from("grandtour_stage_jersey_holders")
@@ -257,7 +311,11 @@ export async function getGrandTourStageAdminReviewDetails(stageId: string): Prom
     : { data: [] as { rider_id: string; bib_number: number | null }[], error: null };
   if (startlistError) throw startlistError;
 
-  const teamIds = [...new Set((riders ?? []).flatMap((rider) => rider.team_id ? [rider.team_id] : []))];
+  const teamLineTeamIds = (teamLineRows ?? []).map((row) => row.team_id);
+  const teamIds = [...new Set([
+    ...(riders ?? []).flatMap((rider) => rider.team_id ? [rider.team_id] : []),
+    ...teamLineTeamIds
+  ])];
   const { data: teams, error: teamsError } = teamIds.length > 0
     ? await client.from("grandtour_teams").select("id, name").in("id", teamIds)
     : { data: [] as { id: string; name: string }[], error: null };
@@ -279,6 +337,11 @@ export async function getGrandTourStageAdminReviewDetails(stageId: string): Prom
 
   return {
     lines: (lineRows ?? []).map((row) => ({ position: row.actual_position, riderId: row.rider_id, ...resolveRider(row.rider_id) })),
+    teamLines: (teamLineRows ?? []).map((row) => ({
+      position: row.actual_position,
+      teamId: row.team_id,
+      teamName: teamNameById.get(row.team_id) ?? "Unknown team"
+    })),
     jerseyHolders: (jerseyRows ?? []).map((row) => ({ jerseyType: row.jersey_type, riderId: row.rider_id, ...resolveRider(row.rider_id) }))
   };
 }
@@ -389,6 +452,12 @@ export type GrandTourOfficialCheckJerseyHolder = {
   status: string;
 };
 
+export type GrandTourOfficialCheckTeamResult = {
+  position: number;
+  teamId: string | null;
+  teamName: string;
+};
+
 export type GrandTourOfficialCheckStageReconciliation = {
   stageNumber: number;
   safeToApply: boolean;
@@ -396,6 +465,14 @@ export type GrandTourOfficialCheckStageReconciliation = {
   parsedRiders: GrandTourOfficialCheckParsedRider[];
   matchedRiders: { riderName: string; bibNumber: number | null; riderId: string | null }[];
   jerseyHolders: GrandTourOfficialCheckJerseyHolder[];
+  // Only meaningful for a TTT stage (isTtt below) - the derived,
+  // team-matched result from reconcileTeamTimeTrialResult, present
+  // regardless of whether this TTT stage is actually apply-eligible
+  // (isSupportedTtt/ttt_timing_rule), same as the report shape
+  // reconcileStageResult itself produces.
+  isTtt?: boolean;
+  isSupportedTtt?: boolean;
+  tttTeamResult?: { teams: GrandTourOfficialCheckTeamResult[]; blockers: string[] };
 };
 
 export type GrandTourOfficialCheckJerseyFetchMetadata = {

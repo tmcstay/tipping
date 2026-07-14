@@ -111,7 +111,7 @@ test("fetchReconciliationContext reads stage/riders/teams/startlist scoped to th
 
   const context = await fetchReconciliationContext(client, { grandTourId: "tour-1", stageNumber: 2 });
 
-  assert.deepEqual(context.existingStage, { id: "stage-2", stageNumber: 2, stageType: "hilly", stageDate: "2026-07-05" });
+  assert.deepEqual(context.existingStage, { id: "stage-2", stageNumber: 2, stageType: "hilly", tttTimingRule: null, stageDate: "2026-07-05" });
   assert.deepEqual(context.existingRiders, [
     { id: "rider-1", teamId: "team-1", displayName: "Test Rider", normalizedName: "test rider", bibNumber: 1 }
   ]);
@@ -119,6 +119,19 @@ test("fetchReconciliationContext reads stage/riders/teams/startlist scoped to th
     { id: "team-1", name: "Test Team", shortName: "TT", code: "TT" }
   ]);
   assert.deepEqual(context.existingStartlist, [{ riderId: "rider-1", status: "confirmed" }]);
+});
+
+test("fetchReconciliationContext reads ttt_timing_rule for a TTT stage", async () => {
+  const client = fakeSupabaseClient({
+    grandtour_stages: [{ id: "stage-1", grand_tour_id: "tour-1", stage_number: 1, stage_type: "ttt", ttt_timing_rule: "individual_time", starts_at: "2026-07-04T10:00:00+00:00" }],
+    grandtour_riders: [],
+    grandtour_teams: [],
+    grandtour_stage_startlists: []
+  });
+
+  const context = await fetchReconciliationContext(client, { grandTourId: "tour-1", stageNumber: 1 });
+
+  assert.equal(context.existingStage.tttTimingRule, "individual_time");
 });
 
 test("fetchReconciliationContext returns null stageType/stageDate when starts_at or stage_type is absent", async () => {
@@ -131,7 +144,7 @@ test("fetchReconciliationContext returns null stageType/stageDate when starts_at
 
   const context = await fetchReconciliationContext(client, { grandTourId: "tour-1", stageNumber: 3 });
 
-  assert.deepEqual(context.existingStage, { id: "stage-3", stageNumber: 3, stageType: undefined, stageDate: null });
+  assert.deepEqual(context.existingStage, { id: "stage-3", stageNumber: 3, stageType: undefined, tttTimingRule: null, stageDate: null });
 });
 
 test("the real grandtour_stages.id read by fetchReconciliationContext flows unchanged into reconcileStageResult()'s stageId, with no second lookup", async () => {

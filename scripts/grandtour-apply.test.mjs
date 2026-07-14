@@ -10,6 +10,7 @@ import {
   mapRowsToResultLines,
   selectJerseyHolderParams,
   selectTopNRows,
+  selectTopNTeamResultLines,
   validateReportForApply
 } from "./grandtour-apply.mjs";
 
@@ -182,6 +183,17 @@ test("TTT stage is rejected via stageType even when isTtt is (incorrectly) false
   assert.ok(errors.some((message) => message.includes("stageType") && message.includes("team_time_trial")));
 });
 
+test("a supported (individual_time) TTT stage (isSupportedTtt: true) is NOT rejected via isTtt/stageType", () => {
+  const { errors } = validate(buildValidReport({}, { isTtt: true, isSupportedTtt: true, stageType: "team_time_trial", tttTimingRule: "individual_time" }));
+  assert.deepEqual(errors, []);
+});
+
+test("a TTT stage with isSupportedTtt false (e.g. the older team_time rule) is still rejected, even with isTtt true", () => {
+  const { errors } = validate(buildValidReport({}, { isTtt: true, isSupportedTtt: false, stageType: "team_time_trial", tttTimingRule: "team_time" }));
+  assert.ok(errors.some((message) => message.includes("isTtt must be false")));
+  assert.ok(errors.some((message) => message.includes("stageType") && message.includes("team_time_trial")));
+});
+
 test("importStatus outside the acceptable set is rejected", () => {
   const { errors } = validate(buildValidReport({ importStatus: "failed" }));
   assert.ok(errors.some((message) => message.includes("importStatus")));
@@ -316,6 +328,53 @@ test("selectTopNRows: 11 rows where positions 1-10 are all present still selects
   assert.ok(!selected.some((row) => row.position === 11));
 });
 
+function teamResultRow(position, { teamId, teamName = `TEAM ${position}` } = {}) {
+  return { position, teamId, teamName, teamTimeSeconds: position * 60, firstRiderName: `Rider ${position}`, firstRiderBibNumber: position, riderCount: 8, ridersWithTimeCount: 8 };
+}
+
+function buildTenTeamRows() {
+  return Array.from({ length: 10 }, (_, index) => teamResultRow(index + 1, { teamId: `team-${index + 1}` }));
+}
+
+test("selectTopNTeamResultLines: exactly 10 teams maps to {team_id, actual_position} preserving position", () => {
+  const { resultLines, error } = selectTopNTeamResultLines(buildTenTeamRows());
+  assert.equal(error, null);
+  assert.deepEqual(resultLines, Array.from({ length: 10 }, (_, index) => ({ team_id: `team-${index + 1}`, actual_position: index + 1 })));
+});
+
+test("selectTopNTeamResultLines: more than 10 teams truncates to positions 1-10 only", () => {
+  const teams = [...buildTenTeamRows(), teamResultRow(11, { teamId: "team-11" })];
+  const { resultLines, error } = selectTopNTeamResultLines(teams);
+  assert.equal(error, null);
+  assert.equal(resultLines.length, 10);
+  assert.ok(!resultLines.some((line) => line.actual_position === 11));
+});
+
+test("selectTopNTeamResultLines: fewer than 10 teams is rejected — same top-10-only v1 policy as riders", () => {
+  const { resultLines, error } = selectTopNTeamResultLines(buildTenTeamRows().slice(0, 5));
+  assert.equal(resultLines, null);
+  assert.match(error, /requires exactly 10/);
+});
+
+test("selectTopNTeamResultLines: duplicate positions are rejected, not silently deduplicated", () => {
+  const teams = [teamResultRow(1, { teamId: "team-a" }), teamResultRow(1, { teamId: "team-b" }), ...buildTenTeamRows().slice(2)];
+  const { resultLines, error } = selectTopNTeamResultLines(teams);
+  assert.equal(resultLines, null);
+  assert.match(error, /duplicate position/);
+});
+
+test("selectTopNTeamResultLines: a selected team with no matched teamId is a hard failure, not a silent skip", () => {
+  const teams = [teamResultRow(1, { teamId: null }), ...buildTenTeamRows().slice(1)];
+  const { resultLines, error } = selectTopNTeamResultLines(teams);
+  assert.equal(resultLines, null);
+  assert.match(error, /no matched teamId/);
+});
+
+test("selectTopNTeamResultLines: undefined/empty input is rejected the same way as zero teams", () => {
+  assert.match(selectTopNTeamResultLines(undefined).error, /requires exactly 10/);
+  assert.match(selectTopNTeamResultLines([]).error, /requires exactly 10/);
+});
+
 test("mapRowsToResultLines: maps by bib number and preserves original position (not renumbered)", () => {
   const rows = [riderRow(1, { name: "A", bib: 5 }), riderRow(3, { name: "B", bib: 9 })];
   const matchedRiders = [matchedRider({ riderId: "rider-a", bib: 5, name: "A" }), matchedRider({ riderId: "rider-b", bib: 9, name: "B" })];
@@ -392,6 +451,22 @@ test("buildApplyRpcParams: includes p_jersey_holders, defaulting to an empty arr
   ];
   const withJerseys = buildApplyRpcParams({ report, stage, resultLines: [], jerseyHolderParams });
   assert.deepEqual(withJerseys.p_jersey_holders, jerseyHolderParams);
+});
+
+test("buildApplyRpcParams: includes p_team_result_lines, defaulting to an empty array when not supplied", () => {
+  const report = buildValidReport();
+  const stage = report.reconciliation.stages[0];
+
+  const withoutTeamLines = buildApplyRpcParams({ report, stage, resultLines: [] });
+  assert.deepEqual(withoutTeamLines.p_team_result_lines, []);
+  // resultLines also defaults to [] when omitted entirely (a TTT apply
+  // never passes rider result lines).
+  assert.deepEqual(buildApplyRpcParams({ report, stage }).p_result_lines, []);
+
+  const teamResultLines = [{ team_id: "team-1", actual_position: 1 }];
+  const withTeamLines = buildApplyRpcParams({ report, stage, teamResultLines });
+  assert.deepEqual(withTeamLines.p_team_result_lines, teamResultLines);
+  assert.deepEqual(withTeamLines.p_result_lines, []);
 });
 
 test("selectJerseyHolderParams: all four matched jersey holders map to {jersey_type, rider_id} pairs", () => {
