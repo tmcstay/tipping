@@ -5,6 +5,8 @@ export type UserProfile = {
   id: string;
   email: string | null;
   display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   avatar_url: string | null;
   is_dummy: boolean;
   created_at: string;
@@ -72,7 +74,7 @@ export async function getCurrentUserProfile(userId?: string) {
 
   const { data, error } = await getSupabaseClient()
     .from("profiles")
-    .select("id,email,display_name,avatar_url,is_dummy,created_at,updated_at")
+    .select("id,email,display_name,first_name,last_name,avatar_url,is_dummy,created_at,updated_at")
     .eq("id", resolvedUserId)
     .single();
 
@@ -82,21 +84,25 @@ export async function getCurrentUserProfile(userId?: string) {
 
 export async function updateCurrentUserProfile(input: {
   displayName: string;
+  firstName?: string;
+  lastName?: string;
   avatarUrl?: string | null;
 }) {
   const user = await getCurrentUser();
   if (!user) throw new Error("You must be signed in to update your profile.");
 
-  const changes: { display_name: string; avatar_url?: string | null } = {
+  const changes: { display_name: string; first_name?: string; last_name?: string; avatar_url?: string | null } = {
     display_name: input.displayName.trim()
   };
+  if (input.firstName !== undefined) changes.first_name = input.firstName.trim();
+  if (input.lastName !== undefined) changes.last_name = input.lastName.trim();
   if (input.avatarUrl !== undefined) changes.avatar_url = input.avatarUrl;
 
   const { data, error } = await getSupabaseClient()
     .from("profiles")
     .update(changes)
     .eq("id", user.id)
-    .select("id,email,display_name,avatar_url,is_dummy,created_at,updated_at")
+    .select("id,email,display_name,first_name,last_name,avatar_url,is_dummy,created_at,updated_at")
     .single();
 
   if (error) throw error;

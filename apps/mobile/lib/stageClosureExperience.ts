@@ -139,6 +139,44 @@ export function buildSelectionProgressLabel(selectedCount: number, totalSlots: n
   return `${clamped} of ${totalSlots} selections completed`;
 }
 
+export type CompoundStatusLineInput = {
+  badgeLabel: ClosureBadgeLabel;
+  state: CyclingStageClosureStateLike;
+  /** Only meaningful for open/closing_soon. */
+  selectedCount?: number;
+  totalSlots?: number;
+  hasSubmittedTip?: boolean;
+  hasAnyTip?: boolean;
+  /** Only meaningful for completed. Null/undefined -> no points shown yet. */
+  points?: number | null;
+};
+
+/**
+ * One compact "status · tip state" line - e.g. "Open · 3 of 5 complete",
+ * "Closed · Tips submitted", "Live · Tips locked", "Completed · 18 points".
+ * Stage status and tip state are deliberately kept as two clauses of one
+ * line rather than merged into a single ambiguous word.
+ */
+export function buildCompoundStatusLine(input: CompoundStatusLineInput): string {
+  const totalSlots = input.totalSlots ?? 5;
+  switch (input.state) {
+    case "completed":
+      return input.points != null ? `${input.badgeLabel} · ${input.points} points` : input.badgeLabel;
+    case "live":
+      return `${input.badgeLabel} · ${input.hasAnyTip ? "Tips locked" : "No tip"}`;
+    case "closed":
+      return `${input.badgeLabel} · ${input.hasSubmittedTip ? "Tips submitted" : "No tip"}`;
+    case "open":
+    case "closing_soon":
+    default: {
+      if (input.hasSubmittedTip) return `${input.badgeLabel} · Tips submitted`;
+      const selected = Math.max(0, Math.min(input.selectedCount ?? 0, totalSlots));
+      if (selected === 0) return `${input.badgeLabel} · Action required`;
+      return `${input.badgeLabel} · ${selected} of ${totalSlots} complete`;
+    }
+  }
+}
+
 export type DashboardCardLink = {
   href: string;
   accessibilityLabel: string;

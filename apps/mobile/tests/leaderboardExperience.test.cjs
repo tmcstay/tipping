@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { buildLeaderboardDisplayItems } = require("../../../dist/mobile-tests/leaderboardExperience.js");
+const { buildLeaderboardDisplayItems, formatRankMovement } = require("../../../dist/mobile-tests/leaderboardExperience.js");
 
 function rows(count) {
   return Array.from({ length: count }, (_, index) => ({ id: `row-${index + 1}`, user_id: `user-${index + 1}`, rank: index + 1 }));
@@ -52,4 +52,20 @@ test("the window never runs past the end of the list", () => {
   const items = buildLeaderboardDisplayItems(rows(20), "user-20", 15, 2);
   const windowRows = items.slice(16).filter((item) => item.type === "row");
   assert.deepEqual(windowRows.map((item) => item.row.rank), [18, 19, 20]);
+});
+
+test("formatRankMovement: improvement shows an up arrow with the delta", () => {
+  assert.equal(formatRankMovement(3, 6), "↑ 3");
+});
+
+test("formatRankMovement: decline shows a down arrow with the delta", () => {
+  assert.equal(formatRankMovement(8, 5), "↓ 3");
+});
+
+test("formatRankMovement: no change shows an em dash", () => {
+  assert.equal(formatRankMovement(4, 4), "—");
+});
+
+test("formatRankMovement: null previous rank shows 'New', never a fabricated number", () => {
+  assert.equal(formatRankMovement(10, null), "New");
 });

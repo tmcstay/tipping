@@ -1693,9 +1693,11 @@ export type Database = {
           created_at: string
           display_name: string | null
           email: string | null
+          first_name: string | null
           id: string
           is_admin: boolean
           is_dummy: boolean
+          last_name: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1703,9 +1705,11 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          first_name?: string | null
           id: string
           is_admin?: boolean
           is_dummy?: boolean
+          last_name?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1713,9 +1717,11 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          first_name?: string | null
           id?: string
           is_admin?: boolean
           is_dummy?: boolean
+          last_name?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -2122,6 +2128,7 @@ export type Database = {
           p_result_lines: Json
           p_source?: Json
           p_stage_id: string
+          p_team_result_lines?: Json
         }
         Returns: Json
       }
@@ -2158,6 +2165,23 @@ export type Database = {
           is_prize_eligible: boolean
           last_stage_score: number
           leaderboard_type: string
+          rank: number
+          snapshot_at: string
+          stages_tipped: number
+          total_score: number
+          user_id: string
+        }[]
+      }
+      get_grandtour_leaderboard_with_movement: {
+        Args: { p_competition_id: string; p_leaderboard_type?: string }
+        Returns: {
+          display_name: string
+          id: string
+          is_dummy: boolean
+          is_prize_eligible: boolean
+          last_stage_score: number
+          leaderboard_type: string
+          previous_rank: number
           rank: number
           snapshot_at: string
           stages_tipped: number

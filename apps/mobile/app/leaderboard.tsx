@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import type { CyclingLeaderboardRow } from "@tipping-suite/supabase-client";
 
 import { useAuth } from "../auth/useAuth";
@@ -10,7 +10,7 @@ import {
   useCyclingLeaderboard,
   useCyclingRace
 } from "../hooks/useCyclingData";
-import { buildLeaderboardDisplayItems } from "../lib/leaderboardExperience";
+import { buildLeaderboardDisplayItems, formatRankMovement } from "../lib/leaderboardExperience";
 import { ui } from "../components/theme";
 
 const leaderboardTypes: CyclingLeaderboardRow["leaderboard_type"][] = [
@@ -25,10 +25,18 @@ function leaderboardLabel(type: CyclingLeaderboardRow["leaderboard_type"]) {
   return "Pre-race";
 }
 
+function matchesSearch(row: CyclingLeaderboardRow, query: string): boolean {
+  if (!query.trim()) return true;
+  return row.display_name.toLowerCase().includes(query.trim().toLowerCase());
+}
+
 export default function LeaderboardScreen() {
   const { user } = useAuth();
   const [leaderboardType, setLeaderboardType] = useState<CyclingLeaderboardRow["leaderboard_type"]>("overall");
   const [competitionId, setCompetitionId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const { width } = useWindowDimensions();
+  const showMoveColumn = width >= 768;
   const race = useCyclingRace(2026);
   const competitions = useCyclingCompetitions(race.data?.id);
   useEffect(() => {
@@ -36,7 +44,9 @@ export default function LeaderboardScreen() {
   }, [competitionId, competitions.data]);
   const leaderboard = useCyclingLeaderboard(competitionId, leaderboardType);
 
-  const displayItems = buildLeaderboardDisplayItems(leaderboard.data ?? [], user?.id ?? null);
+  const me = leaderboard.data?.find((row) => row.user_id === user?.id) ?? null;
+  const filteredRows = (leaderboard.data ?? []).filter((row) => matchesSearch(row, search));
+  const displayItems = buildLeaderboardDisplayItems(filteredRows, user?.id ?? null);
 
   return (
     <AppShell title="Leaderboard" subtitle="Overall standings, stage tipping, and pre-race results.">
@@ -80,12 +90,40 @@ export default function LeaderboardScreen() {
         <EmptyState message="No stage scores yet. Leaderboard rows appear after results are entered and scored." />
       ) : null}
 
+      {/* Always shown, even when the user is already visible in the top block below - a stable "where do I stand" answer. */}
+      {!leaderboard.loading && !leaderboard.error && me ? (
+        <View style={styles.meCard}>
+          <Text style={styles.meLabel}>Your position</Text>
+          <View style={styles.meRow}>
+            <Text style={styles.meRank}>#{me.rank}</Text>
+            <Text style={styles.meName} numberOfLines={1}>{me.display_name}</Text>
+            <Text style={styles.mePoints}>{me.total_score}</Text>
+            <Text style={styles.meMovement}>{formatRankMovement(me.rank, me.previous_rank)}</Text>
+          </View>
+        </View>
+      ) : null}
+
+      {!leaderboard.loading && !leaderboard.error && (leaderboard.data?.length ?? 0) > 0 ? (
+        <TextInput
+          onChangeText={setSearch}
+          placeholder="Search players"
+          placeholderTextColor={ui.colors.faint}
+          style={styles.search}
+          value={search}
+        />
+      ) : null}
+
+      {!leaderboard.loading && !leaderboard.error && (leaderboard.data?.length ?? 0) > 0 ? (
+        <Text style={styles.sectionHeading}>Full leaderboard</Text>
+      ) : null}
+
       {!leaderboard.loading && !leaderboard.error && displayItems.length > 0 ? (
         <View style={styles.table}>
           <View style={styles.headerRow}>
             <Text style={[styles.headerCell, styles.rankCell]}>Rank</Text>
             <Text style={[styles.headerCell, styles.playerCell]}>Player</Text>
             <Text style={[styles.headerCell, styles.pointsCell]}>Points</Text>
+            {showMoveColumn ? <Text style={[styles.headerCell, styles.moveCell]}>Move</Text> : null}
           </View>
           {displayItems.map((item, index) =>
             item.type === "divider" ? (
@@ -111,14 +149,21 @@ export default function LeaderboardScreen() {
                 </View>
                 <View style={styles.pointsCell}>
                   <Text style={styles.pointsText}>{item.row.total_score}</Text>
-                  {item.row.last_stage_score !== null ? (
-                    <Text style={styles.lastStageText}>+{item.row.last_stage_score} last</Text>
+                  {!showMoveColumn ? (
+                    <Text style={styles.movementTextMobile}>{formatRankMovement(item.row.rank, item.row.previous_rank)}</Text>
                   ) : null}
                 </View>
+                {showMoveColumn ? (
+                  <Text style={styles.moveCell}>{formatRankMovement(item.row.rank, item.row.previous_rank)}</Text>
+                ) : null}
               </View>
             )
           )}
         </View>
+      ) : null}
+
+      {!leaderboard.loading && !leaderboard.error && (leaderboard.data?.length ?? 0) > 0 && displayItems.length === 0 ? (
+        <EmptyState message="No players match your search." />
       ) : null}
     </AppShell>
   );
@@ -148,12 +193,6 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     paddingHorizontal: 4
   },
-  lastStageText: {
-    color: ui.colors.faint,
-    fontSize: 11,
-    fontWeight: "600",
-    marginTop: 1
-  },
   league: {
     borderColor: ui.colors.border,
     borderRadius: ui.radius.small,
@@ -177,6 +216,66 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8
+  },
+  meCard: {
+    backgroundColor: ui.colors.surface,
+    borderColor: ui.colors.border,
+    borderRadius: ui.radius.large,
+    borderWidth: 1,
+    padding: 14,
+    shadowColor: ui.shadow.shadowColor,
+    shadowOffset: ui.shadow.shadowOffset,
+    shadowOpacity: ui.shadow.shadowOpacity,
+    shadowRadius: ui.shadow.shadowRadius
+  },
+  meLabel: {
+    color: ui.colors.faint,
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 6,
+    textTransform: "uppercase"
+  },
+  meMovement: {
+    color: ui.colors.muted,
+    fontSize: 13,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700"
+  },
+  meName: {
+    color: ui.colors.ink,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700"
+  },
+  mePoints: {
+    color: ui.colors.ink,
+    fontSize: 17,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700"
+  },
+  meRank: {
+    color: ui.colors.primary,
+    fontSize: 17,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700"
+  },
+  meRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12
+  },
+  moveCell: {
+    color: ui.colors.muted,
+    fontSize: 13,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700",
+    textAlign: "right",
+    width: 56
+  },
+  movementTextMobile: {
+    color: ui.colors.faint,
+    fontSize: 11,
+    marginTop: 1
   },
   playerCell: {
     flex: 1,
@@ -232,11 +331,27 @@ const styles = StyleSheet.create({
   rowLast: {
     borderBottomWidth: 0
   },
+  search: {
+    backgroundColor: ui.colors.surface,
+    borderColor: ui.colors.border,
+    borderRadius: ui.radius.small,
+    borderWidth: 1,
+    color: ui.colors.ink,
+    fontSize: 14,
+    minHeight: 40,
+    paddingHorizontal: 12
+  },
+  sectionHeading: {
+    color: ui.colors.faint,
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase"
+  },
   tab: {
     alignItems: "center",
     borderRadius: ui.radius.small,
     flex: 1,
-    minHeight: 40,
+    minHeight: 32,
     justifyContent: "center"
   },
   tabActive: {
@@ -247,11 +362,11 @@ const styles = StyleSheet.create({
     borderRadius: ui.radius.medium,
     flexDirection: "row",
     gap: 2,
-    padding: 4
+    padding: 3
   },
   tabText: {
     color: ui.colors.muted,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700"
   },
   tabTextActive: {

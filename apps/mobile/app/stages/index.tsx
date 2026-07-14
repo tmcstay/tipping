@@ -5,15 +5,20 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { AppShell } from "../../components/AppShell";
 import { EmptyState, ErrorState, LoadingState } from "../../components/DataState";
 import { InfoCard } from "../../components/InfoCard";
+import { StageStatusBadge } from "../../components/StageStatusBadge";
 import { StageTypeBadge } from "../../components/StageTypeBadge";
-import { useTdf2026Stages } from "../../hooks/useCyclingData";
-import { formatDateTime, formatDurationUntil } from "../../lib/formatters";
+import { ui } from "../../components/theme";
+import { useCyclingStageResults, useTdf2026Stages } from "../../hooks/useCyclingData";
+import { formatDateTime } from "../../lib/formatters";
 import { getStageTipExperience } from "../../lib/stageExperience";
+import { buildClosureDisplay } from "../../lib/stageClosureExperience";
 
 export default function StageListScreen() {
   const router = useRouter();
   const { race, stages } = useTdf2026Stages();
+  const results = useCyclingStageResults(race.data?.id);
   const loading = race.loading || stages.loading;
+  const now = new Date();
 
   return (
     <AppShell
@@ -34,26 +39,37 @@ export default function StageListScreen() {
         // separate hand-rolled `now >= locks_at` comparison - also picks up
         // an admin manual_locked_at override, which the old inline check
         // silently ignored.
+        const isFinal = Boolean(results.data?.some((result) => result.stage_id === stage.id));
         const closureState = resolveCyclingStageClosureState({
           startsAt: stage.starts_at,
           locksAt: stage.locks_at,
-          manualLockedAt: stage.manual_locked_at
+          manualLockedAt: stage.manual_locked_at,
+          isFinal,
+          now
         });
-        const locked = closureState !== "open" && closureState !== "closing_soon";
+        const display = buildClosureDisplay({
+          state: closureState,
+          locksAt: stage.locks_at,
+          now,
+          formattedLockDateTime: formatDateTime(stage.locks_at)
+        });
         const experience = getStageTipExperience(stage.stage_type);
         return (
           <Pressable key={stage.id} onPress={() => router.push(`/stages/${stage.id}`)}>
             <InfoCard
               title={`Stage ${stage.stage_number}: ${stage.start_location ?? "TBC"} → ${stage.finish_location ?? "TBC"}`}
-              meta={locked ? "Locked" : formatDurationUntil(stage.locks_at)}
+              meta={formatDateTime(stage.starts_at)}
             >
               <View style={styles.topRow}>
                 <StageTypeBadge stageType={stage.stage_type} />
                 <Text style={styles.distance}>{stage.distance_km ? `${stage.distance_km} km` : "Distance TBC"}</Text>
               </View>
-              <Text style={styles.copy}>{formatDateTime(stage.starts_at)}</Text>
-              <Text style={locked ? styles.locked : styles.lock}>Tips lock {formatDateTime(stage.locks_at)}</Text>
-              {experience.isTtt ? (
+              <View style={styles.statusRow}>
+                <StageStatusBadge emphasis={display.emphasis} label={display.badgeLabel} tone={closureState} />
+                <Text style={styles.primaryLabel}>{display.primaryLabel}</Text>
+              </View>
+              {/* Selection instructions only make sense while the stage is still open for tipping. */}
+              {display.editable && experience.isTtt ? (
                 <Text style={styles.tttNote}>TTT: pick teams for the stage result.</Text>
               ) : null}
               {stage.start_time_is_estimated ? (
@@ -68,13 +84,12 @@ export default function StageListScreen() {
 }
 
 const styles = StyleSheet.create({
-  copy: { color: "#536159", fontSize: 14 },
-  distance: { color: "#12372A", fontSize: 13, fontWeight: "900" },
-  lock: { color: "#12372A", fontSize: 14, fontWeight: "900" },
-  locked: { color: "#A12622", fontSize: 14, fontWeight: "900" },
-  provisional: { color: "#8A5A00", fontSize: 12, fontWeight: "800" },
+  distance: { color: ui.colors.muted, fontSize: 13, fontWeight: "600" },
+  primaryLabel: { color: ui.colors.muted, fontSize: 13, fontWeight: "600" },
+  provisional: { color: ui.colors.warning, fontSize: 12, fontWeight: "600" },
   ridersLink: { alignSelf: "flex-start", minHeight: 32, justifyContent: "center" },
-  ridersLinkText: { color: "#12372A", fontSize: 14, fontWeight: "900" },
+  ridersLinkText: { color: ui.colors.accent, fontSize: 14, fontWeight: "600" },
+  statusRow: { alignItems: "center", flexDirection: "row", gap: 8 },
   topRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  tttNote: { backgroundColor: "#E8E5FF", borderRadius: 10, color: "#3A2F8F", fontSize: 13, fontWeight: "800", lineHeight: 18, padding: 10 }
+  tttNote: { backgroundColor: ui.colors.tttSoft, borderRadius: 10, color: ui.colors.ttt, fontSize: 13, fontWeight: "600", lineHeight: 18, padding: 10 }
 });

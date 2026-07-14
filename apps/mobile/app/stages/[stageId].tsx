@@ -1,3 +1,4 @@
+import { resolveCyclingStageClosureState } from "@tipping-suite/tipping-core";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -19,6 +20,7 @@ import { TeamSelectionPanel, type StageTeam } from "../../components/TeamSelecti
 import { StageTypeBadge } from "../../components/StageTypeBadge";
 import { TipStatusBadge, type TipDisplayStatus } from "../../components/TipStatusBadge";
 import { TttResultSummary } from "../../components/TttResultSummary";
+import { ui } from "../../components/theme";
 import {
   useCyclingCompetition,
   useStageResult,
@@ -36,7 +38,7 @@ import {
 } from "../../hooks/useGrandTourTips";
 import { formatDurationUntil, formatRiderDisplayName, formatShortDate, formatTime, preferStageBibNumber } from "../../lib/formatters";
 import { getStageTipExperience } from "../../lib/stageExperience";
-import { getMissingTipFields } from "../../lib/tipEntryExperience";
+import { buildTopFiveValidationMessage } from "../../lib/tipEntryExperience";
 
 type ActivePicker = { type: "top5"; position: number } | null;
 
@@ -95,9 +97,22 @@ export default function StageTipScreen() {
   const selections = useMemo(() => isTtt
     ? buildTeamTimeTrialTipSelections(topFive)
     : buildStageTipSelections(topFive), [isTtt, topFive]);
+  const now = new Date();
   const lockTime = tipMode === "preselection" ? race.data?.preselection_locks_at : stage?.locks_at;
-  const clientLocked = Boolean(stage?.manual_locked_at)
-    || Boolean(lockTime && new Date(lockTime).getTime() <= Date.now());
+  // "daily" mode reuses the shared, tipping-core-backed stage closure
+  // resolver (same one the dashboard/stage list use); "preselection" locks
+  // against a separate race-level timestamp with no equivalent shared
+  // resolver, so it keeps its own simple comparison - these are genuinely
+  // two different lock concepts, not a duplicated implementation of one.
+  const stageClosureState = stage ? resolveCyclingStageClosureState({
+    startsAt: stage.starts_at,
+    locksAt: stage.locks_at,
+    manualLockedAt: stage.manual_locked_at,
+    now
+  }) : null;
+  const clientLocked = tipMode === "preselection"
+    ? Boolean(lockTime && new Date(lockTime).getTime() <= now.getTime())
+    : stageClosureState !== null && stageClosureState !== "open" && stageClosureState !== "closing_soon";
   const locked = clientLocked || currentTip.data?.status === "locked" || currentTip.data?.status === "scored";
   const terminalStatus = currentTip.data?.status && ["scored", "corrected", "voided", "missed", "deleted"].includes(currentTip.data.status)
     ? currentTip.data.status as TipDisplayStatus
@@ -115,7 +130,7 @@ export default function StageTipScreen() {
   const complete = isTtt
     ? isCompleteTeamTimeTrialTip(selections)
     : isCompleteStageTip(selections);
-  const missingFields = getMissingTipFields(topFive, undefined, isTtt);
+  const validationMessage = buildTopFiveValidationMessage(topFive, isTtt);
 
   const selectItem = (itemId: string) => {
     if (!tipEntryEnabled || !activePicker) return;
@@ -143,9 +158,7 @@ export default function StageTipScreen() {
   const submitTips = async () => {
     if (!tipEntryEnabled) return;
     if (!complete) {
-      setMessage(missingFields[0] ?? (isTtt
-        ? "Choose five different teams before submitting."
-        : "Choose five different riders before submitting."));
+      setMessage(validationMessage);
       return;
     }
     try {
@@ -192,7 +205,7 @@ export default function StageTipScreen() {
             <Text style={styles.summaryDistance}>{stage.distance_km ? `${stage.distance_km} km` : "Distance TBC"}</Text>
           </View>
           <Text style={styles.summaryRoute}>{stage.start_location ?? "TBC"} → {stage.finish_location ?? "TBC"}</Text>
-          <Text style={styles.summaryCopy}>{experience.topFiveCopy}</Text>
+          {!locked ? <Text style={styles.summaryCopy}>{experience.topFiveCopy}</Text> : null}
           <View style={styles.summaryStatusRow}>
             <TipStatusBadge status={displayStatus} />
             <Text style={styles.summaryLock}>{locked ? "Tips are locked for this stage." : `Locks ${formatTime(lockTime ?? null)} · ${formatDurationUntil(lockTime ?? null)}`}</Text>
@@ -209,7 +222,7 @@ export default function StageTipScreen() {
       </View>
 
       <InfoCard title={experience.topFiveTitle} meta={`${completedTopFive}/5 selected`}>
-        <Text style={styles.copy}>{experience.topFiveCopy}</Text>
+        {!locked ? <Text style={styles.copy}>{experience.topFiveCopy}</Text> : null}
         <OrderedTopFivePicker
           activePosition={activePicker?.type === "top5" ? activePicker.position : null}
           disabled={locked || busy || !tipEntryEnabled}
@@ -221,19 +234,9 @@ export default function StageTipScreen() {
         />
       </InfoCard>
 
-      <InfoCard title="Review and submit" meta={complete ? "Ready" : "Incomplete"}>
-        <Text style={styles.copy}>{isTtt ? "Check your ordered team picks before submitting." : "Check your ordered Top 5 before submitting."}</Text>
-        <Text style={styles.reviewHeading}>{experience.reviewTitle}</Text>
-        <View style={styles.reviewList}>
-          {topFive.map((id, index) => (
-            <View key={`review-top5-${index}`} style={styles.reviewRow}>
-              <Text style={styles.reviewLabel}>{index + 1}. {isTtt ? "Team" : "Rider"}</Text>
-              <Text style={id ? styles.reviewValue : styles.reviewMissing}>{id ? (isTtt ? teamNames.get(id) ?? "Unknown team" : riderNames.get(id) ?? "Unknown rider") : "Missing"}</Text>
-            </View>
-          ))}
-        </View>
-        {!complete ? <View style={styles.warningInline}>{missingFields.map((field) => <Text key={field} style={styles.warningLine}>• {field}</Text>)}</View> : null}
-      </InfoCard>
+      {!locked ? (
+        <Text style={[styles.validationMessage, complete && styles.validationMessageComplete]}>{validationMessage}</Text>
+      ) : null}
 
       {tipEntryEnabled && activePicker?.type === "top5" && isTtt ? (
         <TeamSelectionPanel
@@ -301,37 +304,30 @@ export default function StageTipScreen() {
 const styles = StyleSheet.create({
   actions: { gap: 10 },
   clearButton: { alignItems: "center", minHeight: 42, justifyContent: "center" },
-  clearButtonText: { color: "#A12622", fontWeight: "800" },
-  copy: { color: "#536159", fontSize: 14, lineHeight: 20 },
+  clearButtonText: { color: ui.colors.danger, fontWeight: "700" },
+  copy: { color: ui.colors.muted, fontSize: 14, lineHeight: 20 },
   disabled: { opacity: 0.5 },
-  error: { color: "#A12622", fontSize: 14, fontWeight: "800" },
-  lock: { color: "#12372A", fontSize: 14, fontWeight: "800" },
-  locked: { color: "#A12622", fontSize: 14, fontWeight: "800" },
-  message: { color: "#176B3A", fontSize: 14, fontWeight: "800" },
-  primaryButton: { alignItems: "center", backgroundColor: "#12372A", borderRadius: 14, justifyContent: "center", minHeight: 52 },
-  primaryButtonText: { color: "#FFFFFF", fontWeight: "900" },
-  secondaryButton: { alignItems: "center", borderColor: "#12372A", borderRadius: 14, borderWidth: 1, justifyContent: "center", minHeight: 50 },
-  secondaryButtonText: { color: "#12372A", fontWeight: "900" },
-  serverNote: { color: "#68746D", fontSize: 11 },
-  summaryCopy: { color: "#E7F1EA", fontSize: 14, lineHeight: 20 },
-  summaryDistance: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" },
-  summaryLock: { color: "#E7F1EA", flex: 1, fontSize: 12, fontWeight: "800", textAlign: "right" },
-  summaryRoute: { color: "#FFFFFF", fontSize: 16, fontWeight: "900" },
+  error: { color: ui.colors.danger, fontSize: 14, fontWeight: "700" },
+  message: { color: ui.colors.positiveStrong, fontSize: 14, fontWeight: "700" },
+  primaryButton: { alignItems: "center", backgroundColor: ui.colors.primary, borderRadius: 14, justifyContent: "center", minHeight: 52 },
+  primaryButtonText: { color: "#FFFFFF", fontWeight: "700" },
+  secondaryButton: { alignItems: "center", borderColor: ui.colors.primary, borderRadius: 14, borderWidth: 1, justifyContent: "center", minHeight: 50 },
+  secondaryButtonText: { color: ui.colors.primary, fontWeight: "700" },
+  serverNote: { color: ui.colors.faint, fontSize: 11 },
+  summaryCopy: { color: "rgba(255,255,255,0.9)", fontSize: 14, lineHeight: 20 },
+  summaryDistance: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
+  summaryLock: { color: "rgba(255,255,255,0.9)", flex: 1, fontSize: 12, fontWeight: "600", textAlign: "right" },
+  summaryRoute: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
   summaryStatusRow: { alignItems: "center", flexDirection: "row", gap: 10, justifyContent: "space-between" },
   summaryTopRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  reviewLabel: { color: "#68746D", fontSize: 12, fontWeight: "900", minWidth: 86, textTransform: "uppercase" },
-  reviewHeading: { color: "#17231C", fontSize: 13, fontWeight: "900", marginTop: 4 },
-  reviewList: { backgroundColor: "#F7FAF8", borderColor: "#E0E8E2", borderRadius: 14, borderWidth: 1, gap: 0, overflow: "hidden" },
-  reviewMissing: { color: "#A12622", flex: 1, fontSize: 13, fontWeight: "900", textAlign: "right" },
-  reviewRow: { alignItems: "center", borderBottomColor: "#E0E8E2", borderBottomWidth: 1, flexDirection: "row", gap: 8, minHeight: 42, paddingHorizontal: 12, paddingVertical: 8 },
-  reviewValue: { color: "#12372A", flex: 1, fontSize: 13, fontWeight: "900", textAlign: "right" },
   tab: { alignItems: "center", borderRadius: 12, flex: 1, padding: 11 },
-  tabActive: { backgroundColor: "#12372A" },
-  tabText: { color: "#536159", fontWeight: "800", textTransform: "capitalize" },
+  tabActive: { backgroundColor: ui.colors.primary },
+  tabText: { color: ui.colors.muted, fontWeight: "600", textTransform: "capitalize" },
   tabTextActive: { color: "#FFFFFF" },
-  tabs: { backgroundColor: "#EEF2EF", borderRadius: 14, flexDirection: "row", padding: 4 },
-  warning: { backgroundColor: "#FFF3CD", borderRadius: 12, padding: 12 },
-  warningInline: { backgroundColor: "#FFF3CD", borderRadius: 10, gap: 3, padding: 10 },
-  warningLine: { color: "#6F5200", fontSize: 13, fontWeight: "800", lineHeight: 19 },
-  warningTitle: { color: "#6F5200", fontSize: 14, fontWeight: "900", marginBottom: 2 }
+  tabs: { backgroundColor: ui.colors.surfaceMuted, borderRadius: 14, flexDirection: "row", padding: 4 },
+  validationMessage: { backgroundColor: ui.colors.accentSoft, borderRadius: 10, color: ui.colors.accent, fontSize: 13, fontWeight: "600", lineHeight: 19, padding: 12 },
+  validationMessageComplete: { backgroundColor: ui.colors.positiveSoft, color: ui.colors.positiveStrong },
+  warning: { backgroundColor: ui.colors.surfaceMuted, borderRadius: 12, padding: 12 },
+  warningLine: { color: ui.colors.muted, fontSize: 13, fontWeight: "600", lineHeight: 19 },
+  warningTitle: { color: ui.colors.muted, fontSize: 14, fontWeight: "700", marginBottom: 2 }
 });

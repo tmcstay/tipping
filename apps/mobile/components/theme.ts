@@ -71,3 +71,8 @@ export const ui = {
     shadowRadius: 10
   }
 } as const;
+
+// Re-exported for convenience so every existing `from "./theme"` import
+// keeps working - the implementation lives in lib/raceAccent.ts (see that
+// file for why).
+export { getRaceHeadingAccent } from "../lib/raceAccent";

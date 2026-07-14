@@ -7,8 +7,6 @@ import { useAuth } from "../auth/useAuth";
 import { AppShell } from "../components/AppShell";
 import { EmptyState, ErrorState, SkeletonCard } from "../components/DataState";
 import { InfoCard } from "../components/InfoCard";
-import { JerseyHolderCard, type JerseyKind } from "../components/JerseyHolderCard";
-import { StageStatusBadge } from "../components/StageStatusBadge";
 import { ui } from "../components/theme";
 import {
   useCyclingCompetition,
@@ -17,18 +15,17 @@ import {
   useTdf2026Stages
 } from "../hooks/useCyclingData";
 import { useStageTipDraft } from "../hooks/useGrandTourTips";
+import { resolveDashboardFirstName } from "../lib/dashboardGreeting";
 import { formatDateTime } from "../lib/formatters";
+import { formatRankMovement } from "../lib/leaderboardExperience";
 import { getStageTipExperience } from "../lib/stageExperience";
 import {
   buildClosureDisplay,
-  buildJerseyDashboardCardLink,
+  buildCompoundStatusLine,
   buildLeaderboardDashboardCardLink,
   buildRankStatCardLink,
-  buildSelectionProgressLabel,
   buildStageDashboardCardLink
 } from "../lib/stageClosureExperience";
-
-const jerseyOrder: JerseyKind[] = ["yellow", "green", "kom", "white"];
 
 function getStageWinnerName(result: CyclingStageResult | null | undefined): string | null {
   if (!result) return null;
@@ -37,11 +34,6 @@ function getStageWinnerName(result: CyclingStageResult | null | undefined): stri
     ?? result.riderResults.find((line) => line.actual_position === 1)?.rider.display_name
     ?? null
   );
-}
-
-function firstName(displayName: string | null | undefined): string {
-  if (!displayName) return "there";
-  return displayName.trim().split(/\s+/)[0] ?? "there";
 }
 
 type StageClosure = {
@@ -167,8 +159,19 @@ function AuthenticatedDashboard() {
   const leaderboardLink = buildLeaderboardDashboardCardLink(competition.data?.name ?? null);
   const rankLink = buildRankStatCardLink();
 
+  const heroCompoundStatus = hero && heroDisplay
+    ? buildCompoundStatusLine({
+        badgeLabel: heroDisplay.badgeLabel,
+        state: hero.closureState,
+        selectedCount: currentTip.data?.selections?.length ?? 0,
+        hasSubmittedTip: currentTip.data?.status === "submitted",
+        hasAnyTip: Boolean(currentTip.data),
+        points: currentTip.data?.score?.total_score ?? null
+      })
+    : null;
+
   return (
-    <AppShell title={`Hi ${firstName(profile?.display_name)}`}>
+    <AppShell title={`Hi ${resolveDashboardFirstName(profile?.first_name, profile?.display_name)}`}>
       {initialLoading ? (
         <>
           <SkeletonCard lines={1} />
@@ -181,29 +184,37 @@ function AuthenticatedDashboard() {
 
       {!initialLoading && !initialError ? (
         <>
-          {/* "How am I doing?" - plain text, no card chrome. */}
+          {/* "How am I doing?" - a real white bordered/shadowed card, distinct from plain-text page chrome. */}
           <Link asChild href={rankLink.href}>
             <Pressable
               accessibilityHint={rankLink.accessibilityHint}
               accessibilityLabel={me ? `Your position: rank ${me.rank} of ${leaderboard.data?.length ?? 0}, ${me.total_score} points` : "Your position, not yet scored"}
               accessibilityRole="button"
-              style={({ pressed }) => [styles.statusHeader, pressed && styles.statusHeaderPressed]}
             >
-              <View style={styles.statusRow}>
-                <View>
-                  <Text style={styles.statusValue}>{me ? `#${me.rank}` : "-"}</Text>
-                  <Text style={styles.statusLabel}>Your rank</Text>
-                </View>
-                <View style={styles.statusDivider} />
-                <View>
-                  <Text style={styles.statusValue}>{me ? me.total_score : "-"}</Text>
-                  <Text style={styles.statusLabel}>Points</Text>
+              <View style={styles.statusCard}>
+                <View style={styles.statusRow}>
+                  <View style={styles.statusStat}>
+                    <Text style={styles.statusValue}>{me ? `#${me.rank}` : "-"}</Text>
+                    <Text style={styles.statusLabel}>Rank</Text>
+                  </View>
+                  <View style={styles.statusStat}>
+                    <Text style={styles.statusValue}>{me ? me.total_score : "-"}</Text>
+                    <Text style={styles.statusLabel}>Points</Text>
+                  </View>
+                  <View style={styles.statusStat}>
+                    <Text style={styles.statusValue}>{me ? formatRankMovement(me.rank, me.previous_rank) : "-"}</Text>
+                    <Text style={styles.statusLabel}>Movement</Text>
+                  </View>
+                  <View style={styles.statusStat}>
+                    <Text style={styles.statusValue}>{me ? me.stages_tipped : "-"}</Text>
+                    <Text style={styles.statusLabel}>Stages tipped</Text>
+                  </View>
                 </View>
               </View>
             </Pressable>
           </Link>
 
-          {/* "What should I do next?" - the one action card. */}
+          {/* "What should I do next?" - the one action card, most prominent on the screen. */}
           {hero && heroDisplay && heroExperience && heroLink ? (
             <InfoCard
               accent
@@ -213,15 +224,7 @@ function AuthenticatedDashboard() {
               meta={`Stage ${hero.stage.stage_number}${heroExperience.isTtt ? " · Team time trial" : ""}`}
               title={`${hero.stage.start_location ?? "TBC"} → ${hero.stage.finish_location ?? "TBC"}`}
             >
-              <View style={styles.heroStatusRow}>
-                <StageStatusBadge emphasis={heroDisplay.emphasis} label={heroDisplay.badgeLabel} tone={hero.closureState} />
-                <Text style={[styles.heroClosure, heroDisplay.emphasis && styles.heroClosureEmphasis]}>{heroDisplay.primaryLabel}</Text>
-              </View>
-              {heroDisplay.editable ? (
-                <Text style={styles.heroProgress}>
-                  {buildSelectionProgressLabel(currentTip.data?.selections?.length ?? 0)}
-                </Text>
-              ) : null}
+              <Text style={[styles.heroClosure, heroDisplay.emphasis && styles.heroClosureEmphasis]}>{heroCompoundStatus}</Text>
               <View style={[styles.heroButton, !heroDisplay.editable && styles.heroButtonSecondary]}>
                 <Text style={[styles.heroButtonText, !heroDisplay.editable && styles.heroButtonTextSecondary]}>{heroDisplay.ctaLabel}</Text>
               </View>
@@ -233,10 +236,7 @@ function AuthenticatedDashboard() {
             />
           )}
 
-          {/* Secondary: competition context, compact. A plain container -
-              each row below is its own independent link (never nested
-              inside another Pressable/Link), since they navigate to
-              genuinely different destinations. */}
+          {/* Secondary: compact latest-performance summary, not a long rider/jersey list. */}
           <InfoCard meta={competition.data?.name ?? "Overall"} title="Competition">
             {latestStage && latestResult && latestResultLink ? (
               <Link asChild href={latestResultLink.href}>
@@ -250,31 +250,16 @@ function AuthenticatedDashboard() {
                     <View style={styles.summaryTextColumn}>
                       <Text style={styles.summaryLabel}>Stage {latestStage.stage_number} result</Text>
                       <Text style={styles.summaryValue}>{getStageWinnerName(latestResult) ?? "Pending"}</Text>
+                      <Text style={styles.summaryMeta}>
+                        {latestTip.data?.score ? `+${latestTip.data.score.total_score} pts` : "Pending"}
+                        {me ? ` · ${formatRankMovement(me.rank, me.previous_rank)} overall` : ""}
+                      </Text>
                     </View>
-                    <Text style={styles.summaryMeta}>
-                      {latestTip.data?.score ? `+${latestTip.data.score.total_score} pts` : "Pending"}
-                    </Text>
+                    <Text style={styles.chevron}>›</Text>
                   </View>
                 </Pressable>
               </Link>
             ) : null}
-
-            <View style={styles.jerseyList}>
-              {jerseyOrder.map((jersey) => {
-                const rider = latestResult?.jerseyResults.find((entry) => entry.jersey_type === jersey)?.rider;
-                const jerseyLink = buildJerseyDashboardCardLink(jersey === "kom" ? "Polka dot" : jersey.charAt(0).toUpperCase() + jersey.slice(1));
-                return (
-                  <JerseyHolderCard
-                    accessibilityHint={jerseyLink.accessibilityHint}
-                    href={jerseyLink.href}
-                    jersey={jersey}
-                    key={jersey}
-                    riderName={rider?.display_name}
-                    teamName={rider?.team?.name}
-                  />
-                );
-              })}
-            </View>
 
             {leaderboard.data?.length ? (
               <Link asChild href={leaderboardLink.href}>
@@ -341,24 +326,30 @@ const styles = StyleSheet.create({
   heroButtonTextSecondary: { color: "#FFFFFF" },
   heroClosure: { color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "600" },
   heroClosureEmphasis: { color: "#FFFFFF", fontWeight: "700" },
-  heroProgress: { color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 6 },
-  heroStatusRow: { alignItems: "center", flexDirection: "row", gap: 8 },
-  jerseyList: { gap: 2, marginTop: 4 },
   raceLinkRow: { justifyContent: "center", minHeight: 44, paddingHorizontal: 4 },
   raceLinkRowInner: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   raceLinkRowPressed: { opacity: 0.6 },
   raceLinkText: { color: ui.colors.ink, fontSize: 14, fontWeight: "500" },
   raceLinks: { gap: 0 },
-  statusDivider: { backgroundColor: ui.colors.border, height: 32, width: 1 },
-  statusHeader: { paddingHorizontal: 4, paddingVertical: 4 },
-  statusHeaderPressed: { opacity: 0.7 },
-  statusLabel: { color: ui.colors.muted, fontSize: 12, fontWeight: "500", marginTop: 2 },
-  statusRow: { alignItems: "center", flexDirection: "row", gap: 24 },
-  statusValue: { color: ui.colors.ink, fontSize: 34, fontWeight: "700", letterSpacing: -0.5 },
+  statusCard: {
+    backgroundColor: ui.colors.surface,
+    borderColor: ui.colors.border,
+    borderRadius: ui.radius.large,
+    borderWidth: 1,
+    padding: 16,
+    shadowColor: ui.shadow.shadowColor,
+    shadowOffset: ui.shadow.shadowOffset,
+    shadowOpacity: ui.shadow.shadowOpacity,
+    shadowRadius: ui.shadow.shadowRadius
+  },
+  statusLabel: { color: ui.colors.muted, fontSize: 11, fontWeight: "500", marginTop: 2, textAlign: "center" },
+  statusRow: { flexDirection: "row" },
+  statusStat: { alignItems: "center", flex: 1 },
+  statusValue: { color: ui.colors.ink, fontSize: 22, fontVariant: ["tabular-nums"], fontWeight: "700" },
   summaryFooter: { color: ui.colors.muted, fontSize: 12 },
   summaryFooterRow: { marginTop: 8, minHeight: 32, paddingHorizontal: 0 },
   summaryLabel: { color: ui.colors.faint, fontSize: 11, fontWeight: "600", textTransform: "uppercase" },
-  summaryMeta: { color: ui.colors.muted, fontSize: 13, fontWeight: "600" },
+  summaryMeta: { color: ui.colors.muted, fontSize: 13, fontWeight: "600", marginTop: 2 },
   summaryRow: { borderBottomColor: ui.colors.border, borderBottomWidth: 1, justifyContent: "center", minHeight: 44, paddingBottom: 10, marginBottom: 6 },
   summaryRowInner: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   summaryTextColumn: { flex: 1 },

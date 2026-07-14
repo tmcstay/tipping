@@ -97,6 +97,8 @@ export type CyclingLeaderboardRow = {
   user_id: string;
   leaderboard_type: "daily" | "preselection" | "overall";
   rank: number;
+  /** Rank as of the previous completed stage's scoring, or null if the user has no scored stage before the most recent one (rendered as "New" by the caller). */
+  previous_rank: number | null;
   total_score: number;
   stages_tipped: number;
   last_stage_score: number | null;
@@ -620,7 +622,7 @@ export async function listCyclingLeaderboard(
   leaderboardType: CyclingLeaderboardRow["leaderboard_type"] = "overall"
 ): Promise<CyclingLeaderboardRow[]> {
   const client = getSupabaseClient();
-  const { data, error } = await client.rpc("get_grandtour_leaderboard", {
+  const { data, error } = await client.rpc("get_grandtour_leaderboard_with_movement", {
     p_competition_id: competitionId,
     p_leaderboard_type: leaderboardType
   });

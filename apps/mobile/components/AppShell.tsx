@@ -3,11 +3,13 @@ import type { PropsWithChildren } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { activeAppConfig } from "../lib/appConfig";
-import { ui } from "./theme";
+import { getRaceHeadingAccent, ui } from "./theme";
 
 type AppShellProps = PropsWithChildren<{
   title: string;
   subtitle?: string;
+  /** When set, the title renders in that race's accent colour with a small underline marker - e.g. "Tour de France 2026" in gold. Omit for every screen without a specific race heading. */
+  raceName?: string;
 }>;
 
 const navItems = [
@@ -18,17 +20,19 @@ const navItems = [
   { href: "/profile", icon: "•••", label: "More" }
 ] as const;
 
-export function AppShell({ children, subtitle, title }: AppShellProps) {
+export function AppShell({ children, raceName, subtitle, title }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const theme = activeAppConfig.theme;
+  const raceAccent = raceName ? getRaceHeadingAccent(raceName) : null;
 
   return (
     <View style={[styles.page, { backgroundColor: theme.backgroundColor }]}>
       <View style={styles.header}>
         <View style={styles.headerInner}>
           <Text style={styles.appName}>{activeAppConfig.appName}</Text>
-          <Text style={styles.title}>{title}</Text>
+          <Text style={[styles.title, raceAccent && { color: raceAccent }]}>{title}</Text>
+          {raceAccent ? <View style={[styles.raceUnderline, { backgroundColor: raceAccent }]} /> : null}
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
       </View>
@@ -124,6 +128,12 @@ const styles = StyleSheet.create({
   },
   page: {
     flex: 1
+  },
+  raceUnderline: {
+    borderRadius: ui.radius.pill,
+    height: 3,
+    marginTop: 6,
+    width: 36
   },
   subtitle: {
     color: ui.colors.muted,

@@ -3,6 +3,7 @@ const test = require("node:test");
 
 const {
   buildClosureDisplay,
+  buildCompoundStatusLine,
   buildHistoryStatCardLink,
   buildJerseyDashboardCardLink,
   buildLeaderboardDashboardCardLink,
@@ -171,4 +172,58 @@ test("buildJerseyDashboardCardLink routes to /overall-jerseys", () => {
   const link = buildJerseyDashboardCardLink("Yellow");
   assert.equal(link.href, "/overall-jerseys");
   assert.equal(link.accessibilityLabel, "Yellow jersey standings");
+});
+
+test("buildCompoundStatusLine: open with selections shows 'N of 5 complete'", () => {
+  assert.equal(
+    buildCompoundStatusLine({ badgeLabel: "Open", state: "open", selectedCount: 3 }),
+    "Open · 3 of 5 complete"
+  );
+});
+
+test("buildCompoundStatusLine: open with zero selections shows 'Action required'", () => {
+  assert.equal(
+    buildCompoundStatusLine({ badgeLabel: "Open", state: "open", selectedCount: 0 }),
+    "Open · Action required"
+  );
+});
+
+test("buildCompoundStatusLine: open/closing_soon with a submitted tip shows 'Tips submitted' regardless of count", () => {
+  assert.equal(
+    buildCompoundStatusLine({ badgeLabel: "Closing soon", state: "closing_soon", selectedCount: 5, hasSubmittedTip: true }),
+    "Closing soon · Tips submitted"
+  );
+});
+
+test("buildCompoundStatusLine: closed shows submitted or no-tip", () => {
+  assert.equal(
+    buildCompoundStatusLine({ badgeLabel: "Closed", state: "closed", hasSubmittedTip: true }),
+    "Closed · Tips submitted"
+  );
+  assert.equal(
+    buildCompoundStatusLine({ badgeLabel: "Closed", state: "closed", hasSubmittedTip: false }),
+    "Closed · No tip"
+  );
+});
+
+test("buildCompoundStatusLine: live shows locked-tip state", () => {
+  assert.equal(
+    buildCompoundStatusLine({ badgeLabel: "Live", state: "live", hasAnyTip: true }),
+    "Live · Tips locked"
+  );
+  assert.equal(
+    buildCompoundStatusLine({ badgeLabel: "Live", state: "live", hasAnyTip: false }),
+    "Live · No tip"
+  );
+});
+
+test("buildCompoundStatusLine: completed shows points when known, otherwise just the badge", () => {
+  assert.equal(
+    buildCompoundStatusLine({ badgeLabel: "Completed", state: "completed", points: 18 }),
+    "Completed · 18 points"
+  );
+  assert.equal(
+    buildCompoundStatusLine({ badgeLabel: "Completed", state: "completed", points: null }),
+    "Completed"
+  );
 });

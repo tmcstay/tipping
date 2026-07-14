@@ -51,3 +51,17 @@ export function buildLeaderboardDisplayItems<T extends LeaderboardRowLike>(
     ...windowRows.map((row) => ({ type: "row" as const, row, isCurrentUser: row.user_id === currentUserId }))
   ];
 }
+
+/**
+ * Formats rank movement since the previous completed stage. `previousRank`
+ * is null when the user had no scored stage before the most recent one
+ * (a brand-new entrant relative to that stage) - shown as "New", never a
+ * fabricated number. Lower rank numbers are better, so a decrease is an
+ * improvement (up arrow).
+ */
+export function formatRankMovement(rank: number, previousRank: number | null): string {
+  if (previousRank === null) return "New";
+  const delta = previousRank - rank;
+  if (delta === 0) return "—";
+  return delta > 0 ? `↑ ${delta}` : `↓ ${Math.abs(delta)}`;
+}
