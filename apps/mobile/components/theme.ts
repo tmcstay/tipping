@@ -1,36 +1,71 @@
 /**
- * Minimal, single-accent design system (Monzo/Revolut-style neutral palette
- * + one accent colour). Token *names* are kept stable even where their
- * meaning has narrowed (e.g. `warning`/`ttt` are now neutral greys, not
- * separate decorative hues) so every existing screen that references
- * `ui.colors.*` inherits the calmer palette automatically, without needing
- * a mechanical rename across the whole app for what is a visual-only
- * change. `primary` and `accent` are intentionally the same value - there
- * is exactly one accent colour in this system.
+ * GWFC brand design system: three core brand colours used semantically
+ * (not all three stacked onto every screen) - GWFC Blue as the primary
+ * ink/heading/selected-nav/primary-button colour, GWFC Light Blue reserved
+ * for links and interactive highlights, GWFC Green/teal as a secondary
+ * positive accent (e.g. the "live" status dot). Token *names* are kept
+ * stable so every existing screen that references `ui.colors.*` inherits
+ * this palette automatically, without a mechanical rename across the whole
+ * app for what is a visual-only change.
+ *
+ * `primary` and `accent` are DIFFERENT values here (they were the same
+ * single accent colour in the previous minimal palette) - primary is the
+ * brand-identity blue (headings, selected nav, primary buttons), accent is
+ * the lighter interactive blue (links, loading indicators, "open"/emphasis
+ * highlights). Body/long-form text uses `ink`, which is the brand blue too
+ * (per brand guidance) - never the lighter `accent` blue, which doesn't
+ * have enough contrast for dense paragraph text.
  */
 export const ui = {
   colors: {
-    background: "#F6F7F6",
+    // Pale blue-grey page background, white cards - never a coloured or
+    // gradient page background.
+    background: "#F5F7FA",
     surface: "#FFFFFF",
-    surfaceMuted: "#F1F2F0",
-    ink: "#15181A",
-    muted: "#767C79",
-    faint: "#9BA19D",
-    primary: "#0E5C42",
-    primarySoft: "#E7F0EC",
-    accent: "#0E5C42",
-    accentSoft: "#E7F0EC",
-    border: "#E9EAE7",
-    success: "#0E5C42",
-    warning: "#767C79",
-    warningSoft: "#F1F2F0",
+    surfaceMuted: "#EEF1F6",
+
+    // Primary/default text and headings. GWFC Blue, not black - passes
+    // WCAG AA on white (~7:1). `muted`/`faint` are darker accessible
+    // blue-greys derived from the brand palette for secondary/meta text,
+    // never the lighter brand blue (too low-contrast for small text).
+    ink: "#425197",
+    muted: "#4A5568",
+    faint: "#7B8698",
+
+    // GWFC Blue - brand identity, headings, selected navigation, primary
+    // buttons.
+    primary: "#425197",
+    primarySoft: "#E7EAF3",
+
+    // GWFC Light Blue - links and interactive highlights only. Never used
+    // for long-form body text.
+    accent: "#1079BF",
+    accentSoft: "#DCEEF8",
+
+    // GWFC Green - secondary positive accent (e.g. a small "live" dot),
+    // never the dominant colour of a whole card. `positiveStrong` is a
+    // darker shade of the same hue for text on `positiveSoft` - the base
+    // `positive` value doesn't have enough contrast for small text on its
+    // own pale background.
+    positive: "#1CAEBB",
+    positiveSoft: "#DDF3F1",
+    positiveStrong: "#0F6B73",
+
+    border: "#DDE3EE",
+
+    // success reuses the GWFC Green positive accent; warning/ttt stay
+    // neutral blue-grey (no amber/purple) - only danger keeps a real red,
+    // reserved for genuine errors.
+    success: "#1CAEBB",
+    warning: "#5B6472",
+    warningSoft: "#EEF1F6",
     danger: "#B3261E",
-    ttt: "#767C79",
-    tttSoft: "#F1F2F0"
+    ttt: "#5B6472",
+    tttSoft: "#EEF1F6"
   },
   radius: { small: 10, medium: 14, large: 16, pill: 999 },
   shadow: {
-    shadowColor: "#15181A",
+    shadowColor: "#1B2A4A",
     shadowOffset: { height: 2, width: 0 },
     shadowOpacity: 0.05,
     shadowRadius: 10

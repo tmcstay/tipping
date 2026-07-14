@@ -1,0 +1,53 @@
+/**
+ * Pure view-model logic for the compact, standings-oriented leaderboard:
+ * decides which rows to actually render so a long leaderboard stays easy
+ * to scan (top block, then a divider, then a small window centred on the
+ * signed-in user) rather than forcing everyone to scroll through the
+ * entire field to find themselves. Takes plain row-like objects (id +
+ * user_id + rank), not the full CyclingLeaderboardRow type, so this file
+ * can be compiled standalone by apps/mobile's test:ui script (see
+ * package.json) without resolving cross-package imports.
+ */
+
+export type LeaderboardRowLike = {
+  id: string;
+  user_id: string;
+  rank: number;
+};
+
+export type LeaderboardDisplayItem<T extends LeaderboardRowLike> =
+  | { type: "row"; row: T; isCurrentUser: boolean }
+  | { type: "divider" };
+
+/**
+ * Rows are assumed already sorted by rank ascending (as the leaderboard
+ * RPC returns them). When the current user is already visible within the
+ * top `topCount` rows (or isn't in the list at all, or the whole list fits
+ * within `topCount`), every row is shown as-is - no divider. Otherwise,
+ * shows the top `topCount` rows, a single divider, then a small window of
+ * `windowRadius` rows on each side of the current user (never duplicating
+ * a row that's already in the top block).
+ */
+export function buildLeaderboardDisplayItems<T extends LeaderboardRowLike>(
+  rows: T[],
+  currentUserId: string | null | undefined,
+  topCount = 15,
+  windowRadius = 1
+): LeaderboardDisplayItem<T>[] {
+  const userIndex = currentUserId ? rows.findIndex((row) => row.user_id === currentUserId) : -1;
+
+  if (rows.length <= topCount || userIndex === -1 || userIndex < topCount) {
+    return rows.map((row) => ({ type: "row", row, isCurrentUser: row.user_id === currentUserId }));
+  }
+
+  const topRows = rows.slice(0, topCount);
+  const windowStart = Math.max(topCount, userIndex - windowRadius);
+  const windowEnd = Math.min(rows.length, userIndex + windowRadius + 1);
+  const windowRows = rows.slice(windowStart, windowEnd);
+
+  return [
+    ...topRows.map((row) => ({ type: "row" as const, row, isCurrentUser: false })),
+    { type: "divider" as const },
+    ...windowRows.map((row) => ({ type: "row" as const, row, isCurrentUser: row.user_id === currentUserId }))
+  ];
+}

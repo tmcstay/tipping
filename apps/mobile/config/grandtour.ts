@@ -6,9 +6,9 @@ export const grandTourConfig: AppConfig = {
   sportType: "cycling",
   defaultCompetitionKey: "grandtour_france_2026",
   theme: {
-    primaryColor: "#0E5C42",
-    secondaryColor: "#0E5C42",
-    backgroundColor: "#F6F7F6"
+    primaryColor: "#425197",
+    secondaryColor: "#425197",
+    backgroundColor: "#F5F7FA"
   },
   features: {
     ads: false,

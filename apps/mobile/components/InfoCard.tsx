@@ -1,4 +1,5 @@
 import { Link } from "expo-router";
+import { useState } from "react";
 import type { PropsWithChildren } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -37,6 +38,7 @@ export function InfoCard({
 }: InfoCardProps) {
   const interactive = Boolean(href || onPress);
   const showChevron = chevron ?? interactive;
+  const [pressed, setPressed] = useState(false);
 
   const content = (
     <>
@@ -55,15 +57,24 @@ export function InfoCard({
     </>
   );
 
-  if (!interactive) {
-    return <View style={[styles.card, accent && styles.accentCard]}>{content}</View>;
-  }
+  // The actual card look (background/border/padding/shadow) lives on this
+  // inner, plain View - never directly on a Link-wrapped Pressable's own
+  // style. expo-router's <Link asChild> clones its child's props onto a
+  // real <a> element on web; a *function*-valued style prop (which
+  // Pressable normally calls with { pressed } during its own render) does
+  // not survive that clone - the resulting <a> silently gets no style at
+  // all, not just no pressed-state variant. This was invisible in every
+  // previous manual check because they used a throwaway account with no
+  // real "accent" hero-card data, so the one card that needs a real
+  // background colour (not just layout) was never actually exercised.
+  // Pressed-state is tracked here via onPressIn/onPressOut into local
+  // state instead, so the Pressable/anchor's own `style` prop is always a
+  // plain static value.
+  const cardVisual = <View style={[styles.card, accent && styles.accentCard, pressed && styles.cardPressed]}>{content}</View>;
 
-  const cardStyle = ({ pressed }: { pressed: boolean }) => [
-    styles.card,
-    accent && styles.accentCard,
-    pressed && styles.cardPressed
-  ];
+  if (!interactive) {
+    return cardVisual;
+  }
 
   const pressable = (
     <Pressable
@@ -71,9 +82,10 @@ export function InfoCard({
       accessibilityLabel={accessibilityLabel ?? title}
       accessibilityRole="button"
       onPress={onPress}
-      style={cardStyle}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
     >
-      {content}
+      {cardVisual}
     </Pressable>
   );
 

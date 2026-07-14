@@ -5,12 +5,13 @@ import type { CyclingLeaderboardRow } from "@tipping-suite/supabase-client";
 import { useAuth } from "../auth/useAuth";
 import { AppShell } from "../components/AppShell";
 import { EmptyState, ErrorState, LoadingState } from "../components/DataState";
-import { InfoCard } from "../components/InfoCard";
 import {
   useCyclingCompetitions,
   useCyclingLeaderboard,
   useCyclingRace
 } from "../hooks/useCyclingData";
+import { buildLeaderboardDisplayItems } from "../lib/leaderboardExperience";
+import { ui } from "../components/theme";
 
 const leaderboardTypes: CyclingLeaderboardRow["leaderboard_type"][] = [
   "overall",
@@ -34,32 +35,34 @@ export default function LeaderboardScreen() {
     if (!competitionId && competitions.data?.[0]) setCompetitionId(competitions.data[0].id);
   }, [competitionId, competitions.data]);
   const leaderboard = useCyclingLeaderboard(competitionId, leaderboardType);
-  const leader = leaderboard.data?.[0] ?? null;
+
+  const displayItems = buildLeaderboardDisplayItems(leaderboard.data ?? [], user?.id ?? null);
 
   return (
-    <AppShell
-      title="Leaderboard"
-      subtitle="See the overall race, stage tipping, and pre-race competitions."
-    >
-      {leader ? (
-        <InfoCard accent title={`${leader.display_name} leads`} meta={`${leader.total_score} points`}>
-          <Text style={styles.heroCopy}>Top score in {leaderboardLabel(leaderboardType).toLowerCase()} leaderboard.</Text>
-          <Text style={styles.heroCopy}>{leader.stages_tipped} stages tipped</Text>
-        </InfoCard>
+    <AppShell title="Leaderboard" subtitle="Overall standings, stage tipping, and pre-race results.">
+      {competitions.data && competitions.data.length > 1 ? (
+        <View style={styles.leagues}>
+          {competitions.data.map((competition) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: competitionId === competition.id }}
+              key={competition.id}
+              onPress={() => setCompetitionId(competition.id)}
+              style={[styles.league, competitionId === competition.id && styles.leagueActive]}
+            >
+              <Text style={[styles.leagueText, competitionId === competition.id && styles.leagueTextActive]}>
+                {competition.name}{competition.is_public ? "" : " · Private"}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       ) : null}
 
-      <View style={styles.leagues}>
-        {competitions.data?.map((competition) => (
-          <Pressable key={competition.id} onPress={() => setCompetitionId(competition.id)} style={[styles.league, competitionId === competition.id && styles.leagueActive]}>
-            <Text style={[styles.leagueText, competitionId === competition.id && styles.leagueTextActive]}>
-              {competition.name}{competition.is_public ? "" : " · Private"}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
       <View style={styles.tabs}>
         {leaderboardTypes.map((type) => (
           <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: leaderboardType === type }}
             key={type}
             onPress={() => setLeaderboardType(type)}
             style={[styles.tab, leaderboardType === type && styles.tabActive]}
@@ -76,52 +79,200 @@ export default function LeaderboardScreen() {
       {!leaderboard.loading && !leaderboard.error && leaderboard.data?.length === 0 ? (
         <EmptyState message="No stage scores yet. Leaderboard rows appear after results are entered and scored." />
       ) : null}
-      {!leaderboard.loading && !leaderboard.error && leaderboard.data?.map((row) => (
-        <InfoCard
-          title={`${row.display_name}${row.user_id === user?.id ? " (You)" : ""}`}
-          meta={`Rank ${row.rank}`}
-          key={row.id}
-        >
-          <View style={styles.row}>
-            <View style={styles.rankBubble}>
-              <Text style={styles.rankText}>{row.rank}</Text>
-            </View>
-            <View style={styles.entryCopy}>
-              <Text style={styles.points}>{row.total_score} pts</Text>
-              <Text style={styles.copy}>{row.stages_tipped} stages tipped</Text>
-            </View>
-            {row.last_stage_score !== null ? (
-              <View style={styles.lastStagePill}>
-                <Text style={styles.lastStageLabel}>Last</Text>
-                <Text style={styles.lastStageScore}>+{row.last_stage_score}</Text>
-              </View>
-            ) : null}
+
+      {!leaderboard.loading && !leaderboard.error && displayItems.length > 0 ? (
+        <View style={styles.table}>
+          <View style={styles.headerRow}>
+            <Text style={[styles.headerCell, styles.rankCell]}>Rank</Text>
+            <Text style={[styles.headerCell, styles.playerCell]}>Player</Text>
+            <Text style={[styles.headerCell, styles.pointsCell]}>Points</Text>
           </View>
-        </InfoCard>
-      ))}
+          {displayItems.map((item, index) =>
+            item.type === "divider" ? (
+              <View key="divider" style={styles.divider}>
+                <Text style={styles.dividerText}>⋯</Text>
+              </View>
+            ) : (
+              <View
+                key={item.row.id}
+                style={[styles.row, item.isCurrentUser && styles.rowCurrentUser, index === displayItems.length - 1 && styles.rowLast]}
+              >
+                <Text style={[styles.rankCell, styles.rankText]}>{item.row.rank}</Text>
+                <View style={styles.playerCell}>
+                  <View style={styles.playerNameRow}>
+                    <Text numberOfLines={1} style={styles.playerName}>{item.row.display_name}</Text>
+                    {item.isCurrentUser ? (
+                      <View style={styles.youPill}>
+                        <Text style={styles.youPillText}>You</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={styles.playerMeta}>{item.row.stages_tipped} stage{item.row.stages_tipped === 1 ? "" : "s"} tipped</Text>
+                </View>
+                <View style={styles.pointsCell}>
+                  <Text style={styles.pointsText}>{item.row.total_score}</Text>
+                  {item.row.last_stage_score !== null ? (
+                    <Text style={styles.lastStageText}>+{item.row.last_stage_score} last</Text>
+                  ) : null}
+                </View>
+              </View>
+            )
+          )}
+        </View>
+      ) : null}
     </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  copy: { color: "#536159", fontSize: 14 },
-  entryCopy: { flex: 1 },
-  heroCopy: { color: "#E7F1EA", fontSize: 14, lineHeight: 20 },
-  lastStageLabel: { color: "#68746D", fontSize: 10, fontWeight: "900", textTransform: "uppercase" },
-  lastStagePill: { alignItems: "center", backgroundColor: "#EAF2ED", borderRadius: 14, minWidth: 58, paddingHorizontal: 10, paddingVertical: 6 },
-  lastStageScore: { color: "#12372A", fontSize: 15, fontWeight: "900" },
-  league: { borderColor: "#C9D1CB", borderRadius: 12, borderWidth: 1, padding: 11 },
-  leagueActive: { backgroundColor: "#E3EEE7", borderColor: "#12372A" },
-  leagues: { gap: 8 },
-  leagueText: { color: "#536159", fontSize: 13, fontWeight: "900" },
-  leagueTextActive: { color: "#12372A" },
-  points: { color: "#12372A", fontSize: 19, fontWeight: "900" },
-  rankBubble: { alignItems: "center", backgroundColor: "#12372A", borderRadius: 20, height: 40, justifyContent: "center", width: 40 },
-  rankText: { color: "#FFFFFF", fontWeight: "900" },
-  row: { alignItems: "center", flexDirection: "row", gap: 12, justifyContent: "space-between" },
-  tab: { alignItems: "center", borderRadius: 12, flex: 1, padding: 11 },
-  tabActive: { backgroundColor: "#12372A" },
-  tabText: { color: "#536159", fontSize: 12, fontWeight: "900" },
-  tabTextActive: { color: "#FFFFFF" },
-  tabs: { backgroundColor: "#EEF2EF", borderRadius: 14, flexDirection: "row", padding: 4 }
+  divider: {
+    alignItems: "center",
+    paddingVertical: 6
+  },
+  dividerText: {
+    color: ui.colors.faint,
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 2
+  },
+  headerCell: {
+    color: ui.colors.faint,
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase"
+  },
+  headerRow: {
+    borderBottomColor: ui.colors.border,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    paddingBottom: 8,
+    paddingHorizontal: 4
+  },
+  lastStageText: {
+    color: ui.colors.faint,
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 1
+  },
+  league: {
+    borderColor: ui.colors.border,
+    borderRadius: ui.radius.small,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  leagueActive: {
+    backgroundColor: ui.colors.primarySoft,
+    borderColor: ui.colors.primary
+  },
+  leagueText: {
+    color: ui.colors.muted,
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  leagueTextActive: {
+    color: ui.colors.primary
+  },
+  leagues: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  playerCell: {
+    flex: 1,
+    paddingHorizontal: 8
+  },
+  playerMeta: {
+    color: ui.colors.faint,
+    fontSize: 12,
+    marginTop: 1
+  },
+  playerName: {
+    color: ui.colors.ink,
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: "600"
+  },
+  playerNameRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6
+  },
+  pointsCell: {
+    alignItems: "flex-end",
+    width: 72
+  },
+  pointsText: {
+    color: ui.colors.ink,
+    fontSize: 15,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700"
+  },
+  rankCell: {
+    width: 32
+  },
+  rankText: {
+    color: ui.colors.muted,
+    fontSize: 14,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700"
+  },
+  row: {
+    alignItems: "center",
+    borderBottomColor: ui.colors.border,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    minHeight: 48,
+    paddingHorizontal: 4,
+    paddingVertical: 8
+  },
+  rowCurrentUser: {
+    backgroundColor: ui.colors.accentSoft
+  },
+  rowLast: {
+    borderBottomWidth: 0
+  },
+  tab: {
+    alignItems: "center",
+    borderRadius: ui.radius.small,
+    flex: 1,
+    minHeight: 40,
+    justifyContent: "center"
+  },
+  tabActive: {
+    backgroundColor: ui.colors.primary
+  },
+  tabs: {
+    backgroundColor: ui.colors.surfaceMuted,
+    borderRadius: ui.radius.medium,
+    flexDirection: "row",
+    gap: 2,
+    padding: 4
+  },
+  tabText: {
+    color: ui.colors.muted,
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  tabTextActive: {
+    color: "#FFFFFF"
+  },
+  table: {
+    backgroundColor: ui.colors.surface,
+    borderColor: ui.colors.border,
+    borderRadius: ui.radius.large,
+    borderWidth: 1,
+    padding: 12
+  },
+  youPill: {
+    backgroundColor: ui.colors.primary,
+    borderRadius: ui.radius.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 2
+  },
+  youPillText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700"
+  }
 });

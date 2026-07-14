@@ -5,51 +5,80 @@ import { ui } from "./theme";
 export type StageStatusTone = "open" | "closing_soon" | "closed" | "live" | "provisional" | "completed";
 
 export type StageStatusBadgeProps = {
-  /** Kept for callers that still track a semantic tone (e.g. for their own accessibility copy) - no longer drives this badge's colour, which is intentionally uniform. See the component doc comment. */
-  tone?: StageStatusTone;
+  tone: StageStatusTone;
   label: string;
-  /** High-emphasis rendering (e.g. <60m-remaining closing_soon, or live) - the one place this badge uses the accent colour instead of neutral ink. */
+  /** High-emphasis rendering (e.g. <60m-remaining closing_soon) - bolds the existing tone's text, never introduces a new hue. */
   emphasis?: boolean;
 };
 
+type BadgeStyle = { backgroundColor: string; textColor: string; showDot: boolean };
+
 /**
- * One neutral chip style for every status - the previous version gave each
- * tone its own background tint (a warm amber, a purple, a red, a full
- * green fill), which read as decorative colour-coding rather than
- * information. Now every badge is the same quiet neutral pill; only
- * `emphasis` (a stage that's live, or closing within the hour) swaps in
- * the single accent colour, so it still stands out without adding another
- * hue to the palette.
+ * Semantic per-status colour, matching the four stage statuses
+ * (open/live/closed/completed) plus the two states this app additionally
+ * tracks (closing_soon - a higher-emphasis Open; provisional - a
+ * not-yet-final result, styled neutrally like closed). Never uses red for
+ * "closed" - red is reserved for genuine errors. Status must also remain
+ * understandable without colour alone, which is why every state has a
+ * distinct label text, not just a colour swap.
  */
-export function StageStatusBadge({ emphasis, label }: StageStatusBadgeProps) {
+function resolveBadgeStyle(tone: StageStatusTone): BadgeStyle {
+  switch (tone) {
+    case "live":
+      return { backgroundColor: ui.colors.positiveSoft, textColor: ui.colors.positiveStrong, showDot: true };
+    case "completed":
+      return { backgroundColor: ui.colors.primarySoft, textColor: ui.colors.primary, showDot: false };
+    case "closed":
+    case "provisional":
+      return { backgroundColor: ui.colors.surfaceMuted, textColor: ui.colors.muted, showDot: false };
+    case "open":
+    case "closing_soon":
+    default:
+      return { backgroundColor: ui.colors.accentSoft, textColor: ui.colors.accent, showDot: false };
+  }
+}
+
+/**
+ * One semantic chip per status tone. An earlier version of this component
+ * ignored `tone` entirely (it accepted the prop but never read it, so every
+ * status rendered as the same neutral pill regardless of what callers
+ * passed) - this restores real per-status colour, now that the GWFC
+ * three-colour palette gives enough distinct hues to do so meaningfully
+ * without it reading as arbitrary decoration.
+ */
+export function StageStatusBadge({ emphasis, label, tone }: StageStatusBadgeProps) {
+  const style = resolveBadgeStyle(tone);
   return (
     <View
       accessibilityElementsHidden
-      style={[styles.badge, emphasis && styles.badgeEmphasis]}
+      style={[styles.badge, { backgroundColor: style.backgroundColor }]}
     >
-      <Text style={[styles.text, emphasis && styles.textEmphasis]}>{label}</Text>
+      {style.showDot ? <View style={[styles.dot, { backgroundColor: style.textColor }]} /> : null}
+      <Text style={[styles.text, { color: style.textColor }, emphasis && styles.textEmphasis]}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   badge: {
+    alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: ui.colors.surfaceMuted,
     borderRadius: ui.radius.pill,
+    flexDirection: "row",
+    gap: 5,
     paddingHorizontal: 9,
     paddingVertical: 4
   },
-  badgeEmphasis: {
-    backgroundColor: ui.colors.accentSoft
+  dot: {
+    borderRadius: 3,
+    height: 6,
+    width: 6
   },
   text: {
-    color: ui.colors.muted,
     fontSize: 11,
     fontWeight: "600"
   },
   textEmphasis: {
-    color: ui.colors.accent,
     fontWeight: "700"
   }
 });
