@@ -53,3 +53,9 @@ db-push-dry-run.txt
 
 # Local authenticated E2E fixture with predictable test credentials
 supabase/seeds/grandtour_e2e.sql
+
+# Scratch dummy-user/tips workbooks and their personal-path inspection
+# script - binary spreadsheets don't diff usefully and don't belong in
+# shared history; keep working with them on disk only.
+scripts/grandtour_dummy_users_and_tips*.xlsx
+scripts/inspect_grandtour_workbook.py
