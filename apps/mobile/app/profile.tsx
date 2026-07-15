@@ -1,7 +1,9 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput } from "react-native";
+import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import {
+  getNotificationPreference,
+  setResultsEmailEnabled,
   signOut,
   updateCurrentUserProfile
 } from "@tipping-suite/supabase-client";
@@ -24,6 +26,9 @@ export default function ProfileScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [resultsEmailEnabled, setResultsEmailEnabledState] = useState<boolean | null>(null);
+  const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
+  const [savingNotificationPreference, setSavingNotificationPreference] = useState(false);
 
   const logOut = async () => {
     setSigningOut(true);
@@ -43,6 +48,20 @@ export default function ProfileScreen() {
     setDisplayName(profile?.display_name ?? "");
   }, [profile?.first_name, profile?.last_name, profile?.display_name]);
 
+  useEffect(() => {
+    let cancelled = false;
+    getNotificationPreference()
+      .then((preference) => {
+        if (!cancelled) setResultsEmailEnabledState(preference?.resultsEmailEnabled ?? true);
+      })
+      .catch(() => {
+        if (!cancelled) setResultsEmailEnabledState(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const save = async () => {
     setSaving(true);
     setMessage(null);
@@ -54,6 +73,22 @@ export default function ProfileScreen() {
       setMessage(toSafeErrorMessage(error, "Unable to save your profile."));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleResultsEmail = async (nextValue: boolean) => {
+    const previousValue = resultsEmailEnabled;
+    setResultsEmailEnabledState(nextValue);
+    setSavingNotificationPreference(true);
+    setNotificationMessage(null);
+    try {
+      await setResultsEmailEnabled(nextValue);
+      setNotificationMessage(nextValue ? "You'll get an email after each stage's results." : "Stage-result emails turned off.");
+    } catch (error) {
+      setResultsEmailEnabledState(previousValue ?? true);
+      setNotificationMessage(toSafeErrorMessage(error, "Unable to save your notification preference."));
+    } finally {
+      setSavingNotificationPreference(false);
     }
   };
 
@@ -91,6 +126,19 @@ export default function ProfileScreen() {
           </Pressable>
         ) : null}
       </InfoCard>
+      <InfoCard title="Notifications">
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>Email me my stage results</Text>
+          <Switch
+            disabled={resultsEmailEnabled === null || savingNotificationPreference}
+            onValueChange={(value) => void toggleResultsEmail(value)}
+            thumbColor="#FFFFFF"
+            trackColor={{ false: ui.colors.border, true: ui.colors.primary }}
+            value={resultsEmailEnabled ?? true}
+          />
+        </View>
+        {notificationMessage ? <Text style={styles.copy}>{notificationMessage}</Text> : null}
+      </InfoCard>
     </AppShell>
   );
 }
@@ -107,5 +155,7 @@ const styles = StyleSheet.create({
   primaryButton: { alignItems: "center", backgroundColor: ui.colors.primary, borderRadius: 9, marginTop: 10, minHeight: 48, justifyContent: "center" },
   primaryButtonText: { color: "#FFFFFF", fontWeight: "700" },
   secondaryButton: { alignItems: "center", borderColor: ui.colors.primary, borderRadius: 9, borderWidth: 1, minHeight: 48, justifyContent: "center" },
-  secondaryButtonText: { color: ui.colors.primary, fontWeight: "700" }
+  secondaryButtonText: { color: ui.colors.primary, fontWeight: "700" },
+  toggleLabel: { color: ui.colors.ink, fontSize: 15, fontWeight: "600" },
+  toggleRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", minHeight: 40 }
 });

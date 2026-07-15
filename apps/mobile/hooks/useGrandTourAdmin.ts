@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 import {
   isGrandTourAdmin,
-  listGrandTourStageAdminSummaries
+  listGrandTourStageAdminSummaries,
+  listGrandTourStageNotificationSummaries
 } from "@tipping-suite/supabase-client";
 
 import { useAuth } from "../auth/useAuth";
@@ -27,4 +28,20 @@ export function useGrandTourStageAdminSummaries(raceId: string | null | undefine
     [raceId]
   );
   return useAsyncData(loadSummaries, [raceId]);
+}
+
+/**
+ * Per-stage stage-result-email counts (eligible/pending/processing/sent/
+ * failed/skipped) for the admin screen's compact notification-status
+ * section. `stageIds` is a plain array of already-loaded stage ids (from
+ * useGrandTourStageAdminSummaries), so this never re-fetches stage rows
+ * itself - joined by the caller via the returned stageId key instead.
+ */
+export function useGrandTourStageNotificationSummaries(stageIds: string[]) {
+  const key = stageIds.join(",");
+  const loadSummaries = useCallback(
+    () => (stageIds.length ? listGrandTourStageNotificationSummaries(stageIds) : Promise.resolve([])),
+    [key]
+  );
+  return useAsyncData(loadSummaries, [key]);
 }

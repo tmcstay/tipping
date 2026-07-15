@@ -6,7 +6,11 @@ import { EmptyState, ErrorState, LoadingState } from "../../components/DataState
 import { GrandTourStageAdminCard } from "../../components/GrandTourStageAdminCard";
 import { ui } from "../../components/theme";
 import { useTdf2026Race } from "../../hooks/useCyclingData";
-import { useGrandTourAdminAccess, useGrandTourStageAdminSummaries } from "../../hooks/useGrandTourAdmin";
+import {
+  useGrandTourAdminAccess,
+  useGrandTourStageAdminSummaries,
+  useGrandTourStageNotificationSummaries
+} from "../../hooks/useGrandTourAdmin";
 
 /**
  * Admin-only GrandTour stage review panel: mark-checked -> finalise ->
@@ -21,6 +25,11 @@ export default function GrandTourStagesAdminScreen() {
   const access = useGrandTourAdminAccess();
   const race = useTdf2026Race();
   const summaries = useGrandTourStageAdminSummaries(race.data?.id);
+  const stageIds = (summaries.data ?? []).map((summary) => summary.stageId);
+  const notificationSummaries = useGrandTourStageNotificationSummaries(stageIds);
+  const notificationCountsByStageId = new Map(
+    (notificationSummaries.data ?? []).map((entry) => [entry.stageId, entry.counts])
+  );
 
   if (access.loading) {
     return (
@@ -65,16 +74,26 @@ export default function GrandTourStagesAdminScreen() {
       {!loading && !race.error && !summaries.error && (summaries.data ?? []).length === 0 ? (
         <EmptyState message="No stages found for this grand tour yet." />
       ) : null}
-      {(summaries.data ?? []).map((summary) => (
-        <GrandTourStageAdminCard
-          currentUserId={user.id}
-          grandTourName={race.data?.name ?? "Tour de France"}
-          grandTourYear={race.data?.year ?? 2026}
-          key={summary.stageId}
-          onActionComplete={reloadSummaries}
-          summary={summary}
-        />
-      ))}
+      {(summaries.data ?? []).map((summary) => {
+        const notificationCounts = notificationCountsByStageId.get(summary.stageId);
+        return (
+          <View key={summary.stageId}>
+            <GrandTourStageAdminCard
+              currentUserId={user.id}
+              grandTourName={race.data?.name ?? "Tour de France"}
+              grandTourYear={race.data?.year ?? 2026}
+              onActionComplete={reloadSummaries}
+              summary={summary}
+            />
+            {notificationCounts ? (
+              <Text style={styles.notificationLine}>
+                Stage-result emails — pending {notificationCounts.pending}, sent {notificationCounts.sent}, failed{" "}
+                {notificationCounts.failed}, skipped {notificationCounts.skipped}
+              </Text>
+            ) : null}
+          </View>
+        );
+      })}
     </AppShell>
   );
 }
@@ -98,5 +117,12 @@ const styles = StyleSheet.create({
     color: ui.colors.ink,
     fontSize: 16,
     fontWeight: "800"
+  },
+  notificationLine: {
+    color: ui.colors.muted,
+    fontSize: 12,
+    marginBottom: 16,
+    marginTop: -8,
+    paddingHorizontal: 4
   }
 });

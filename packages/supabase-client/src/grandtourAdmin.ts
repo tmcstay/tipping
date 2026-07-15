@@ -237,6 +237,102 @@ export async function listGrandTourStageAdminSummaries(raceId: string): Promise<
   });
 }
 
+export type GrandTourNotificationStatusCounts = {
+  eligible: number;
+  pending: number;
+  processing: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+};
+
+export type GrandTourStageNotificationSummary = {
+  stageId: string;
+  counts: GrandTourNotificationStatusCounts;
+};
+
+/**
+ * Per-stage stage-result notification job counts for the admin screen's
+ * compact notification-status section. Ordinary (non-admin) callers simply
+ * get an empty result here, not an error - the underlying table's RLS
+ * ("Cycling admins can read GrandTour notification jobs") already
+ * restricts this to admins, so this function does no additional
+ * authorization itself, matching every other read in this file.
+ */
+export async function listGrandTourStageNotificationSummaries(
+  stageIds: string[]
+): Promise<GrandTourStageNotificationSummary[]> {
+  if (stageIds.length === 0) return [];
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from("grandtour_stage_notification_jobs")
+    .select("stage_id, status")
+    .in("stage_id", stageIds);
+  if (error) throw error;
+
+  const emptyCounts = (): GrandTourNotificationStatusCounts => ({
+    eligible: 0,
+    pending: 0,
+    processing: 0,
+    sent: 0,
+    failed: 0,
+    skipped: 0
+  });
+  const byStage = new Map<string, GrandTourNotificationStatusCounts>(
+    stageIds.map((stageId) => [stageId, emptyCounts()])
+  );
+  for (const row of data ?? []) {
+    const counts = byStage.get(row.stage_id);
+    if (!counts) continue;
+    counts.eligible += 1;
+    if (row.status === "pending") counts.pending += 1;
+    else if (row.status === "processing") counts.processing += 1;
+    else if (row.status === "sent") counts.sent += 1;
+    else if (row.status === "failed") counts.failed += 1;
+    else if (row.status === "skipped") counts.skipped += 1;
+  }
+  return stageIds.map((stageId) => ({ stageId, counts: byStage.get(stageId) as GrandTourNotificationStatusCounts }));
+}
+
+export type GrandTourFailedNotificationJob = {
+  id: string;
+  userId: string;
+  attemptCount: number;
+  lastErrorCode: string | null;
+  updatedAt: string;
+};
+
+/** Failed jobs for one stage, newest first - the candidate list for the retry action below. */
+export async function listFailedGrandTourNotificationJobs(stageId: string): Promise<GrandTourFailedNotificationJob[]> {
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from("grandtour_stage_notification_jobs")
+    .select("id, user_id, attempt_count, last_error_code, updated_at")
+    .eq("stage_id", stageId)
+    .eq("status", "failed")
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    userId: row.user_id,
+    attemptCount: row.attempt_count,
+    lastErrorCode: row.last_error_code,
+    updatedAt: row.updated_at
+  }));
+}
+
+/**
+ * Resets exactly one failed job back to pending via
+ * public.retry_grandtour_stage_notification_job (admin/service-role only,
+ * never touches sent/processing/pending jobs, never inserts a row - see
+ * that RPC's own migration for the full guarantee).
+ */
+export async function retryGrandTourStageNotificationJob(jobId: string): Promise<void> {
+  const client = getSupabaseClient();
+  const { error } = await client.rpc("retry_grandtour_stage_notification_job", { p_job_id: jobId });
+  if (error) throw error;
+}
+
 /**
  * Fetches the reviewable detail an admin needs to actually look at before
  * mark-checking a stage: the top-10 result lines (rider lines for a

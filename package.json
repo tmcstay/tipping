@@ -25,7 +25,8 @@
     "grandtour:admin-stage:local-smoke": "node scripts/grandtour-admin-stage-local-smoke.mjs"
   },
   "devDependencies": {
-    "supabase": "^2.107.0",
+    "pg": "^8.22.0",
+    "supabase": "^2.109.1",
     "typescript": "^5.5.4"
   },
   "dependencies": {

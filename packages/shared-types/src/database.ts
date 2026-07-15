@@ -865,6 +865,45 @@ export type Database = {
           },
         ]
       }
+      grandtour_notification_preferences: {
+        Row: {
+          created_at: string
+          results_email_enabled: boolean
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          results_email_enabled?: boolean
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          results_email_enabled?: boolean
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grandtour_notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "grandtour_league_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grandtour_result_audit_log: {
         Row: {
           action: string
@@ -1035,6 +1074,85 @@ export type Database = {
             columns: ["stage_id"]
             isOneToOne: false
             referencedRelation: "grandtour_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grandtour_stage_notification_jobs: {
+        Row: {
+          attempt_count: number
+          channel: Database["public"]["Enums"]["grandtour_notification_channel"]
+          created_at: string
+          id: string
+          idempotency_key: string
+          last_error_code: string | null
+          next_attempt_at: string
+          notification_type: Database["public"]["Enums"]["grandtour_notification_type"]
+          processing_started_at: string | null
+          provider_message_id: string | null
+          scheduled_at: string
+          sent_at: string | null
+          stage_id: string
+          status: Database["public"]["Enums"]["grandtour_notification_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          channel?: Database["public"]["Enums"]["grandtour_notification_channel"]
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          last_error_code?: string | null
+          next_attempt_at?: string
+          notification_type?: Database["public"]["Enums"]["grandtour_notification_type"]
+          processing_started_at?: string | null
+          provider_message_id?: string | null
+          scheduled_at?: string
+          sent_at?: string | null
+          stage_id: string
+          status?: Database["public"]["Enums"]["grandtour_notification_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempt_count?: number
+          channel?: Database["public"]["Enums"]["grandtour_notification_channel"]
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          last_error_code?: string | null
+          next_attempt_at?: string
+          notification_type?: Database["public"]["Enums"]["grandtour_notification_type"]
+          processing_started_at?: string | null
+          provider_message_id?: string | null
+          scheduled_at?: string
+          sent_at?: string | null
+          stage_id?: string
+          status?: Database["public"]["Enums"]["grandtour_notification_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grandtour_stage_notification_jobs_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_stage_notification_jobs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_league_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_stage_notification_jobs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2207,6 +2325,10 @@ export type Database = {
         Args: { p_reason?: string; p_request_id?: string; p_stage_id: string }
         Returns: number
       }
+      retry_grandtour_stage_notification_job: {
+        Args: { p_job_id: string; p_retried_by?: string }
+        Returns: Json
+      }
       save_grandtour_tip_draft: {
         Args: {
           p_competition_id: string
@@ -2258,6 +2380,14 @@ export type Database = {
     }
     Enums: {
       grandtour_jersey_type: "yellow" | "green" | "kom" | "white"
+      grandtour_notification_channel: "email"
+      grandtour_notification_status:
+        | "pending"
+        | "processing"
+        | "sent"
+        | "failed"
+        | "skipped"
+      grandtour_notification_type: "stage_results"
       grandtour_stage_result_review_status:
         | "draft"
         | "imported"
@@ -2434,6 +2564,15 @@ export const Constants = {
   public: {
     Enums: {
       grandtour_jersey_type: ["yellow", "green", "kom", "white"],
+      grandtour_notification_channel: ["email"],
+      grandtour_notification_status: [
+        "pending",
+        "processing",
+        "sent",
+        "failed",
+        "skipped",
+      ],
+      grandtour_notification_type: ["stage_results"],
       grandtour_stage_result_review_status: [
         "draft",
         "imported",

@@ -2,7 +2,7 @@
 
 Session handoff notes. Superseded by the next session's update — treat as a point-in-time snapshot, not a permanent record (see CLAUDE.md for durable architecture notes).
 
-Last updated: end of session, 2026-07-15 (second session that day). Work is **staged but not yet committed** — awaiting commit approval. One new Supabase migration exists locally (`20260715020000_signup_first_last_name_metadata.sql`), applied and verified against local Supabase, **not yet pushed to production**.
+Last updated: end of session, 2026-07-15 (second session that day). Two commits landed on `main` (`b60e406` GWFC follow-up pass, `2b9a9a2` repo cleanup — see below), **not yet pushed to GitHub**. One new Supabase migration (`20260715020000_signup_first_last_name_metadata.sql`) was applied and verified locally, then **pushed to production** (`npx supabase db push --linked`, confirmed via `migration list --linked`) — production migration history is now current through `20260715020000`. **This file and CLAUDE.md have further edits in the working tree, past the last commit, that are not yet committed** (Tony said "wait" before the doc-update commit — see next steps).
 
 ## What was completed this session
 
@@ -29,13 +29,21 @@ A 10-part UI/UX/logic brief. Audited every section against current code before w
 | One `TypeError: Failed to fetch` console error during the checklist run | Test-harness artifact: `page.goto` tearing down in-flight Supabase requests. A settled-navigation trace run showed zero failed requests and zero console errors. |
 | psql JWT-claim simulation (`request.jwt.claim.sub`) returned zero rows through RLS in an ad hoc session | Sidestepped — verified through the real REST API with a real password-grant token instead (which is what the app actually does). The SQL tests' own `set_config` pattern still works inside their transaction context. |
 
+## Repo cleanup (`2b9a9a2`)
+The commit that landed the UI work (`b60e406`, apparently committed by Tony directly outside the normal approval flow — see below) also swept in several untracked files from an earlier, undocumented session. Reviewed each with Tony:
+- **Deleted**: `setup_competition.sql` and its byte-identical `supabase/snippets/Untitled query 686.sql` copy — an ad hoc, non-migration SQL script (creates a "Local GrandTour Competition" row against a grand-tour UUID that doesn't match seed data's pattern — possibly meant for a different DB state). If that competition is genuinely still missing somewhere real, it needs a proper migration/seed, not a resurrected throwaway script.
+- **Untracked (kept on disk, gitignored)**: the three `grandtour_dummy_users_and_tips*.xlsx` workbooks and `scripts/inspect_grandtour_workbook.py` (which hardcoded a personal OneDrive path, not a repo-relative one — it wasn't even reading the committed copies).
+- **False alarm, no action needed**: `test/fixtures/letour/` and `test/fixtures/reconciliation/` looked orphaned on first grep (a literal-string search for `"test/fixtures"` missed the `path.resolve("test","fixtures",...)` construction) — both `grandtour-feed-provider.test.mjs` and `grandtour-reconciliation.test.mjs` already fully consume them (86/86 passing). Left untouched.
+
+**Note on the commit process**: `b60e406` appeared in `git log` mid-session with Tony's own author/message, even though this session never ran `git commit` — it must have happened via Tony's IDE or another tool while work was in progress. Flagged directly to Tony rather than silently proceeding.
+
 ## Exact next steps for the next session
 
-1. **Commit approval pending**: all changes staged with proposed message (see session transcript / git status). Nothing pushed to GitHub.
-2. **Push `20260715020000` to production** (`npx supabase db push --linked`) once authorised — until then, production signups won't store first/last name and keep the email-fragment display_name fallback (existing behaviour, nothing breaks).
-3. Re-verify the §7 profile-save symptoms **in production** after the current app build deploys — expectation: already fixed by `20260715010000` (pushed last session); the code path is verifiably correct locally.
+1. **Commit the pending doc updates first.** `CLAUDE.md`/`HANDOFF.md` have uncommitted edits reflecting the production migration push (proposed commit message was shown to Tony; he said "wait" before it ran — nothing lost, just paused). Confirm with Tony before committing.
+2. **Push commits to GitHub** — `b60e406`, `2b9a9a2`, and the pending doc commit above are/will be on local `main` but not yet pushed to `origin`. Needs Tony's explicit go-ahead per this session's standing rule (Vercel auto-deploys on push to `main`).
+3. Re-verify the §7 profile-save symptoms **in production** after the next deploy — expectation: already fixed by `20260715010000` (pushed the prior session); the code path is verifiably correct locally, and the `20260715020000` push (now live in production) means fresh production signups also get first/last name captured properly.
 4. Carried over from last session: stage-specific rank on the dashboard (needs a new RPC or an explicit "not worth it"); `grand_tours.source_url` NULL locally (production value still unchecked); TTT Stage 1 production rehearsal blocked on the two rider-only-assumed gaps (`grandtour-admin-stage.mjs` CLI, correction RPC/"Update Results" panel); manual result entry; unfinalise RPC; scoring → new audit log; startlist-loader checklist; `EXPO_PUBLIC_APP_URL` on Vercel Preview + five GitHub Actions SMTP/`ADMIN_EMAIL` secrets.
-5. Untracked working-tree files from an unknown prior session (`setup_competition.sql`, `scripts/grandtour_dummy_users_and_tips*.xlsx`, `scripts/inspect_grandtour_workbook.py`, `supabase/snippets/`, `test/`, modified `tmp/invalid-feed.json`) were deliberately left unstaged — ask Tony what they are before committing or deleting them.
+5. An unrelated `supabase` devDependency version bump (`^2.107.0` → `^2.109.1` in `package.json`/`package-lock.json`, from a CLI update prompt encountered mid-session) is sitting uncommitted in the working tree — decide whether to commit it separately or discard it.
 
 ## Open questions / decisions that need revisiting
 
