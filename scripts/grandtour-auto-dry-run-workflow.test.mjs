@@ -86,7 +86,7 @@ test("new stage-availability-grace-hours/allow-rerun-completed inputs are declar
   assert.match(source, /allow_rerun_completed:/);
   assert.match(source, /--stage-availability-grace-hours "\$STAGE_AVAILABILITY_GRACE_HOURS"/);
   assert.match(source, /--allow-rerun-completed/);
-  assert.match(source, /stage_availability_grace_hours='12'/);
+  assert.match(source, /stage_availability_grace_hours='8'/);
   assert.match(source, /allow_rerun_completed='false'/);
 });
 

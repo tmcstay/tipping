@@ -86,7 +86,7 @@ on:
       stage_availability_grace_hours:
         description: 'Hours after a stage starts_at before it is considered eligible for automatic dry-run (only used when stage_number/from_stage/to_stage are blank)'
         required: false
-        default: '12'
+        default: '8'
       allow_rerun_completed:
         description: 'Allow auto-resolution to re-select a stage that is already finalised (only used when stage_number/from_stage/to_stage are blank) - normally left false so completed stages are never re-checked automatically'
         required: false
@@ -181,7 +181,7 @@ jobs:
             retry_interval_minutes='15'
             max_retries='8'
             no_retry='false'
-            stage_availability_grace_hours='12'
+            stage_availability_grace_hours='8'
             allow_rerun_completed='false'
           else
             # workflow_dispatch: use the supplied input, falling back to the
@@ -197,7 +197,7 @@ jobs:
             retry_interval_minutes="${IN_RETRY_INTERVAL_MINUTES:-15}"
             max_retries="${IN_MAX_RETRIES:-8}"
             no_retry="${IN_NO_RETRY:-false}"
-            stage_availability_grace_hours="${IN_STAGE_AVAILABILITY_GRACE_HOURS:-12}"
+            stage_availability_grace_hours="${IN_STAGE_AVAILABILITY_GRACE_HOURS:-8}"
             allow_rerun_completed="${IN_ALLOW_RERUN_COMPLETED:-false}"
           fi
 
