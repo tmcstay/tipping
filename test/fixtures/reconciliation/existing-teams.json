@@ -1,0 +1,5 @@
+[
+  { "id": "team-uae", "name": "UAE Team Emirates XRG", "shortName": "UAD", "code": "UAD" },
+  { "id": "team-visma", "name": "Team Visma | Lease a Bike", "shortName": "TVL", "code": "TVL" },
+  { "id": "team-soudal", "name": "Soudal Quick-Step", "shortName": "SOQ", "code": "SOQ" }
+]

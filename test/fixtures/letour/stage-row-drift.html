@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head><title>Stage rankings</title></head>
+  <body>
+    <main>
+      <!--
+        Simulates a partial markup drift: the table keeps its recognizable
+        "rankingTable" class and row wrapper class, so the table/row count
+        is found, but the inner position/name cell class names have changed,
+        so no individual field can be extracted. This should be reported
+        distinctly from "empty table" (rows exist, fields don't parse).
+      -->
+      <table class="rankingTable rankingTables--with-pict rtable js-extend-target">
+        <tbody>
+          <tr class="rankingTables__row rankingTables__row--emphase has-shadowsep">
+            <td class="rank-cell">1</td>
+            <td class="rider-cell">T. POGACAR</td>
+            <td class="team-cell">UAE TEAM EMIRATES XRG</td>
+            <td class="time-cell">03h 40' 01"</td>
+          </tr>
+        </tbody>
+      </table>
+    </main>
+  </body>
+</html>

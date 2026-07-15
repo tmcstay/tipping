@@ -17,18 +17,31 @@ export type SignUpInput = {
   email: string;
   password: string;
   displayName?: string;
+  firstName?: string;
+  lastName?: string;
 };
 
 export async function signUpWithPassword({
   displayName,
   email,
+  firstName,
+  lastName,
   password
 }: SignUpInput) {
+  // Confirmation-email signups have no session until the user confirms, so
+  // profile fields can't be written client-side post-signup - they travel
+  // as user metadata, which app_private.handle_new_auth_user() copies into
+  // public.profiles when auth creates the user.
+  const metadata: Record<string, string> = {};
+  if (displayName?.trim()) metadata.display_name = displayName.trim();
+  if (firstName?.trim()) metadata.first_name = firstName.trim();
+  if (lastName?.trim()) metadata.last_name = lastName.trim();
+
   const { data, error } = await getSupabaseClient().auth.signUp({
     email: email.trim(),
     password,
     options: {
-      data: displayName?.trim() ? { display_name: displayName.trim() } : {},
+      data: metadata,
       emailRedirectTo: getAuthRedirectUrl("/auth/callback")
     }
   });

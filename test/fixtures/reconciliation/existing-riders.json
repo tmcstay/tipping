@@ -1,0 +1,7 @@
+[
+  { "id": "rider-pogacar", "teamId": "team-uae", "displayName": "Tadej Pogačar", "normalizedName": "tadej pogacar", "bibNumber": 1 },
+  { "id": "rider-vingegaard", "teamId": "team-visma", "displayName": "Jonas Vingegaard", "normalizedName": "jonas vingegaard", "bibNumber": 11 },
+  { "id": "rider-evenepoel", "teamId": "team-soudal", "displayName": "Remco Evenepoel", "normalizedName": "remco evenepoel", "bibNumber": 21 },
+  { "id": "rider-martin-a", "teamId": "team-visma", "displayName": "Guillaume Martin (A)", "normalizedName": "g. martin", "bibNumber": 45 },
+  { "id": "rider-martin-b", "teamId": "team-soudal", "displayName": "Guillaume Martin (B)", "normalizedName": "g. martin", "bibNumber": 46 }
+]

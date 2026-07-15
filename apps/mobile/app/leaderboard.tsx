@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { CyclingLeaderboardRow } from "@tipping-suite/supabase-client";
 
 import { useAuth } from "../auth/useAuth";
@@ -10,8 +10,22 @@ import {
   useCyclingLeaderboard,
   useCyclingRace
 } from "../hooks/useCyclingData";
-import { buildLeaderboardDisplayItems, formatRankMovement } from "../lib/leaderboardExperience";
+import {
+  buildLeaderboardDisplayItems,
+  formatRankMovement,
+  getRankMovementTone,
+  type RankMovementTone
+} from "../lib/leaderboardExperience";
 import { ui } from "../components/theme";
+
+// Movement colour semantics: up = green, down = red, unchanged/new = blue.
+// The raw GWFC Green fails small-text contrast on white, so "up" uses the
+// theme's darker positiveStrong shade of the same hue.
+const movementColors: Record<RankMovementTone, string> = {
+  up: ui.colors.positiveStrong,
+  down: ui.colors.danger,
+  steady: ui.colors.accent
+};
 
 const leaderboardTypes: CyclingLeaderboardRow["leaderboard_type"][] = [
   "overall",
@@ -35,8 +49,6 @@ export default function LeaderboardScreen() {
   const [leaderboardType, setLeaderboardType] = useState<CyclingLeaderboardRow["leaderboard_type"]>("overall");
   const [competitionId, setCompetitionId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const { width } = useWindowDimensions();
-  const showMoveColumn = width >= 768;
   const race = useCyclingRace(2026);
   const competitions = useCyclingCompetitions(race.data?.id);
   useEffect(() => {
@@ -98,7 +110,9 @@ export default function LeaderboardScreen() {
             <Text style={styles.meRank}>#{me.rank}</Text>
             <Text style={styles.meName} numberOfLines={1}>{me.display_name}</Text>
             <Text style={styles.mePoints}>{me.total_score}</Text>
-            <Text style={styles.meMovement}>{formatRankMovement(me.rank, me.previous_rank)}</Text>
+            <Text style={[styles.meMovement, { color: movementColors[getRankMovementTone(me.rank, me.previous_rank)] }]}>
+              {formatRankMovement(me.rank, me.previous_rank)}
+            </Text>
           </View>
         </View>
       ) : null}
@@ -120,10 +134,11 @@ export default function LeaderboardScreen() {
       {!leaderboard.loading && !leaderboard.error && displayItems.length > 0 ? (
         <View style={styles.table}>
           <View style={styles.headerRow}>
-            <Text style={[styles.headerCell, styles.rankCell]}>Rank</Text>
+            {/* No "Rank" header label - the rank numbers below speak for themselves; a spacer keeps column alignment. */}
+            <View style={styles.rankCell} />
             <Text style={[styles.headerCell, styles.playerCell]}>Player</Text>
-            <Text style={[styles.headerCell, styles.pointsCell]}>Points</Text>
-            {showMoveColumn ? <Text style={[styles.headerCell, styles.moveCell]}>Move</Text> : null}
+            <Text style={[styles.headerCell, styles.headerCellRight, styles.pointsHeaderCell]}>Points</Text>
+            <Text style={[styles.headerCell, styles.headerCellRight, styles.moveHeaderCell]}>Move</Text>
           </View>
           {displayItems.map((item, index) =>
             item.type === "divider" ? (
@@ -149,13 +164,15 @@ export default function LeaderboardScreen() {
                 </View>
                 <View style={styles.pointsCell}>
                   <Text style={styles.pointsText}>{item.row.total_score}</Text>
-                  {!showMoveColumn ? (
-                    <Text style={styles.movementTextMobile}>{formatRankMovement(item.row.rank, item.row.previous_rank)}</Text>
-                  ) : null}
                 </View>
-                {showMoveColumn ? (
-                  <Text style={styles.moveCell}>{formatRankMovement(item.row.rank, item.row.previous_rank)}</Text>
-                ) : null}
+                <Text
+                  style={[
+                    styles.moveCell,
+                    { color: movementColors[getRankMovementTone(item.row.rank, item.row.previous_rank)] }
+                  ]}
+                >
+                  {formatRankMovement(item.row.rank, item.row.previous_rank)}
+                </Text>
               </View>
             )
           )}
@@ -185,6 +202,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase"
+  },
+  headerCellRight: {
+    textAlign: "right"
   },
   headerRow: {
     borderBottomColor: ui.colors.border,
@@ -236,7 +256,6 @@ const styles = StyleSheet.create({
     textTransform: "uppercase"
   },
   meMovement: {
-    color: ui.colors.muted,
     fontSize: 13,
     fontVariant: ["tabular-nums"],
     fontWeight: "700"
@@ -265,17 +284,14 @@ const styles = StyleSheet.create({
     gap: 12
   },
   moveCell: {
-    color: ui.colors.muted,
     fontSize: 13,
     fontVariant: ["tabular-nums"],
     fontWeight: "700",
     textAlign: "right",
     width: 56
   },
-  movementTextMobile: {
-    color: ui.colors.faint,
-    fontSize: 11,
-    marginTop: 1
+  moveHeaderCell: {
+    width: 56
   },
   playerCell: {
     flex: 1,
@@ -299,6 +315,9 @@ const styles = StyleSheet.create({
   },
   pointsCell: {
     alignItems: "flex-end",
+    width: 72
+  },
+  pointsHeaderCell: {
     width: 72
   },
   pointsText: {

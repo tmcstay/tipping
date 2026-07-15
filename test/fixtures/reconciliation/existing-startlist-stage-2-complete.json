@@ -1,0 +1,6 @@
+[
+  { "riderId": "rider-pogacar", "status": "confirmed" },
+  { "riderId": "rider-vingegaard", "status": "confirmed" },
+  { "riderId": "rider-evenepoel", "status": "confirmed" },
+  { "riderId": "rider-martin-a", "status": "confirmed" }
+]

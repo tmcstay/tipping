@@ -1,0 +1,7 @@
+[
+  { "id": "stage-record-2", "stageNumber": 2, "stageType": "hilly", "stageDate": "2026-07-05" },
+  { "id": "stage-record-4", "stageNumber": 4, "stageType": "flat", "stageDate": "2026-07-07" },
+  { "id": "stage-record-5", "stageNumber": 5, "stageType": "flat", "stageDate": "2026-07-08" },
+  { "id": "stage-record-6", "stageNumber": 6, "stageType": "hilly", "stageDate": "2026-07-09" },
+  { "id": "stage-record-7", "stageNumber": 7, "stageType": "flat", "stageDate": "2026-07-10" }
+]

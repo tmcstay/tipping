@@ -1,0 +1,8 @@
+{
+  "stage_number": 6,
+  "type": "road",
+  "riders": [
+    { "position": 1, "rider_name": "T. POGACAR", "bib_number": 1, "team_name": "UAE TEAM EMIRATES XRG", "time": "06h 00' 00\"", "gap": "-" },
+    { "position": 2, "rider_name": "J. VINGEGAARD", "bib_number": 1, "team_name": "TEAM VISMA | LEASE A BIKE", "time": "06h 00' 04\"", "gap": "+00' 04\"" }
+  ]
+}

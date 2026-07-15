@@ -1,0 +1,8 @@
+{
+  "stage_number": 4,
+  "type": "road",
+  "riders": [
+    { "position": 1, "rider_name": "T. POGACAR", "bib_number": 1, "team_name": "UAE TEAM EMIRATES XRG", "time": "04h 10' 00\"", "gap": "-" },
+    { "position": 2, "rider_name": "X. UNKNOWNRIDER", "bib_number": 99, "team_name": "UAE TEAM EMIRATES XRG", "time": "04h 10' 05\"", "gap": "+00' 05\"" }
+  ]
+}

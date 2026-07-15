@@ -65,3 +65,18 @@ export function formatRankMovement(rank: number, previousRank: number | null): s
   if (delta === 0) return "—";
   return delta > 0 ? `↑ ${delta}` : `↓ ${Math.abs(delta)}`;
 }
+
+export type RankMovementTone = "up" | "down" | "steady";
+
+/**
+ * Colour semantics for a movement value: an improvement is "up" (green),
+ * a drop is "down" (red), and both an unchanged rank and a "New" entrant
+ * are "steady" (blue) - a new entrant hasn't lost ground to anyone, so it
+ * never renders in the negative colour.
+ */
+export function getRankMovementTone(rank: number, previousRank: number | null): RankMovementTone {
+  if (previousRank === null) return "steady";
+  if (previousRank > rank) return "up";
+  if (previousRank < rank) return "down";
+  return "steady";
+}

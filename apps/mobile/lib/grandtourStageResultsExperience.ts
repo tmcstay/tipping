@@ -289,3 +289,50 @@ function formatOrdinalShort(value: number): string {
   const suffix = value === 1 ? "st" : value === 2 ? "nd" : value === 3 ? "rd" : "th";
   return `${value}${suffix}`;
 }
+
+export type ResultRowScoreBadgeTone = "exact" | "partial" | "none";
+
+export type ResultRowScoreBadge = {
+  /** The official row's actual finishing position this badge belongs to. */
+  position: number;
+  tone: ResultRowScoreBadgeTone;
+  label: string;
+};
+
+/**
+ * Per-official-result-row scoring badges for the results screen's
+ * "Stage Top 5" list: for each official row, did the signed-in user pick
+ * that rider/team, and at the right position?
+ *
+ * - "exact" (green): picked this entrant at exactly this position.
+ * - "partial" (blue): picked this entrant, but at a different position.
+ * - "none" (neutral "–"): didn't pick this entrant at all.
+ *
+ * Works generically on `entryId` so rider stages (rider_id) and TTT stages
+ * (team_id) share the one rule. Points on the label are only ever the
+ * server-computed values from grandtour_stage_scores.score_details.top_five
+ * (pass null while the tip is unscored - matched rows then show "✓", never
+ * a locally-recomputed or fabricated number).
+ */
+export function buildResultRowScoreBadges({
+  officialRows,
+  predictedSelections,
+  scoreTopFive
+}: {
+  officialRows: { position: number; entryId: string }[];
+  predictedSelections: { predictedPosition: number; entryId: string }[];
+  scoreTopFive: { predicted_position: number; points: number | null }[] | null;
+}): ResultRowScoreBadge[] {
+  const pointsByPredictedPosition = new Map(
+    (scoreTopFive ?? []).map((row) => [row.predicted_position, row.points])
+  );
+  return officialRows.map((row) => {
+    const pick = predictedSelections.find((selection) => selection.entryId === row.entryId) ?? null;
+    if (!pick) {
+      return { position: row.position, tone: "none" as const, label: "–" };
+    }
+    const tone = pick.predictedPosition === row.position ? ("exact" as const) : ("partial" as const);
+    const points = pointsByPredictedPosition.get(pick.predictedPosition) ?? null;
+    return { position: row.position, tone, label: points !== null ? `+${points}` : "✓" };
+  });
+}

@@ -1,0 +1,15 @@
+{
+  "stage_number": 2,
+  "type": "road",
+  "riders": [
+    { "position": 1, "rider_name": "T. POGACAR", "bib_number": 1, "team_name": "UAE TEAM EMIRATES XRG", "time": "03h 40' 01\"", "gap": "-" },
+    { "position": 2, "rider_name": "J. VINGEGAARD", "bib_number": 11, "team_name": "TEAM VISMA | LEASE A BIKE", "time": "03h 40' 05\"", "gap": "+00' 04\"" },
+    { "position": 3, "rider_name": "R. EVENEPOEL", "bib_number": 21, "team_name": "SOUDAL QUICK-STEP", "time": "03h 40' 12\"", "gap": "+00' 11\"" }
+  ],
+  "jersey_holders": [
+    { "jerseyType": "yellow", "sourceClassification": "individual", "parsedRiderName": "T. POGACAR", "parsedTeamName": "UAE TEAM EMIRATES XRG", "bibNumber": 1 },
+    { "jerseyType": "green", "sourceClassification": "points", "parsedRiderName": "J. VINGEGAARD", "parsedTeamName": "TEAM VISMA | LEASE A BIKE", "bibNumber": 11 },
+    { "jerseyType": "kom", "sourceClassification": "climber", "parsedRiderName": "R. EVENEPOEL", "parsedTeamName": "SOUDAL QUICK-STEP", "bibNumber": 21 },
+    { "jerseyType": "white", "sourceClassification": "youth", "parsedRiderName": "G. MARTIN", "parsedTeamName": "TEAM VISMA | LEASE A BIKE", "bibNumber": 45 }
+  ]
+}

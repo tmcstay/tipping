@@ -3,10 +3,13 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
+import { toSafeErrorMessage } from "../lib/errorMessage";
 import { authStyles as styles } from "./authStyles";
 
 export function SignupScreen() {
   const router = useRouter();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,12 +22,12 @@ export function SignupScreen() {
     setError(null);
     setMessage(null);
     try {
-      const result = await signUpWithPassword({ displayName, email, password });
+      const result = await signUpWithPassword({ displayName, email, firstName, lastName, password });
       if (!result.session) {
         setMessage("Account created. Check your email to confirm it, then sign in.");
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to create the account.");
+      setError(toSafeErrorMessage(caught, "Unable to create the account."));
     } finally {
       setLoading(false);
     }
@@ -34,10 +37,19 @@ export function SignupScreen() {
     <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
       <View style={styles.card}>
         <Text style={styles.title}>Create your account</Text>
-        <Text style={styles.copy}>Your display name can be changed later.</Text>
+        <Text style={styles.copy}>Join the competition and start tipping stages.</Text>
+        <View style={styles.field}>
+          <Text style={styles.label}>First name</Text>
+          <TextInput autoComplete="given-name" onChangeText={setFirstName} style={styles.input} value={firstName} />
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>Last name (optional)</Text>
+          <TextInput autoComplete="family-name" onChangeText={setLastName} style={styles.input} value={lastName} />
+        </View>
         <View style={styles.field}>
           <Text style={styles.label}>Display name (optional)</Text>
-          <TextInput autoComplete="name" onChangeText={setDisplayName} style={styles.input} value={displayName} />
+          <TextInput autoComplete="username" onChangeText={setDisplayName} style={styles.input} value={displayName} />
+          <Text style={styles.copy}>Shown on the leaderboard. Uses your first name if left blank; you can change it later.</Text>
         </View>
         <View style={styles.field}>
           <Text style={styles.label}>Email</Text>
@@ -51,7 +63,7 @@ export function SignupScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {message ? <Text style={styles.success}>{message}</Text> : null}
         <Pressable
-          disabled={loading || !email.trim() || password.length < 8}
+          disabled={loading || !firstName.trim() || !email.trim() || password.length < 8}
           onPress={submit}
           style={[styles.button, loading && styles.buttonDisabled]}
         >

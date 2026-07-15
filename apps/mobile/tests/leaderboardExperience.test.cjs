@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { buildLeaderboardDisplayItems, formatRankMovement } = require("../../../dist/mobile-tests/leaderboardExperience.js");
+const { buildLeaderboardDisplayItems, formatRankMovement, getRankMovementTone } = require("../../../dist/mobile-tests/leaderboardExperience.js");
 
 function rows(count) {
   return Array.from({ length: count }, (_, index) => ({ id: `row-${index + 1}`, user_id: `user-${index + 1}`, rank: index + 1 }));
@@ -68,4 +68,20 @@ test("formatRankMovement: no change shows an em dash", () => {
 
 test("formatRankMovement: null previous rank shows 'New', never a fabricated number", () => {
   assert.equal(formatRankMovement(10, null), "New");
+});
+
+test("getRankMovementTone: improvement is 'up'", () => {
+  assert.equal(getRankMovementTone(3, 6), "up");
+});
+
+test("getRankMovementTone: decline is 'down'", () => {
+  assert.equal(getRankMovementTone(8, 5), "down");
+});
+
+test("getRankMovementTone: unchanged rank is 'steady'", () => {
+  assert.equal(getRankMovementTone(4, 4), "steady");
+});
+
+test("getRankMovementTone: a new entrant is 'steady', never the negative colour", () => {
+  assert.equal(getRankMovementTone(10, null), "steady");
 });

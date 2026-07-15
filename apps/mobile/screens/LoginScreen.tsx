@@ -11,6 +11,7 @@ import {
   View
 } from "react-native";
 
+import { toSafeErrorMessage } from "../lib/errorMessage";
 import { authStyles as styles } from "./authStyles";
 
 export function LoginScreen() {
@@ -26,7 +27,7 @@ export function LoginScreen() {
     try {
       await signInWithPassword(email, password);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to sign in.");
+      setError(toSafeErrorMessage(caught, "Unable to sign in."));
     } finally {
       setLoading(false);
     }

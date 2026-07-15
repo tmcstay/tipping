@@ -4,6 +4,7 @@ const test = require("node:test");
 const {
   buildJerseyRowDetails,
   buildOfficialTopTenRows,
+  buildResultRowScoreBadges,
   buildScoreExplanationLines,
   buildTopFiveRowDetails,
   sortStageRows,
@@ -295,4 +296,62 @@ test("buildScoreExplanationLines reflects the real exported scoring constants, n
   assert.ok(lines.some((line) => line.includes("5th = 2 pts")));
   assert.ok(lines.some((line) => line.includes("different position: 1 pt")));
   assert.ok(lines.some((line) => line.includes("5 pts per jersey")));
+});
+
+const badgeOfficialRows = [
+  { position: 1, entryId: "rider-a" },
+  { position: 2, entryId: "rider-b" },
+  { position: 3, entryId: "rider-c" },
+  { position: 4, entryId: "rider-d" },
+  { position: 5, entryId: "rider-e" }
+];
+
+test("buildResultRowScoreBadges: exact pick is green with server points when scored", () => {
+  const badges = buildResultRowScoreBadges({
+    officialRows: badgeOfficialRows,
+    predictedSelections: [{ predictedPosition: 1, entryId: "rider-a" }],
+    scoreTopFive: [{ predicted_position: 1, points: 10 }]
+  });
+  assert.deepEqual(badges[0], { position: 1, tone: "exact", label: "+10" });
+});
+
+test("buildResultRowScoreBadges: right entrant wrong position is a blue partial badge", () => {
+  const badges = buildResultRowScoreBadges({
+    officialRows: badgeOfficialRows,
+    predictedSelections: [{ predictedPosition: 4, entryId: "rider-b" }],
+    scoreTopFive: [{ predicted_position: 4, points: 1 }]
+  });
+  assert.deepEqual(badges[1], { position: 2, tone: "partial", label: "+1" });
+});
+
+test("buildResultRowScoreBadges: unpicked rows are neutral with an en dash", () => {
+  const badges = buildResultRowScoreBadges({
+    officialRows: badgeOfficialRows,
+    predictedSelections: [{ predictedPosition: 1, entryId: "rider-a" }],
+    scoreTopFive: null
+  });
+  assert.deepEqual(badges[4], { position: 5, tone: "none", label: "–" });
+});
+
+test("buildResultRowScoreBadges: matched rows before scoring show a tick, never a fabricated number", () => {
+  const badges = buildResultRowScoreBadges({
+    officialRows: badgeOfficialRows,
+    predictedSelections: [
+      { predictedPosition: 1, entryId: "rider-a" },
+      { predictedPosition: 2, entryId: "rider-e" }
+    ],
+    scoreTopFive: null
+  });
+  assert.deepEqual(badges[0], { position: 1, tone: "exact", label: "✓" });
+  assert.deepEqual(badges[4], { position: 5, tone: "partial", label: "✓" });
+});
+
+test("buildResultRowScoreBadges: no tip at all yields all-neutral badges", () => {
+  const badges = buildResultRowScoreBadges({
+    officialRows: badgeOfficialRows,
+    predictedSelections: [],
+    scoreTopFive: null
+  });
+  assert.equal(badges.length, 5);
+  assert.ok(badges.every((badge) => badge.tone === "none" && badge.label === "–"));
 });
