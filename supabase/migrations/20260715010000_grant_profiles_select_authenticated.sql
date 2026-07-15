@@ -1,0 +1,16 @@
+-- 20260701081334_canonical_grandtour_tipping_rpcs_rls.sql does
+-- `revoke all privileges on table public.profiles from authenticated;` and
+-- then only grants SELECT on a different table (grandtour_league_profiles)
+-- - it never re-grants `select on public.profiles`, silently undoing the
+-- correct grant an earlier migration (20260701053811) had established.
+-- Every authenticated user's own-profile read (display_name, avatar_url,
+-- first_name, last_name) has been failing with a genuine Postgres
+-- permission-denied ever since, masked by a silent blank-name UI fallback.
+-- This also affects get_grandtour_leaderboard/
+-- get_grandtour_leaderboard_with_movement, both security invoker and both
+-- joining profiles for display_name.
+--
+-- The existing RLS policies (see 20260701081334) already correctly scope
+-- which *rows* are visible - this migration only restores the missing
+-- table-level SELECT grant that RLS depends on being present at all.
+grant select on public.profiles to authenticated;
