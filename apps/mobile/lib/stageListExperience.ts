@@ -89,3 +89,27 @@ export function buildFutureStagesToggleLabel(showFuture: boolean, futureCount: n
   if (showFuture) return "Hide future stages";
   return `Show future stages (${futureCount})`;
 }
+
+/**
+ * Stages that have actually started, most recent first - used by the
+ * participant detail screen, where (unlike buildStageListSections above)
+ * there is no "next upcoming stage is always relevant" exception: a
+ * participant's tip for a stage that hasn't started can never be visible
+ * anyway (RLS hides it), so a not-yet-started stage has nothing to show
+ * and is excluded outright, not merely deprioritised. A stage with no
+ * usable start date is treated as not-yet-started (excluded) - the same
+ * fail-closed default buildStageListSections already uses for undated
+ * stages.
+ */
+export function selectStartedStagesDescending<T extends StageListCandidate>(
+  candidates: readonly T[],
+  now: Date
+): T[] {
+  const nowMs = now.getTime();
+  return candidates
+    .filter((candidate) => {
+      const startMs = toStartMs(candidate);
+      return startMs !== null && startMs <= nowMs;
+    })
+    .sort(compareDescending);
+}

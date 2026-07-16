@@ -22,11 +22,18 @@ export type ScoreOutcomeBadgeTone = JerseyBadgeTone;
  * - pending (neutral grey, distinct wording only): not yet scored. Kept as
  *   its own tone rather than folded into "none" so callers can word it
  *   differently ("Pending") without implying a real miss.
+ *
+ * "none" deliberately uses `border` (not `surfaceMuted`) as its background.
+ * This badge renders on two different row backgrounds depending on the
+ * screen - StageResultCard's rows are `surfaceMuted`, My Tips' comparison
+ * rows are plain white (`surface`) - and `border` is the one neutral tone
+ * in this palette dark enough to stay visible against both, rather than
+ * disappearing on whichever row happens to share its own background.
  */
 export const SCORE_OUTCOME_BADGE_COLORS: Record<ScoreOutcomeBadgeTone, { backgroundColor: string; color: string }> = {
   exact: { backgroundColor: ui.colors.positiveSoft, color: ui.colors.positiveStrong },
   partial: { backgroundColor: ui.colors.accentSoft, color: ui.colors.accent },
-  none: { backgroundColor: ui.colors.surfaceMuted, color: ui.colors.faint },
+  none: { backgroundColor: ui.colors.border, color: ui.colors.faint },
   pending: { backgroundColor: ui.colors.warningSoft, color: ui.colors.warning }
 };
 

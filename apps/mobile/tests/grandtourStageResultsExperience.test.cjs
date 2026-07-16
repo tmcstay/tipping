@@ -316,7 +316,7 @@ test("buildResultRowScoreBadges: exact pick is green with server points when sco
     predictedSelections: [{ predictedPosition: 1, entryId: "rider-a" }],
     scoreTopFive: [{ predicted_position: 1, points: 10 }]
   });
-  assert.deepEqual(badges[0], { position: 1, tone: "exact", label: "+10" });
+  assert.deepEqual(badges[0], { position: 1, entryId: "rider-a", tone: "exact", label: "+10" });
 });
 
 test("buildResultRowScoreBadges: right entrant wrong position is a blue partial badge", () => {
@@ -325,7 +325,7 @@ test("buildResultRowScoreBadges: right entrant wrong position is a blue partial 
     predictedSelections: [{ predictedPosition: 4, entryId: "rider-b" }],
     scoreTopFive: [{ predicted_position: 4, points: 1 }]
   });
-  assert.deepEqual(badges[1], { position: 2, tone: "partial", label: "+1" });
+  assert.deepEqual(badges[1], { position: 2, entryId: "rider-b", tone: "partial", label: "+1" });
 });
 
 test("buildResultRowScoreBadges: unpicked rows are neutral with an en dash", () => {
@@ -334,7 +334,7 @@ test("buildResultRowScoreBadges: unpicked rows are neutral with an en dash", () 
     predictedSelections: [{ predictedPosition: 1, entryId: "rider-a" }],
     scoreTopFive: null
   });
-  assert.deepEqual(badges[4], { position: 5, tone: "none", label: "–" });
+  assert.deepEqual(badges[4], { position: 5, entryId: "rider-e", tone: "none", label: "–" });
 });
 
 test("buildResultRowScoreBadges: matched rows before scoring show a tick, never a fabricated number", () => {
@@ -346,8 +346,27 @@ test("buildResultRowScoreBadges: matched rows before scoring show a tick, never 
     ],
     scoreTopFive: null
   });
-  assert.deepEqual(badges[0], { position: 1, tone: "exact", label: "✓" });
-  assert.deepEqual(badges[4], { position: 5, tone: "partial", label: "✓" });
+  assert.deepEqual(badges[0], { position: 1, entryId: "rider-a", tone: "exact", label: "✓" });
+  assert.deepEqual(badges[4], { position: 5, entryId: "rider-e", tone: "partial", label: "✓" });
+});
+
+test("buildResultRowScoreBadges: a tied official position (two entrants sharing actual_position) still badges each entrant independently by entryId, never sharing one badge", () => {
+  const tiedOfficialRows = [
+    { position: 1, entryId: "rider-a" },
+    { position: 1, entryId: "rider-b" },
+    { position: 3, entryId: "rider-c" }
+  ];
+  const badges = buildResultRowScoreBadges({
+    officialRows: tiedOfficialRows,
+    predictedSelections: [{ predictedPosition: 1, entryId: "rider-b" }],
+    scoreTopFive: [{ predicted_position: 1, points: 10 }]
+  });
+  const riderABadge = badges.find((badge) => badge.entryId === "rider-a");
+  const riderBBadge = badges.find((badge) => badge.entryId === "rider-b");
+  assert.equal(riderABadge.tone, "none");
+  assert.equal(riderABadge.label, "–");
+  assert.equal(riderBBadge.tone, "exact");
+  assert.equal(riderBBadge.label, "+10");
 });
 
 test("buildResultRowScoreBadges: no tip at all yields all-neutral badges", () => {

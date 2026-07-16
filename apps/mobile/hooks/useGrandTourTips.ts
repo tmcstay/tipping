@@ -10,6 +10,7 @@ import {
   getCurrentUserGrandTourTip,
   listLeagueTipsAfterLock,
   listMyGrandTourStageTips,
+  listParticipantGrandTourStageTips,
   saveGrandTourTipDraft,
   submitGrandTourTip
 } from "@tipping-suite/supabase-client";
@@ -137,4 +138,22 @@ export function useMyGrandTourStageTips(competitionId: string | null | undefined
     [competitionId]
   );
   return useAsyncData(loadTips, [competitionId]);
+}
+
+/**
+ * Another participant's tips for the participant detail screen. Relies
+ * entirely on the RLS boundary listParticipantGrandTourStageTips
+ * documents (own-row-or-admin-or-locked-and-submitted) - never filters
+ * rows on the client, since the query already returns only what's
+ * genuinely visible to the signed-in caller.
+ */
+export function useParticipantGrandTourStageTips(
+  userId: string | null | undefined,
+  competitionId: string | null | undefined
+) {
+  const loadTips = useCallback(
+    () => (userId && competitionId ? listParticipantGrandTourStageTips(userId, competitionId) : Promise.resolve([])),
+    [userId, competitionId]
+  );
+  return useAsyncData(loadTips, [userId, competitionId]);
 }

@@ -617,6 +617,38 @@ export async function listMyGrandTourStageTips(competitionId: string): Promise<G
   return hydrateTips(data ?? []);
 }
 
+/**
+ * Another participant's own "daily"/"stage" tips for a competition - used
+ * by the participant detail screen. Deliberately does NOT filter by
+ * status/lock time itself: unlike listMyGrandTourStageTips (which relies
+ * on the "own row" RLS branch, always visible regardless of status), this
+ * queries a *different* user's rows, so only the second RLS branch
+ * ("Users can read own or post-lock eligible GrandTour tips",
+ * 20260702003948_harden_grandtour_tip_lifecycle.sql) can ever apply -
+ * status in (submitted, locked, scored, corrected) AND the tip's own
+ * stage/mode/scope is actually locked AND the caller can access the
+ * competition. A draft, or a submitted-but-not-yet-locked tip belonging to
+ * someone else, is filtered out by Postgres before this function ever sees
+ * the row - never by client-side filtering here. This is the same
+ * database-level privacy boundary listLeagueTipsAfterLock already relies
+ * on for the per-stage league comparison screen, just queried by user
+ * instead of by stage.
+ */
+export async function listParticipantGrandTourStageTips(
+  userId: string,
+  competitionId: string
+): Promise<GrandTourTipRecord[]> {
+  const { data, error } = await getSupabaseClient()
+    .from("grandtour_tips")
+    .select(tipColumns)
+    .eq("user_id", userId)
+    .eq("competition_id", competitionId)
+    .eq("tip_mode", "daily")
+    .eq("tip_scope", "stage");
+  if (error) throw error;
+  return hydrateTips(data ?? []);
+}
+
 export async function listCyclingLeaderboard(
   competitionId: string,
   leaderboardType: CyclingLeaderboardRow["leaderboard_type"] = "overall"

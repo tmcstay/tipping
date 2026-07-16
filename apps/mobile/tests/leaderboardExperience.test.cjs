@@ -1,7 +1,12 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { buildLeaderboardDisplayItems, formatRankMovement, getRankMovementTone } = require("../../../dist/mobile-tests/leaderboardExperience.js");
+const {
+  buildLeaderboardDisplayItems,
+  buildParticipantDetailLink,
+  formatRankMovement,
+  getRankMovementTone
+} = require("../../../dist/mobile-tests/leaderboardExperience.js");
 
 function rows(count) {
   return Array.from({ length: count }, (_, index) => ({ id: `row-${index + 1}`, user_id: `user-${index + 1}`, rank: index + 1 }));
@@ -84,4 +89,17 @@ test("getRankMovementTone: unchanged rank is 'steady'", () => {
 
 test("getRankMovementTone: a new entrant is 'steady', never the negative colour", () => {
   assert.equal(getRankMovementTone(10, null), "steady");
+});
+
+test("buildParticipantDetailLink routes to /participant/<userId> with a descriptive accessible name", () => {
+  const link = buildParticipantDetailLink("user-42", "Jordan Smith");
+  assert.equal(link.href, "/participant/user-42");
+  assert.match(link.accessibilityLabel, /Jordan Smith/);
+  assert.match(link.accessibilityHint, /tip history/i);
+});
+
+test("buildParticipantDetailLink is stable/deterministic for the same inputs - the leaderboard row and any other entry point build the identical link", () => {
+  const first = buildParticipantDetailLink("user-7", "Alex Rider");
+  const second = buildParticipantDetailLink("user-7", "Alex Rider");
+  assert.deepEqual(first, second);
 });

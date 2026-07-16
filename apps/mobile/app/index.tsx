@@ -291,10 +291,15 @@ function AuthenticatedDashboard() {
             {latestScoreBadges && latestRankedEntries.length > 0 ? (
               <View style={styles.latestBadgeList}>
                 {latestRankedEntries.map((line) => {
-                  const badge = latestScoreBadges.find((candidate) => candidate.position === line.actual_position) ?? null;
+                  // Matched by entryId, never by position alone - see the
+                  // same fix/comment in StageResultCard.tsx (tied finishing
+                  // positions are real and a position-only lookup would
+                  // misattribute the wrong entrant's badge).
+                  const entryId = "team" in line ? line.team.id : line.rider.id;
+                  const badge = latestScoreBadges.find((candidate) => candidate.entryId === entryId) ?? null;
                   const entryName = "team" in line ? line.team.name : line.rider.display_name;
                   return (
-                    <View key={line.actual_position} style={styles.latestBadgeRow}>
+                    <View key={entryId} style={styles.latestBadgeRow}>
                       <Text style={styles.latestBadgePosition}>{line.actual_position}</Text>
                       <Text numberOfLines={1} style={styles.latestBadgeName}>{entryName}</Text>
                       {badge ? <ScoreOutcomeBadge label={badge.label} tone={badge.tone} /> : null}

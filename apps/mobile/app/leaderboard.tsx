@@ -1,3 +1,4 @@
+import { Link } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { CyclingLeaderboardRow } from "@tipping-suite/supabase-client";
@@ -13,6 +14,7 @@ import {
 import { formatGrandTourName } from "../lib/grandTourDisplay";
 import {
   buildLeaderboardDisplayItems,
+  buildParticipantDetailLink,
   formatRankMovement,
   getRankMovementTone,
   type RankMovementTone
@@ -146,42 +148,61 @@ export default function LeaderboardScreen() {
             <Text style={[styles.headerCell, styles.headerCellCentered, styles.pointsHeaderCell]}>Points</Text>
             <Text style={[styles.headerCell, styles.headerCellCentered, styles.moveHeaderCell]}>Move</Text>
           </View>
-          {displayItems.map((item, index) =>
-            item.type === "divider" ? (
-              <View key="divider" style={styles.divider}>
-                <Text style={styles.dividerText}>⋯</Text>
-              </View>
-            ) : (
-              <View
-                key={item.row.id}
-                style={[styles.row, item.isCurrentUser && styles.rowCurrentUser, index === displayItems.length - 1 && styles.rowLast]}
-              >
-                <Text style={[styles.rankCell, styles.rankText]}>{item.row.rank}</Text>
-                <View style={styles.playerCell}>
-                  <View style={styles.playerNameRow}>
-                    <Text numberOfLines={1} style={styles.playerName}>{item.row.display_name}</Text>
-                    {item.isCurrentUser ? (
-                      <View style={styles.youPill}>
-                        <Text style={styles.youPillText}>You</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <Text style={styles.playerMeta}>{item.row.stages_tipped} stage{item.row.stages_tipped === 1 ? "" : "s"} tipped</Text>
+          {displayItems.map((item, index) => {
+            if (item.type === "divider") {
+              return (
+                <View key="divider" style={styles.divider}>
+                  <Text style={styles.dividerText}>⋯</Text>
                 </View>
-                <View style={styles.pointsCell}>
-                  <Text style={styles.pointsText}>{item.row.total_score}</Text>
-                </View>
-                <Text
-                  style={[
-                    styles.moveCell,
-                    { color: movementColors[getRankMovementTone(item.row.rank, item.row.previous_rank)] }
-                  ]}
+              );
+            }
+            const participantLink = buildParticipantDetailLink(item.row.user_id, item.row.display_name);
+            return (
+              // The whole row is the tap target (not just the name) - it
+              // navigates to that participant's tip history/scoring detail
+              // page. Row-level flex layout lives on the inner rowInner
+              // View, never on this Link-wrapped Pressable's own style -
+              // per this app's own documented gotcha, a flexDirection set
+              // directly on a Link/Pressable's style collapses to a
+              // stacked layout on web once <Link asChild> clones it onto a
+              // real <a> element.
+              <Link asChild href={participantLink.href} key={item.row.id}>
+                <Pressable
+                  accessibilityHint={participantLink.accessibilityHint}
+                  accessibilityLabel={participantLink.accessibilityLabel}
+                  accessibilityRole="button"
+                  style={[styles.row, item.isCurrentUser && styles.rowCurrentUser, index === displayItems.length - 1 && styles.rowLast]}
                 >
-                  {formatRankMovement(item.row.rank, item.row.previous_rank)}
-                </Text>
-              </View>
-            )
-          )}
+                  <View style={styles.rowInner}>
+                    <Text style={[styles.rankCell, styles.rankText]}>{item.row.rank}</Text>
+                    <View style={styles.playerCell}>
+                      <View style={styles.playerNameRow}>
+                        <Text numberOfLines={1} style={styles.playerName}>{item.row.display_name}</Text>
+                        {item.isCurrentUser ? (
+                          <View style={styles.youPill}>
+                            <Text style={styles.youPillText}>You</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                      <Text style={styles.playerMeta}>{item.row.stages_tipped} stage{item.row.stages_tipped === 1 ? "" : "s"} tipped</Text>
+                    </View>
+                    <View style={styles.pointsCell}>
+                      <Text style={styles.pointsText}>{item.row.total_score}</Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.moveCell,
+                        { color: movementColors[getRankMovementTone(item.row.rank, item.row.previous_rank)] }
+                      ]}
+                    >
+                      {formatRankMovement(item.row.rank, item.row.previous_rank)}
+                    </Text>
+                    <Text style={styles.rowChevron}>›</Text>
+                  </View>
+                </Pressable>
+              </Link>
+            );
+          })}
         </View>
       ) : null}
 
@@ -345,16 +366,24 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   row: {
-    alignItems: "center",
     borderBottomColor: ui.colors.border,
     borderBottomWidth: 1,
-    flexDirection: "row",
     minHeight: 48,
     paddingHorizontal: 4,
     paddingVertical: 8
   },
+  rowChevron: {
+    color: ui.colors.faint,
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 4
+  },
   rowCurrentUser: {
     backgroundColor: ui.colors.accentSoft
+  },
+  rowInner: {
+    alignItems: "center",
+    flexDirection: "row"
   },
   rowLast: {
     borderBottomWidth: 0

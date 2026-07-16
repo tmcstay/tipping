@@ -3,7 +3,8 @@ const test = require("node:test");
 
 const {
   buildFutureStagesToggleLabel,
-  buildStageListSections
+  buildStageListSections,
+  selectStartedStagesDescending
 } = require("../../../dist/mobile-tests/stageListExperience.js");
 
 const now = new Date("2026-07-10T12:00:00Z");
@@ -130,4 +131,42 @@ test("identical start times fall back to stage number deterministically", () => 
 test("toggle label states", () => {
   assert.equal(buildFutureStagesToggleLabel(false, 7), "Show future stages (7)");
   assert.equal(buildFutureStagesToggleLabel(true, 7), "Hide future stages");
+});
+
+test("selectStartedStagesDescending: excludes every not-yet-started stage outright - no 'next upcoming' exception, unlike buildStageListSections", () => {
+  const rows = selectStartedStagesDescending(
+    [
+      stage(1, "2026-07-04T10:00:00Z"),
+      stage(2, "2026-07-05T10:00:00Z"),
+      stage(3, "2026-07-11T10:00:00Z"), // future - after `now`
+      stage(4, "2026-07-20T10:00:00Z") // further future
+    ],
+    now
+  );
+  assert.deepEqual(rows.map((row) => row.stageNumber), [2, 1]);
+});
+
+test("selectStartedStagesDescending: orders newest (most recently started) first", () => {
+  const rows = selectStartedStagesDescending(
+    [stage(1, "2026-07-01T10:00:00Z"), stage(2, "2026-07-08T10:00:00Z"), stage(3, "2026-07-03T10:00:00Z")],
+    now
+  );
+  assert.deepEqual(rows.map((row) => row.stageNumber), [2, 3, 1]);
+});
+
+test("selectStartedStagesDescending: a stage starting exactly now counts as started", () => {
+  const rows = selectStartedStagesDescending([stage(1, now.toISOString())], now);
+  assert.deepEqual(rows.map((row) => row.stageNumber), [1]);
+});
+
+test("selectStartedStagesDescending: an undated stage is excluded (fails closed), never assumed started", () => {
+  const rows = selectStartedStagesDescending(
+    [stage(1, "2026-07-01T10:00:00Z"), stage(2, null)],
+    now
+  );
+  assert.deepEqual(rows.map((row) => row.stageNumber), [1]);
+});
+
+test("selectStartedStagesDescending: an empty list produces an empty result", () => {
+  assert.deepEqual(selectStartedStagesDescending([], now), []);
 });

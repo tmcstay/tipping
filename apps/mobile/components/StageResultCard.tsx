@@ -34,9 +34,14 @@ export function StageResultCard({ result, stage, onOpen, scoreBadges }: {
       <View style={styles.divider} />
       <Text style={styles.sectionTitle}>{isTtt ? "Team Time Trial Result" : "Stage Top 5"}</Text>
       {ranked.slice(0, 5).map((line) => {
-        const badge = scoreBadges?.find((candidate) => candidate.position === line.actual_position) ?? null;
+        // Matched by entryId, never by position alone - two entrants can
+        // genuinely tie on actual_position (a bunch finish, or a TTT
+        // result), and a position-only lookup would silently show the
+        // first tied entrant's badge on both rows.
+        const entryId = "team" in line ? line.team.id : line.rider.id;
+        const badge = scoreBadges?.find((candidate) => candidate.entryId === entryId) ?? null;
         return (
-          <View key={line.actual_position} style={styles.resultRow}>
+          <View key={entryId} style={styles.resultRow}>
             <Text style={styles.position}>{line.actual_position}</Text>
             <Text style={styles.resultName}>{"team" in line ? line.team.name : line.rider.display_name}</Text>
             {badge ? <ScoreOutcomeBadge label={badge.label} tone={badge.tone} /> : null}

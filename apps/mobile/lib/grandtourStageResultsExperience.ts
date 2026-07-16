@@ -293,8 +293,10 @@ function formatOrdinalShort(value: number): string {
 export type ResultRowScoreBadgeTone = "exact" | "partial" | "none";
 
 export type ResultRowScoreBadge = {
-  /** The official row's actual finishing position this badge belongs to. */
+  /** The official row's actual finishing position this badge belongs to. Not unique on its own - ties (two entrants sharing a position) are real, so callers must match a badge to a row by entryId, never by position alone. */
   position: number;
+  /** The rider/team id this badge belongs to - the only reliable join key back to a specific official row when positions tie. */
+  entryId: string;
   tone: ResultRowScoreBadgeTone;
   label: string;
 };
@@ -456,10 +458,10 @@ export function buildResultRowScoreBadges({
   return officialRows.map((row) => {
     const pick = predictedSelections.find((selection) => selection.entryId === row.entryId) ?? null;
     if (!pick) {
-      return { position: row.position, tone: "none" as const, label: "–" };
+      return { position: row.position, entryId: row.entryId, tone: "none" as const, label: "–" };
     }
     const tone = pick.predictedPosition === row.position ? ("exact" as const) : ("partial" as const);
     const points = pointsByPredictedPosition.get(pick.predictedPosition) ?? null;
-    return { position: row.position, tone, label: points !== null ? `+${points}` : "✓" };
+    return { position: row.position, entryId: row.entryId, tone, label: points !== null ? `+${points}` : "✓" };
   });
 }

@@ -80,3 +80,18 @@ export function getRankMovementTone(rank: number, previousRank: number | null): 
   if (previousRank < rank) return "down";
   return "steady";
 }
+
+export type ParticipantDetailLink = {
+  href: string;
+  accessibilityLabel: string;
+  accessibilityHint: string;
+};
+
+/** Link/accessibility tuple for a leaderboard row that navigates to that participant's tip history/scoring detail page - the single source of both the route and its accessible name, so the leaderboard screen and any future entry point (e.g. a future dashboard mini-leaderboard) build this identically. */
+export function buildParticipantDetailLink(userId: string, displayName: string): ParticipantDetailLink {
+  return {
+    href: `/participant/${userId}`,
+    accessibilityLabel: `View ${displayName}'s tips and scores`,
+    accessibilityHint: "Double tap to view this participant's tip history and scoring"
+  };
+}
