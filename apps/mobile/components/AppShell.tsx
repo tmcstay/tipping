@@ -11,12 +11,18 @@ type AppShellProps = PropsWithChildren<{
   /**
    * The grand tour's already-formatted display name (e.g. "Tour de France
    * ’26" - build it with lib/grandTourDisplay.ts's formatGrandTourName,
-   * never a raw `grand_tours.name` value). Shown as a small accent-coloured
-   * eyebrow line above the title - the one place this renders as visible
-   * text, reused by every screen via this shared shell rather than each
-   * screen rendering its own copy. Also still drives the title's accent
-   * colour via getRaceHeadingAccent, as before. Omit for screens with no
-   * specific race context.
+   * never a raw `grand_tours.name` value). Shown as a small eyebrow line
+   * above the title - the one place this renders as visible text, reused
+   * by every screen via this shared shell rather than each screen
+   * rendering its own copy. Omit for screens with no specific race
+   * context.
+   *
+   * The eyebrow and title text are always the app's normal ink colour,
+   * never race-accent-coloured - a genuinely bright race colour (e.g. the
+   * real Tour de France maillot jaune yellow) fails WCAG text-contrast
+   * against this app's light background, so getRaceHeadingAccent's colour
+   * is reserved for the underline bar only, which has no text-contrast
+   * requirement. See raceAccent.ts.
    */
   raceName?: string;
 }>;
@@ -39,9 +45,8 @@ export function AppShell({ children, raceName, subtitle, title }: AppShellProps)
     <View style={[styles.page, { backgroundColor: theme.backgroundColor }]}>
       <View style={styles.header}>
         <View style={styles.headerInner}>
-          <Text style={styles.appName}>{activeAppConfig.appName}</Text>
-          {raceName ? <Text style={[styles.raceEyebrow, raceAccent && { color: raceAccent }]}>{raceName}</Text> : null}
-          <Text style={[styles.title, raceAccent && { color: raceAccent }]}>{title}</Text>
+          {raceName ? <Text style={styles.raceEyebrow}>{raceName}</Text> : null}
+          <Text style={styles.title}>{title}</Text>
           {raceAccent ? <View style={[styles.raceUnderline, { backgroundColor: raceAccent }]} /> : null}
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
@@ -74,13 +79,6 @@ export function AppShell({ children, raceName, subtitle, title }: AppShellProps)
 }
 
 const styles = StyleSheet.create({
-  appName: {
-    color: ui.colors.faint,
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-    textTransform: "uppercase"
-  },
   content: {
     alignItems: "center",
     padding: 20,
@@ -140,10 +138,9 @@ const styles = StyleSheet.create({
     flex: 1
   },
   raceEyebrow: {
-    color: ui.colors.faint,
+    color: ui.colors.ink,
     fontSize: 12,
-    fontWeight: "700",
-    marginTop: 6
+    fontWeight: "700"
   },
   raceUnderline: {
     borderRadius: ui.radius.pill,

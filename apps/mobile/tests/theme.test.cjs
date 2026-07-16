@@ -3,10 +3,9 @@ const test = require("node:test");
 
 const { getRaceHeadingAccent } = require("../../../dist/mobile-tests/raceAccent.js");
 
-test("Tour de France gets an accessible gold accent, not bright yellow", () => {
+test("Tour de France gets the real maillot jaune yellow (used for the underline bar only, never heading text)", () => {
   const color = getRaceHeadingAccent("Tour de France 2026");
-  assert.equal(color, "#8A6D1A");
-  assert.notEqual(color.toLowerCase(), "#ffff00");
+  assert.equal(color, "#F4C430");
 });
 
 test("Giro d'Italia gets a pink accent", () => {
