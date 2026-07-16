@@ -379,8 +379,25 @@ async function processJob(
 
   const failureClass = classifyProviderFailure(response.status);
   const decision = decideRetry(failureClass, attemptCount, now);
-  await applyRetryDecision(supabase, job.id, decision, attemptCount, `provider_${response.status}`);
+  const providerMessage = await readProviderErrorMessage(response);
+  const errorCode = providerMessage ? `provider_${response.status}:${providerMessage}` : `provider_${response.status}`;
+  await applyRetryDecision(supabase, job.id, decision, attemptCount, errorCode);
   return decision.action === "retry" ? "retry-scheduled" : "failed";
+}
+
+// Captures Resend's own error message (e.g. "Invalid `reply_to` field") so a
+// permanent failure is actually diagnosable from last_error_code alone,
+// instead of just an opaque HTTP status - truncated defensively since this
+// is untrusted upstream text going into a text column, never surfaced back
+// to the caller of this function (only visible via direct DB/admin access).
+async function readProviderErrorMessage(response: Response): Promise<string | null> {
+  try {
+    const body = (await response.json()) as { message?: string; name?: string } | null;
+    const message = body?.message ?? body?.name ?? null;
+    return message ? message.slice(0, 300) : null;
+  } catch {
+    return null;
+  }
 }
 
 async function applyRetryDecision(
