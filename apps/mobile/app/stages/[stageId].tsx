@@ -1,4 +1,4 @@
-import { resolveCyclingStageClosureState } from "@tipping-suite/tipping-core";
+import { resolveCyclingStageClosureState, resolveCyclingStageLockAt } from "@tipping-suite/tipping-core";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -16,6 +16,7 @@ import { InfoCard } from "../../components/InfoCard";
 import { OrderedTopFivePicker } from "../../components/OrderedTopFivePicker";
 import { RiderSelectionPanel } from "../../components/RiderSelectionPanel";
 import { ScoreBreakdown } from "../../components/ScoreBreakdown";
+import { StageLockCountdown } from "../../components/StageLockCountdown";
 import { TeamSelectionPanel, type StageTeam } from "../../components/TeamSelectionPanel";
 import { StageTypeBadge } from "../../components/StageTypeBadge";
 import { TipStatusBadge, type TipDisplayStatus } from "../../components/TipStatusBadge";
@@ -36,7 +37,8 @@ import {
   useStageTipDraft,
   useSubmitTip
 } from "../../hooks/useGrandTourTips";
-import { formatDurationUntil, formatRiderDisplayName, formatShortDate, formatTime, preferStageBibNumber } from "../../lib/formatters";
+import { formatRiderDisplayName, formatShortDate, formatTime, preferStageBibNumber } from "../../lib/formatters";
+import { formatGrandTourName } from "../../lib/grandTourDisplay";
 import { getStageTipExperience } from "../../lib/stageExperience";
 import { buildTopFiveValidationMessage } from "../../lib/tipEntryExperience";
 
@@ -99,6 +101,14 @@ export default function StageTipScreen() {
     : buildStageTipSelections(topFive), [isTtt, topFive]);
   const now = new Date();
   const lockTime = tipMode === "preselection" ? race.data?.preselection_locks_at : stage?.locks_at;
+  // The countdown always shows the true *effective* lock instant, which for
+  // "daily" mode can differ from the raw locks_at column when an admin has
+  // set manual_locked_at (see resolveCyclingStageLockAt's documented
+  // priority) - lockTime above stays untouched for its existing uses
+  // (formatTime display, the preselection clientLocked check below).
+  const effectiveLockAt = tipMode === "preselection"
+    ? (race.data?.preselection_locks_at ?? null)
+    : (stage ? resolveCyclingStageLockAt({ locksAt: stage.locks_at, manualLockedAt: stage.manual_locked_at }) : null);
   // "daily" mode reuses the shared, tipping-core-backed stage closure
   // resolver (same one the dashboard/stage list use); "preselection" locks
   // against a separate race-level timestamp with no equivalent shared
@@ -186,6 +196,7 @@ export default function StageTipScreen() {
 
   return (
     <AppShell
+      raceName={formatGrandTourName(race.data)}
       title={stage ? `Stage ${stage.stage_number} tips` : "Stage tips"}
       subtitle={stage ? `${stage.start_location ?? "TBC"} → ${stage.finish_location ?? "TBC"}` : undefined}
     >
@@ -208,7 +219,14 @@ export default function StageTipScreen() {
           {!locked ? <Text style={styles.summaryCopy}>{experience.topFiveCopy}</Text> : null}
           <View style={styles.summaryStatusRow}>
             <TipStatusBadge status={displayStatus} />
-            <Text style={styles.summaryLock}>{locked ? "Tips are locked for this stage." : `Locks ${formatTime(lockTime ?? null)} · ${formatDurationUntil(lockTime ?? null)}`}</Text>
+            {locked ? (
+              <Text style={styles.summaryLock}>Tips are locked for this stage.</Text>
+            ) : (
+              <View style={styles.summaryLockRow}>
+                <Text style={styles.summaryLockText}>Locks {formatTime(lockTime ?? null)} · </Text>
+                <StageLockCountdown lockAt={effectiveLockAt} style={styles.summaryLockText} />
+              </View>
+            )}
           </View>
         </InfoCard>
       ) : null}
@@ -317,6 +335,8 @@ const styles = StyleSheet.create({
   summaryCopy: { color: "rgba(255,255,255,0.9)", fontSize: 14, lineHeight: 20 },
   summaryDistance: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
   summaryLock: { color: "rgba(255,255,255,0.9)", flex: 1, fontSize: 12, fontWeight: "600", textAlign: "right" },
+  summaryLockRow: { flex: 1, flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end" },
+  summaryLockText: { color: "rgba(255,255,255,0.9)", fontSize: 12, fontWeight: "600" },
   summaryRoute: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
   summaryStatusRow: { alignItems: "center", flexDirection: "row", gap: 10, justifyContent: "space-between" },
   summaryTopRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },

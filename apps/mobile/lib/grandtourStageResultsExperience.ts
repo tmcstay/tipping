@@ -300,6 +300,51 @@ export type ResultRowScoreBadge = {
 };
 
 /**
+ * Maps My Tips' own richer, prediction-centric match-type vocabulary onto
+ * the app-wide 3-tone badge system (green/blue/neutral - see
+ * components/ScoreOutcomeBadge.tsx) so every screen that shows a scored
+ * pick uses the same colours, even though My Tips keeps its own more
+ * descriptive label text ("Exact"/"Top 5"/"Miss"/"Not picked" instead of
+ * "+N"/"✓"/"–"). Before this mapping existed, My Tips had its own separate
+ * hardcoded palette that used amber for a "top5-wrong-position" match
+ * (should be blue) and red for "miss" (red is reserved for genuine errors
+ * elsewhere in this app, never a scoring outcome) - both real, visible
+ * inconsistencies with the results screen, not just style drift.
+ */
+export function topFiveMatchTypeToBadgeTone(matchType: TopFiveMatchType): ResultRowScoreBadgeTone {
+  switch (matchType) {
+    case "exact":
+      return "exact";
+    case "top5-wrong-position":
+      return "partial";
+    case "miss":
+    case "not-picked":
+    default:
+      return "none";
+  }
+}
+
+/**
+ * Jersey picks are binary (match/no match), so there is no "partial"
+ * equivalent - "pending" is kept as its own tone (not yet scored, distinct
+ * from a genuine scoring outcome) rather than folded into "none".
+ */
+export type JerseyBadgeTone = ResultRowScoreBadgeTone | "pending";
+
+export function jerseyMatchTypeToBadgeTone(matchType: JerseyMatchType): JerseyBadgeTone {
+  switch (matchType) {
+    case "match":
+      return "exact";
+    case "miss":
+    case "not-picked":
+      return "none";
+    case "pending":
+    default:
+      return "pending";
+  }
+}
+
+/**
  * Per-official-result-row scoring badges for the results screen's
  * "Stage Top 5" list: for each official row, did the signed-in user pick
  * that rider/team, and at the right position?
@@ -314,6 +359,88 @@ export type ResultRowScoreBadge = {
  * (pass null while the tip is unscored - matched rows then show "✓", never
  * a locally-recomputed or fabricated number).
  */
+// Only tips that actually entered the competition get scoring badges - a
+// never-submitted draft's picks never counted, so badging them would imply
+// scoring that can't happen. Shared here (not duplicated per screen) since
+// every screen that shows an official result alongside the user's own
+// picks needs the identical rule.
+const COUNTED_TIP_STATUSES = new Set(["submitted", "locked", "scored", "corrected"]);
+
+export type StageResultBadgeSourceRow = { actual_position: number };
+export type StageResultBadgeSource = {
+  riderResults: (StageResultBadgeSourceRow & { rider: { id: string } })[];
+  teamResults: (StageResultBadgeSourceRow & { team: { id: string } })[];
+};
+
+export type TipSelectionBadgeSource = {
+  selection_type: string;
+  rider_id?: string | null;
+  team_id?: string | null;
+  predicted_position?: number | null;
+};
+
+export type ScoredTipBadgeSource = {
+  status: string;
+  score: { score_details: unknown } | null;
+  selections: TipSelectionBadgeSource[];
+};
+
+/**
+ * Reads the already-computed per-position points off a scored tip's
+ * grandtour_stage_scores.score_details.top_five - never recomputes
+ * scoring client-side. Returns null while the tip isn't yet scored (or has
+ * no usable score payload), so callers can distinguish "pending" from "no
+ * points" rather than fabricating a zero.
+ */
+export function extractScoreTopFive(
+  tip: ScoredTipBadgeSource | null
+): { predicted_position: number; points: number | null }[] | null {
+  if (!tip || tip.status !== "scored" || !tip.score) return null;
+  const details = tip.score.score_details;
+  if (!details || typeof details !== "object" || Array.isArray(details)) return null;
+  const topFive = (details as Record<string, unknown>).top_five;
+  return Array.isArray(topFive) ? (topFive as { predicted_position: number; points: number | null }[]) : null;
+}
+
+/**
+ * The one shared "official result + this user's tip -> per-row badges"
+ * pipeline, used by every screen that shows an official result alongside
+ * the signed-in user's own picks (results list, dashboard latest-result
+ * summary) - previously only results.tsx had this logic; the dashboard
+ * showed the official winner and the user's total points with no per-rider
+ * explanation of how those points were earned. Returns null (never a
+ * partial/empty badge array) when the tip never counted, so callers can
+ * tell "nothing to show" from "everything missed."
+ */
+export function buildStageResultBadgesForTip(input: {
+  result: StageResultBadgeSource;
+  isTtt: boolean;
+  tip: ScoredTipBadgeSource | null;
+}): ResultRowScoreBadge[] | null {
+  const tip = input.tip && COUNTED_TIP_STATUSES.has(input.tip.status) ? input.tip : null;
+  if (!tip) return null;
+
+  const officialRows = (input.isTtt ? input.result.teamResults : input.result.riderResults)
+    .filter((line) => line.actual_position <= 5)
+    .map((line) => ({
+      position: line.actual_position,
+      entryId: "team" in line ? line.team.id : line.rider.id
+    }));
+  const predictedSelections = tip.selections
+    .filter((selection) => selection.selection_type === "stage_top_5")
+    .flatMap((selection) => {
+      const entryId = (input.isTtt ? selection.team_id : selection.rider_id) ?? null;
+      const predictedPosition = selection.predicted_position ?? null;
+      return entryId && predictedPosition ? [{ predictedPosition, entryId }] : [];
+    });
+
+  return buildResultRowScoreBadges({
+    officialRows,
+    predictedSelections,
+    scoreTopFive: extractScoreTopFive(tip)
+  });
+}
+
 export function buildResultRowScoreBadges({
   officialRows,
   predictedSelections,

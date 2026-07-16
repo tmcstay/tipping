@@ -9,7 +9,9 @@ const {
   buildLeaderboardDashboardCardLink,
   buildRankStatCardLink,
   buildSelectionProgressLabel,
-  buildStageDashboardCardLink
+  buildStageDashboardCardLink,
+  formatLockCountdown,
+  resolveCountdownTickIntervalMs
 } = require("../../../dist/mobile-tests/stageClosureExperience.js");
 
 const NOW = new Date("2026-07-13T12:00:00.000Z");
@@ -122,6 +124,44 @@ test("CTA label reflects draft/submitted state only while editable", () => {
 
   const submitted = buildClosureDisplay({ state: "open", locksAt: "2026-08-01T00:00:00Z", now: NOW, formattedLockDateTime: "x", hasSubmittedTip: true });
   assert.equal(submitted.ctaLabel, "Edit tips");
+});
+
+test("formatLockCountdown: days+hours when more than a day remains", () => {
+  assert.equal(formatLockCountdown(2 * 86400_000 + 4 * 3600_000), "Closes in 2d 4h");
+});
+
+test("formatLockCountdown: hours+minutes under a day", () => {
+  assert.equal(formatLockCountdown(5 * 3600_000 + 18 * 60_000), "Closes in 5h 18m");
+});
+
+test("formatLockCountdown: whole minutes only while 5+ minutes remain", () => {
+  assert.equal(formatLockCountdown(42 * 60_000), "Closes in 42m");
+  assert.equal(formatLockCountdown(5 * 60_000), "Closes in 5m");
+});
+
+test("formatLockCountdown: minutes+seconds once under 5 minutes remain", () => {
+  assert.equal(formatLockCountdown(3 * 60_000 + 12_000), "Closes in 3m 12s");
+  assert.equal(formatLockCountdown(4 * 60_000 + 59_000), "Closes in 4m 59s");
+});
+
+test("formatLockCountdown: bare seconds under a minute", () => {
+  assert.equal(formatLockCountdown(45_000), "Closes in 45s");
+  assert.equal(formatLockCountdown(1_000), "Closes in 1s");
+});
+
+test("formatLockCountdown: exactly zero or negative always shows 'Closed', never a negative duration", () => {
+  assert.equal(formatLockCountdown(0), "Closed");
+  assert.equal(formatLockCountdown(-5000), "Closed");
+  assert.ok(!/-/.test(formatLockCountdown(-5000)));
+});
+
+test("resolveCountdownTickIntervalMs: 1s once under a minute remains, 30s under an hour, 60s otherwise", () => {
+  assert.equal(resolveCountdownTickIntervalMs(30_000), 1000);
+  assert.equal(resolveCountdownTickIntervalMs(60_000), 1000);
+  assert.equal(resolveCountdownTickIntervalMs(60_001), 30_000);
+  assert.equal(resolveCountdownTickIntervalMs(3_600_000), 30_000);
+  assert.equal(resolveCountdownTickIntervalMs(3_600_001), 60_000);
+  assert.equal(resolveCountdownTickIntervalMs(2 * 86400_000), 60_000);
 });
 
 test("buildSelectionProgressLabel formats and clamps to the total", () => {

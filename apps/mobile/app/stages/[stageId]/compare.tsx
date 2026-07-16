@@ -9,6 +9,7 @@ import { TipComparisonCard } from "../../../components/TipComparisonCard";
 import { useCyclingCompetition, useStageStartlist, useTdf2026Stages } from "../../../hooks/useCyclingData";
 import { useLeagueTipsAfterLock } from "../../../hooks/useGrandTourTips";
 import { formatRiderDisplayName, preferStageBibNumber } from "../../../lib/formatters";
+import { formatGrandTourName } from "../../../lib/grandTourDisplay";
 
 export default function StageComparisonScreen() {
   const params = useLocalSearchParams<{ stageId: string; mode?: string }>();
@@ -32,7 +33,11 @@ export default function StageComparisonScreen() {
   const isTtt = isTeamTimeTrialStageType(stage?.stage_type);
 
   return (
-    <AppShell title={`Stage ${stage?.stage_number ?? ""} comparison`} subtitle={`${tipMode} · submitted tips only`}>
+    <AppShell
+      raceName={formatGrandTourName(race.data)}
+      title={`Stage ${stage?.stage_number ?? ""} comparison`}
+      subtitle={`${tipMode} · submitted tips only`}
+    >
       {tips.loading || startlist.loading ? <LoadingState /> : null}
       {tips.error ? <ErrorState error={tips.error} onRetry={tips.reload} /> : null}
       {startlist.error ? <ErrorState error={startlist.error} onRetry={startlist.reload} /> : null}

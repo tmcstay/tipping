@@ -16,6 +16,7 @@
 //   sent/failed), never inside one.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.108.2";
 
+import { formatGrandTourName } from "../_shared/email/grandTourDisplay.ts";
 import {
   renderStageResultsEmail,
   type StageResultsEmailData,
@@ -438,7 +439,7 @@ async function buildEmailData(
 
   const { data: grandTour, error: grandTourError } = await supabase
     .from("grand_tours")
-    .select("id, name")
+    .select("id, name, year")
     .eq("id", stage.grand_tour_id as string)
     .single();
   if (grandTourError) throw grandTourError;
@@ -547,7 +548,7 @@ async function buildEmailData(
   return {
     email,
     data: {
-      eventName: grandTour.name as string,
+      eventName: formatGrandTourName({ name: grandTour.name as string, year: grandTour.year as number }),
       stageNumber: stage.stage_number as number,
       stageName: (stage.stage_name as string | null) ?? null,
       stageDateLabel: stage.starts_at ? formatStageDate(stage.starts_at as string) : null,

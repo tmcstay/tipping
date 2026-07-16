@@ -1,4 +1,4 @@
-import { resolveCyclingStageClosureState, selectLatestEligibleStage } from "@tipping-suite/tipping-core";
+import { resolveCyclingStageClosureState, resolveCyclingStageLockAt, selectLatestEligibleStage } from "@tipping-suite/tipping-core";
 import { Link, Redirect } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { CyclingStage, CyclingStageResult } from "@tipping-suite/supabase-client";
@@ -7,6 +7,8 @@ import { useAuth } from "../auth/useAuth";
 import { AppShell } from "../components/AppShell";
 import { EmptyState, ErrorState, SkeletonCard } from "../components/DataState";
 import { InfoCard } from "../components/InfoCard";
+import { ScoreOutcomeBadge } from "../components/ScoreOutcomeBadge";
+import { StageLockCountdown } from "../components/StageLockCountdown";
 import { ui } from "../components/theme";
 import {
   useCyclingCompetition,
@@ -17,6 +19,8 @@ import {
 import { useStageTipDraft } from "../hooks/useGrandTourTips";
 import { resolveDashboardFirstName } from "../lib/dashboardGreeting";
 import { formatDateTime } from "../lib/formatters";
+import { formatGrandTourName } from "../lib/grandTourDisplay";
+import { buildStageResultBadgesForTip } from "../lib/grandtourStageResultsExperience";
 import { formatRankMovement } from "../lib/leaderboardExperience";
 import { getStageTipExperience } from "../lib/stageExperience";
 import {
@@ -159,6 +163,19 @@ function AuthenticatedDashboard() {
   const leaderboardLink = buildLeaderboardDashboardCardLink(competition.data?.name ?? null);
   const rankLink = buildRankStatCardLink();
 
+  // Any place a result is shown must also explain how the user's own picks
+  // scored, not just an aggregate total - same shared badge pipeline
+  // results.tsx uses, never a separate recomputation. Null (not an empty
+  // array) when the tip never counted, so the summary row's existing
+  // "Pending"/no-tip text is left to speak for itself.
+  const latestIsTtt = latestStage ? getStageTipExperience(latestStage.stage_type).isTtt : false;
+  const latestScoreBadges = latestStage && latestResult
+    ? buildStageResultBadgesForTip({ result: latestResult, isTtt: latestIsTtt, tip: latestTip.data })
+    : null;
+  const latestRankedEntries = latestResult
+    ? (latestIsTtt ? latestResult.teamResults : latestResult.riderResults).filter((line) => line.actual_position <= 5)
+    : [];
+
   const heroCompoundStatus = hero && heroDisplay
     ? buildCompoundStatusLine({
         badgeLabel: heroDisplay.badgeLabel,
@@ -171,7 +188,10 @@ function AuthenticatedDashboard() {
     : null;
 
   return (
-    <AppShell title={`Hi ${resolveDashboardFirstName(profile?.first_name, profile?.display_name)}`}>
+    <AppShell
+      raceName={formatGrandTourName(race.data)}
+      title={`Hi ${resolveDashboardFirstName(profile?.first_name, profile?.display_name)}`}
+    >
       {initialLoading ? (
         <>
           <SkeletonCard lines={1} />
@@ -225,6 +245,12 @@ function AuthenticatedDashboard() {
               title={`${hero.stage.start_location ?? "TBC"} → ${hero.stage.finish_location ?? "TBC"}`}
             >
               <Text style={[styles.heroClosure, heroDisplay.emphasis && styles.heroClosureEmphasis]}>{heroCompoundStatus}</Text>
+              {heroDisplay.editable ? (
+                <StageLockCountdown
+                  lockAt={resolveCyclingStageLockAt({ locksAt: hero.stage.locks_at, manualLockedAt: hero.stage.manual_locked_at })}
+                  style={[styles.heroClosure, heroDisplay.emphasis && styles.heroClosureEmphasis]}
+                />
+              ) : null}
               <View style={[styles.heroButton, !heroDisplay.editable && styles.heroButtonSecondary]}>
                 <Text style={[styles.heroButtonText, !heroDisplay.editable && styles.heroButtonTextSecondary]}>{heroDisplay.ctaLabel}</Text>
               </View>
@@ -236,8 +262,8 @@ function AuthenticatedDashboard() {
             />
           )}
 
-          {/* Secondary: compact latest-performance summary, not a long rider/jersey list. */}
-          <InfoCard meta={competition.data?.name ?? "Overall"} title="Competition">
+          {/* Secondary: compact latest-performance summary, not a long rider/jersey list. Meta shows the formatted grand tour name (e.g. "Tour de France ’26"), not the raw competition/league row name - that raw name reads badly once the InfoCard "meta" style force-uppercases it (e.g. "GRANDTOUR FRANCE 2026 PUBLIC LEAGUE"). */}
+          <InfoCard meta={formatGrandTourName(race.data)} title="Competition">
             {latestStage && latestResult && latestResultLink ? (
               <Link asChild href={latestResultLink.href}>
                 <Pressable
@@ -259,6 +285,23 @@ function AuthenticatedDashboard() {
                   </View>
                 </Pressable>
               </Link>
+            ) : null}
+
+            {/* Per-rider explanation of the stage score above - green exact / blue right-rider-wrong-position / neutral no-pick, same shared badge system as the Results screen. Only rendered when the user actually had a counted tip for this stage. */}
+            {latestScoreBadges && latestRankedEntries.length > 0 ? (
+              <View style={styles.latestBadgeList}>
+                {latestRankedEntries.map((line) => {
+                  const badge = latestScoreBadges.find((candidate) => candidate.position === line.actual_position) ?? null;
+                  const entryName = "team" in line ? line.team.name : line.rider.display_name;
+                  return (
+                    <View key={line.actual_position} style={styles.latestBadgeRow}>
+                      <Text style={styles.latestBadgePosition}>{line.actual_position}</Text>
+                      <Text numberOfLines={1} style={styles.latestBadgeName}>{entryName}</Text>
+                      {badge ? <ScoreOutcomeBadge label={badge.label} tone={badge.tone} /> : null}
+                    </View>
+                  );
+                })}
+              </View>
             ) : null}
 
             {leaderboard.data?.length ? (
@@ -326,6 +369,10 @@ const styles = StyleSheet.create({
   heroButtonTextSecondary: { color: "#FFFFFF" },
   heroClosure: { color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "600" },
   heroClosureEmphasis: { color: "#FFFFFF", fontWeight: "700" },
+  latestBadgeList: { gap: 6, marginBottom: 6, marginTop: 2 },
+  latestBadgeName: { color: ui.colors.ink, flex: 1, fontSize: 13, fontWeight: "600" },
+  latestBadgePosition: { color: ui.colors.primary, fontSize: 12, fontVariant: ["tabular-nums"], fontWeight: "800", width: 18 },
+  latestBadgeRow: { alignItems: "center", flexDirection: "row", gap: 8, minHeight: 28 },
   raceLinkRow: { justifyContent: "center", minHeight: 44, paddingHorizontal: 4 },
   raceLinkRowInner: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   raceLinkRowPressed: { opacity: 0.6 },

@@ -2,13 +2,24 @@ import { StyleSheet, Text, View } from "react-native";
 import type { TopFiveRowDetail } from "../lib/grandtourStageResultsExperience";
 
 import { formatOrdinal } from "../lib/formatters";
+import { topFiveMatchTypeToBadgeTone } from "../lib/grandtourStageResultsExperience";
+import { SCORE_OUTCOME_BADGE_COLORS } from "./ScoreOutcomeBadge";
 import { ui } from "./theme";
 
-const MATCH_PRESENTATION: Record<TopFiveRowDetail["matchType"], { label: string; badgeStyle: object; textStyle: object }> = {
-  exact: { label: "Exact", badgeStyle: { backgroundColor: "#D7F0DE" }, textStyle: { color: ui.colors.success } },
-  "top5-wrong-position": { label: "Top 5", badgeStyle: { backgroundColor: ui.colors.warningSoft }, textStyle: { color: ui.colors.warning } },
-  miss: { label: "Miss", badgeStyle: { backgroundColor: "#F6D8D6" }, textStyle: { color: ui.colors.danger } },
-  "not-picked": { label: "Not picked", badgeStyle: { backgroundColor: ui.colors.border }, textStyle: { color: ui.colors.muted } }
+// Labels stay specific to this screen's richer, prediction-centric layout
+// ("Exact"/"Top 5"/"Miss"/"Not picked" vs. the results screen's compact
+// "+N"/"✓"/"–") - only the colours are shared, via
+// topFiveMatchTypeToBadgeTone + SCORE_OUTCOME_BADGE_COLORS
+// (components/ScoreOutcomeBadge.tsx), so every scored-pick badge in the
+// app uses the same green/blue/neutral system. This used to be its own
+// separate hardcoded palette that put "top5-wrong-position" in amber and
+// "miss" in red - both real inconsistencies with the shared convention,
+// not just a different look.
+const MATCH_LABELS: Record<TopFiveRowDetail["matchType"], string> = {
+  exact: "Exact",
+  "top5-wrong-position": "Top 5",
+  miss: "Miss",
+  "not-picked": "Not picked"
 };
 
 /**
@@ -28,7 +39,7 @@ export function GrandTourTopFiveComparison({ pending, rows, subtotal }: { pendin
     <View style={styles.container}>
       <Text style={styles.heading}>Top 5 comparison</Text>
       {rows.map((row) => {
-        const presentation = MATCH_PRESENTATION[row.matchType];
+        const badgeColors = SCORE_OUTCOME_BADGE_COLORS[topFiveMatchTypeToBadgeTone(row.matchType)];
         const actualFinishLabel = row.predictedRiderId === null
           ? "—"
           : row.actualPosition !== null
@@ -60,8 +71,8 @@ export function GrandTourTopFiveComparison({ pending, rows, subtotal }: { pendin
                 {"  ·  "}Official {row.predictedPosition}{formatOrdinalSuffix(row.predictedPosition)}: <Text style={styles.detailValue}>{row.officialRiderName ?? "Not available"}</Text>
               </Text>
               {!pending && row.predictedRiderId ? (
-                <View style={[styles.badge, presentation.badgeStyle]}>
-                  <Text style={[styles.badgeText, presentation.textStyle]}>{presentation.label}</Text>
+                <View style={[styles.badge, { backgroundColor: badgeColors.backgroundColor }]}>
+                  <Text style={[styles.badgeText, { color: badgeColors.color }]}>{MATCH_LABELS[row.matchType]}</Text>
                 </View>
               ) : null}
             </View>

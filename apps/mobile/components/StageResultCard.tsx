@@ -2,23 +2,15 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { CyclingStage, CyclingStageResult } from "@tipping-suite/supabase-client";
 
 import { formatShortDate } from "../lib/formatters";
-import type { ResultRowScoreBadge, ResultRowScoreBadgeTone } from "../lib/grandtourStageResultsExperience";
+import type { ResultRowScoreBadge } from "../lib/grandtourStageResultsExperience";
 import { getStageTipExperience } from "../lib/stageExperience";
 import { InfoCard } from "./InfoCard";
 import { JerseyHolderCard, type JerseyKind } from "./JerseyHolderCard";
+import { ScoreOutcomeBadge } from "./ScoreOutcomeBadge";
 import { StageTypeBadge } from "./StageTypeBadge";
 import { ui } from "./theme";
 
 const jerseys: JerseyKind[] = ["yellow", "green", "kom", "white"];
-
-// Score-badge colours: green = exact position, blue = right entrant/wrong
-// position, neutral = no pick. Text shades are the darker accessible
-// variants - the raw brand hues fail contrast at badge text sizes.
-const badgeTones: Record<ResultRowScoreBadgeTone, { backgroundColor: string; color: string }> = {
-  exact: { backgroundColor: ui.colors.positiveSoft, color: ui.colors.positiveStrong },
-  partial: { backgroundColor: ui.colors.accentSoft, color: ui.colors.accent },
-  none: { backgroundColor: ui.colors.surface, color: ui.colors.faint }
-};
 
 export function StageResultCard({ result, stage, onOpen, scoreBadges }: {
   result: CyclingStageResult;
@@ -47,11 +39,7 @@ export function StageResultCard({ result, stage, onOpen, scoreBadges }: {
           <View key={line.actual_position} style={styles.resultRow}>
             <Text style={styles.position}>{line.actual_position}</Text>
             <Text style={styles.resultName}>{"team" in line ? line.team.name : line.rider.display_name}</Text>
-            {badge ? (
-              <View style={[styles.scoreBadge, { backgroundColor: badgeTones[badge.tone].backgroundColor }]}>
-                <Text style={[styles.scoreBadgeText, { color: badgeTones[badge.tone].color }]}>{badge.label}</Text>
-              </View>
-            ) : null}
+            {badge ? <ScoreOutcomeBadge label={badge.label} tone={badge.tone} /> : null}
           </View>
         );
       })}
@@ -77,8 +65,6 @@ const styles = StyleSheet.create({
   position: { color: ui.colors.primary, fontSize: 14, fontWeight: "900", width: 24 },
   resultName: { color: ui.colors.ink, flex: 1, fontSize: 14, fontWeight: "800" },
   resultRow: { alignItems: "center", backgroundColor: ui.colors.surfaceMuted, borderRadius: ui.radius.small, flexDirection: "row", gap: 8, minHeight: 42, paddingHorizontal: 12 },
-  scoreBadge: { alignItems: "center", borderRadius: ui.radius.pill, justifyContent: "center", minWidth: 40, paddingHorizontal: 8, paddingVertical: 3 },
-  scoreBadgeText: { fontSize: 12, fontVariant: ["tabular-nums"], fontWeight: "800" },
   sectionTitle: { color: ui.colors.ink, fontSize: 14, fontWeight: "900", marginTop: 4 },
   topRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   winner: { color: ui.colors.primary, fontSize: 22, fontWeight: "900" },

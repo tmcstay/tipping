@@ -133,6 +133,52 @@ export function buildClosureDisplay(input: ClosureDisplayInput): ClosureDisplay 
   }
 }
 
+/**
+ * "Closes in Xd Yh" / "Xh Ym" / "Xm" / "Xm Ys" / "Xs" / "Closed" - the one
+ * shared duration formatter for every live stage-lock countdown in the app
+ * (components/StageLockCountdown.tsx), replacing what used to be two
+ * separate, differently-worded one-shot implementations (this file's old
+ * closing_soon-only minute formatter, and lib/formatters.ts's
+ * formatDurationUntil, used only by the tip-entry screen). Granularity
+ * narrows as the deadline approaches so the display stays meaningful right
+ * up to the close: whole days+hours while there's more than a day left,
+ * hours+minutes under a day, whole minutes while there's 5+ minutes left,
+ * and minutes+seconds (or bare seconds under a minute) once it's close
+ * enough that a viewer might actually be watching the clock. Never returns
+ * a negative duration - clamps to "Closed" instead.
+ */
+export function formatLockCountdown(msRemaining: number): string {
+  if (msRemaining <= 0) return "Closed";
+  const totalSeconds = Math.floor(msRemaining / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) return `Closes in ${days}d ${hours}h`;
+  if (hours > 0) return `Closes in ${hours}h ${minutes}m`;
+  if (minutes >= 5) return `Closes in ${minutes}m`;
+  if (minutes > 0) return `Closes in ${minutes}m ${seconds}s`;
+  return `Closes in ${seconds}s`;
+}
+
+const COUNTDOWN_TICK_UNDER_ONE_MINUTE_MS = 1000;
+const COUNTDOWN_TICK_UNDER_ONE_HOUR_MS = 30_000;
+const COUNTDOWN_TICK_DEFAULT_MS = 60_000;
+
+/**
+ * How often a live countdown should re-render, given how much time is
+ * actually left - second-level precision only once it matters (under a
+ * minute), never a wasted per-second re-render for a stage that's days
+ * away. Pure so it's unit-tested the same as the formatter above; the
+ * ticking itself (setTimeout/setInterval) lives in the React component.
+ */
+export function resolveCountdownTickIntervalMs(msRemaining: number): number {
+  if (msRemaining <= 60_000) return COUNTDOWN_TICK_UNDER_ONE_MINUTE_MS;
+  if (msRemaining <= 3_600_000) return COUNTDOWN_TICK_UNDER_ONE_HOUR_MS;
+  return COUNTDOWN_TICK_DEFAULT_MS;
+}
+
 /** "N of 5 selections completed" - clamped so a data glitch can never show a negative or over-100% count. */
 export function buildSelectionProgressLabel(selectedCount: number, totalSlots: number = 5): string {
   const clamped = Math.max(0, Math.min(selectedCount, totalSlots));

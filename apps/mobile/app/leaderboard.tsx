@@ -10,6 +10,7 @@ import {
   useCyclingLeaderboard,
   useCyclingRace
 } from "../hooks/useCyclingData";
+import { formatGrandTourName } from "../lib/grandTourDisplay";
 import {
   buildLeaderboardDisplayItems,
   formatRankMovement,
@@ -61,7 +62,11 @@ export default function LeaderboardScreen() {
   const displayItems = buildLeaderboardDisplayItems(filteredRows, user?.id ?? null);
 
   return (
-    <AppShell title="Leaderboard" subtitle="Overall standings, stage tipping, and pre-race results.">
+    <AppShell
+      raceName={formatGrandTourName(race.data)}
+      title="Leaderboard"
+      subtitle="Overall standings, stage tipping, and pre-race results."
+    >
       {competitions.data && competitions.data.length > 1 ? (
         <View style={styles.leagues}>
           {competitions.data.map((competition) => (
@@ -137,8 +142,9 @@ export default function LeaderboardScreen() {
             {/* No "Rank" header label - the rank numbers below speak for themselves; a spacer keeps column alignment. */}
             <View style={styles.rankCell} />
             <Text style={[styles.headerCell, styles.playerCell]}>Player</Text>
-            <Text style={[styles.headerCell, styles.headerCellRight, styles.pointsHeaderCell]}>Points</Text>
-            <Text style={[styles.headerCell, styles.headerCellRight, styles.moveHeaderCell]}>Move</Text>
+            {/* Points/Move headers are centred, matching the centred values below them - not right-aligned. */}
+            <Text style={[styles.headerCell, styles.headerCellCentered, styles.pointsHeaderCell]}>Points</Text>
+            <Text style={[styles.headerCell, styles.headerCellCentered, styles.moveHeaderCell]}>Move</Text>
           </View>
           {displayItems.map((item, index) =>
             item.type === "divider" ? (
@@ -203,8 +209,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase"
   },
-  headerCellRight: {
-    textAlign: "right"
+  headerCellCentered: {
+    textAlign: "center"
   },
   headerRow: {
     borderBottomColor: ui.colors.border,
@@ -287,7 +293,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontVariant: ["tabular-nums"],
     fontWeight: "700",
-    textAlign: "right",
+    textAlign: "center",
     width: 56
   },
   moveHeaderCell: {
@@ -313,8 +319,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 6
   },
+  // Centred (not right-aligned) so the value sits under the centred "Points"
+  // header - a fixed column width keeps this stable regardless of how long
+  // the player name in the flex-1 column next to it grows.
   pointsCell: {
-    alignItems: "flex-end",
+    alignItems: "center",
     width: 72
   },
   pointsHeaderCell: {

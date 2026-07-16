@@ -8,7 +8,16 @@ import { getRaceHeadingAccent, ui } from "./theme";
 type AppShellProps = PropsWithChildren<{
   title: string;
   subtitle?: string;
-  /** When set, the title renders in that race's accent colour with a small underline marker - e.g. "Tour de France 2026" in gold. Omit for every screen without a specific race heading. */
+  /**
+   * The grand tour's already-formatted display name (e.g. "Tour de France
+   * ’26" - build it with lib/grandTourDisplay.ts's formatGrandTourName,
+   * never a raw `grand_tours.name` value). Shown as a small accent-coloured
+   * eyebrow line above the title - the one place this renders as visible
+   * text, reused by every screen via this shared shell rather than each
+   * screen rendering its own copy. Also still drives the title's accent
+   * colour via getRaceHeadingAccent, as before. Omit for screens with no
+   * specific race context.
+   */
   raceName?: string;
 }>;
 
@@ -31,6 +40,7 @@ export function AppShell({ children, raceName, subtitle, title }: AppShellProps)
       <View style={styles.header}>
         <View style={styles.headerInner}>
           <Text style={styles.appName}>{activeAppConfig.appName}</Text>
+          {raceName ? <Text style={[styles.raceEyebrow, raceAccent && { color: raceAccent }]}>{raceName}</Text> : null}
           <Text style={[styles.title, raceAccent && { color: raceAccent }]}>{title}</Text>
           {raceAccent ? <View style={[styles.raceUnderline, { backgroundColor: raceAccent }]} /> : null}
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -128,6 +138,12 @@ const styles = StyleSheet.create({
   },
   page: {
     flex: 1
+  },
+  raceEyebrow: {
+    color: ui.colors.faint,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 6
   },
   raceUnderline: {
     borderRadius: ui.radius.pill,

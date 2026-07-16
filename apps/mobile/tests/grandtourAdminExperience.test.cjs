@@ -2,16 +2,19 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  buildAdminStageReviewCountsLabel,
   buildMarkCheckedConfirmationMessage,
   canFinalise,
   canMarkChecked,
   canScore,
   formatGrandTourAdminActionMessage,
+  formatReviewStatusLabel,
   getGrandTourAdminActionAvailability,
   getGrandTourAdminActionLabel,
   getStageReviewWarnings,
   isStageDataComplete,
-  isTttStageType
+  isTttStageType,
+  resolveAdminStageDateStatus
 } = require("../../../dist/mobile-tests/grandtourAdminExperience.js");
 
 function baseSummary(overrides = {}) {
@@ -119,5 +122,34 @@ test("buildMarkCheckedConfirmationMessage includes the stage number and an ISO t
   assert.equal(
     message,
     "I have reviewed the top 10 result lines and four jersey holders for Stage 5, at 2026-07-12T09:30:00.000Z."
+  );
+});
+
+test("formatReviewStatusLabel covers every real review_status value plus the null/no-result case", () => {
+  assert.equal(formatReviewStatusLabel("draft"), "Draft");
+  assert.equal(formatReviewStatusLabel("imported"), "Imported");
+  assert.equal(formatReviewStatusLabel("review_required"), "Review required");
+  assert.equal(formatReviewStatusLabel("admin_checked"), "Admin checked");
+  assert.equal(formatReviewStatusLabel("finalised"), "Finalised");
+  assert.equal(formatReviewStatusLabel("correction_required"), "Correction required");
+  assert.equal(formatReviewStatusLabel(null), "Not imported");
+});
+
+test("resolveAdminStageDateStatus: future date is Upcoming, past date is Past, missing/invalid is Date TBC", () => {
+  const now = new Date("2026-07-13T12:00:00.000Z");
+  assert.equal(resolveAdminStageDateStatus("2026-07-20T10:00:00Z", now), "Upcoming");
+  assert.equal(resolveAdminStageDateStatus("2026-07-01T10:00:00Z", now), "Past");
+  assert.equal(resolveAdminStageDateStatus(null, now), "Date TBC");
+  assert.equal(resolveAdminStageDateStatus("not-a-date", now), "Date TBC");
+});
+
+test("buildAdminStageReviewCountsLabel shows lines/jerseys/scored at a glance", () => {
+  assert.equal(
+    buildAdminStageReviewCountsLabel({ resultLineCount: 7, jerseyHolderCount: 3, scoreCount: 0 }),
+    "7/10 lines · 3/4 jerseys · 0 scored"
+  );
+  assert.equal(
+    buildAdminStageReviewCountsLabel({ resultLineCount: 10, jerseyHolderCount: 4, scoreCount: 128 }),
+    "10/10 lines · 4/4 jerseys · 128 scored"
   );
 });

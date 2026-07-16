@@ -1,6 +1,8 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { JerseyRowDetail } from "../lib/grandtourStageResultsExperience";
 
+import { jerseyMatchTypeToBadgeTone } from "../lib/grandtourStageResultsExperience";
+import { SCORE_OUTCOME_BADGE_COLORS } from "./ScoreOutcomeBadge";
 import { ui } from "./theme";
 
 const JERSEY_LABELS: Record<JerseyRowDetail["jerseyType"], string> = {
@@ -17,11 +19,16 @@ const JERSEY_DOT_COLOR: Record<JerseyRowDetail["jerseyType"], string> = {
   white: "#FFFFFF"
 };
 
-const MATCH_PRESENTATION: Record<JerseyRowDetail["matchType"], { label: string; badgeStyle: object; textStyle: object }> = {
-  match: { label: "Match", badgeStyle: { backgroundColor: "#D7F0DE" }, textStyle: { color: ui.colors.success } },
-  miss: { label: "Miss", badgeStyle: { backgroundColor: "#F6D8D6" }, textStyle: { color: ui.colors.danger } },
-  "not-picked": { label: "Not picked", badgeStyle: { backgroundColor: ui.colors.border }, textStyle: { color: ui.colors.muted } },
-  pending: { label: "Pending", badgeStyle: { backgroundColor: ui.colors.warningSoft }, textStyle: { color: ui.colors.warning } }
+// Labels stay specific to this screen; only the colours come from the
+// shared tone system (jerseyMatchTypeToBadgeTone + SCORE_OUTCOME_BADGE_COLORS,
+// components/ScoreOutcomeBadge.tsx) - this used to hardcode its own red
+// for "miss", which conflicted with this app's convention that red is
+// reserved for genuine errors, never a scoring outcome.
+const MATCH_LABELS: Record<JerseyRowDetail["matchType"], string> = {
+  match: "Match",
+  miss: "Miss",
+  "not-picked": "Not picked",
+  pending: "Pending"
 };
 
 /** Requirement #2B's jersey comparison table/cards. */
@@ -36,7 +43,7 @@ export function GrandTourJerseyComparison({ rows, subtotal }: { rows: JerseyRowD
       ) : (
         <>
           {rows.map((row) => {
-            const presentation = MATCH_PRESENTATION[row.matchType];
+            const badgeColors = SCORE_OUTCOME_BADGE_COLORS[jerseyMatchTypeToBadgeTone(row.matchType)];
             return (
               <View key={row.jerseyType} style={styles.row}>
                 <View style={[styles.dot, { backgroundColor: JERSEY_DOT_COLOR[row.jerseyType] }, row.jerseyType === "white" && styles.dotOutline]} />
@@ -51,8 +58,8 @@ export function GrandTourJerseyComparison({ rows, subtotal }: { rows: JerseyRowD
                   {row.matchType !== "not-picked" ? (
                     <Text style={styles.points}>{row.points !== null ? `+${row.points} pts` : ""}</Text>
                   ) : null}
-                  <View style={[styles.badge, presentation.badgeStyle]}>
-                    <Text style={[styles.badgeText, presentation.textStyle]}>{presentation.label}</Text>
+                  <View style={[styles.badge, { backgroundColor: badgeColors.backgroundColor }]}>
+                    <Text style={[styles.badgeText, { color: badgeColors.color }]}>{MATCH_LABELS[row.matchType]}</Text>
                   </View>
                 </View>
               </View>

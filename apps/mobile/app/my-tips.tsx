@@ -14,6 +14,7 @@ import {
   useTdfTeams
 } from "../hooks/useCyclingData";
 import { useMyGrandTourStageTips } from "../hooks/useGrandTourTips";
+import { formatGrandTourName } from "../lib/grandTourDisplay";
 import { computeHistorySummary, type HistoryStageScoreRow } from "../lib/grandtourHistoryExperience";
 import { sortStageRows, STAGE_SORT_OPTIONS, type StageSortMode } from "../lib/grandtourStageResultsExperience";
 import { getStageTipExperience } from "../lib/stageExperience";
@@ -64,7 +65,11 @@ export default function MyTipsScreen() {
   const loading = race.loading || stages.loading || competition.loading || myTips.loading || results.loading || riders.loading || teams.loading;
 
   return (
-    <AppShell subtitle="Your picks, official results, and score breakdown for every stage." title="My Tips">
+    <AppShell
+      raceName={formatGrandTourName(race.data)}
+      subtitle="Your picks, official results, and score breakdown for every stage."
+      title="My Tips"
+    >
       {loading ? <LoadingState /> : null}
       {race.error ? <ErrorState error={race.error} onRetry={race.reload} /> : null}
       {stages.error ? <ErrorState error={stages.error} onRetry={stages.reload} /> : null}

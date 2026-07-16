@@ -25,6 +25,7 @@ import { getSupabaseClient } from "./client";
 export type GrandTourStageAdminSummary = {
   stageId: string;
   stageNumber: number;
+  stageName: string | null;
   stageType: string;
   stageDate: string | null;
   stageResultId: string | null;
@@ -119,7 +120,7 @@ export async function listGrandTourStageAdminSummaries(raceId: string): Promise<
 
   const { data: stages, error: stagesError } = await client
     .from("grandtour_stages")
-    .select("id, stage_number, stage_type, starts_at")
+    .select("id, stage_number, stage_name, stage_type, starts_at")
     .eq("grand_tour_id", raceId)
     .order("stage_number");
   if (stagesError) throw stagesError;
@@ -213,6 +214,7 @@ export async function listGrandTourStageAdminSummaries(raceId: string): Promise<
     return {
       stageId: stage.id,
       stageNumber: stage.stage_number,
+      stageName: stage.stage_name,
       stageType: stage.stage_type,
       stageDate: stage.starts_at,
       stageResultId: result?.id ?? null,

@@ -131,3 +131,41 @@ export function getStageReviewWarnings(summary: GrandTourStageAdminSummaryLike):
 export function buildMarkCheckedConfirmationMessage(stageNumber: number, now: Date = new Date()): string {
   return `I have reviewed the top 10 result lines and four jersey holders for Stage ${stageNumber}, at ${now.toISOString()}.`;
 }
+
+/**
+ * Human label for grandtour_stage_results.review_status, for the admin
+ * stage card's collapsed header - an admin needs to identify a stage's
+ * import/reconciliation progress without expanding it. `null` means no
+ * result row exists at all yet (nothing has ever been applied).
+ */
+export function formatReviewStatusLabel(reviewStatus: string | null): string {
+  switch (reviewStatus) {
+    case "draft":
+      return "Draft";
+    case "imported":
+      return "Imported";
+    case "review_required":
+      return "Review required";
+    case "admin_checked":
+      return "Admin checked";
+    case "finalised":
+      return "Finalised";
+    case "correction_required":
+      return "Correction required";
+    default:
+      return "Not imported";
+  }
+}
+
+/** Whether a stage's own scheduled date is still ahead of `now` - a simple "has this stage actually happened yet" signal, distinct from review_status (which tracks the *result's* progress, not the stage's own calendar position). */
+export function resolveAdminStageDateStatus(stageDate: string | null, now: Date): "Upcoming" | "Past" | "Date TBC" {
+  if (!stageDate) return "Date TBC";
+  const ms = new Date(stageDate).getTime();
+  if (Number.isNaN(ms)) return "Date TBC";
+  return ms > now.getTime() ? "Upcoming" : "Past";
+}
+
+/** "7/10 lines · 3/4 jerseys · 0 scored" - the collapsed header's at-a-glance count of reviewed/unresolved items, so an admin can spot an incomplete import without expanding the card. */
+export function buildAdminStageReviewCountsLabel(summary: GrandTourStageAdminSummaryLike): string {
+  return `${summary.resultLineCount}/10 lines · ${summary.jerseyHolderCount}/4 jerseys · ${summary.scoreCount} scored`;
+}

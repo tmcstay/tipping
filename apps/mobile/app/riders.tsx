@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
@@ -7,6 +8,7 @@ import { InfoCard } from "../components/InfoCard";
 import { ui } from "../components/theme";
 import { useAllGrandTourRiders, useTdfTeams } from "../hooks/useCyclingData";
 import { useFavouriteRiderIds } from "../hooks/useGrandTourFavourites";
+import { formatGrandTourName } from "../lib/grandTourDisplay";
 import { buildRiderDirectory, filterRiderDirectory, type RiderDirectoryFilter } from "../lib/riderDirectoryExperience";
 
 const FILTERS: { key: RiderDirectoryFilter; label: string }[] = [
@@ -18,8 +20,14 @@ export default function RiderDirectoryScreen() {
   const { race, teams } = useTdfTeams();
   const riders = useAllGrandTourRiders(race.data?.id);
   const favourites = useFavouriteRiderIds(race.data?.id);
+  const params = useLocalSearchParams<{ filter?: string }>();
+  // Lets the Tips tab's "Favourites" shortcut (/riders?filter=favourites)
+  // land straight on the favourites view. Only ever reads the initial
+  // value - the in-page filter row below remains the source of truth for
+  // any further switching, same as before this shortcut existed.
+  const initialFilter: RiderDirectoryFilter = params.filter === "favourites" ? "favourites" : "all";
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<RiderDirectoryFilter>("all");
+  const [filter, setFilter] = useState<RiderDirectoryFilter>(initialFilter);
 
   const directory = useMemo(
     () => buildRiderDirectory(
@@ -45,7 +53,11 @@ export default function RiderDirectoryScreen() {
   const error = race.error ?? teams.error ?? riders.error;
 
   return (
-    <AppShell title="Rider directory" subtitle="Every rider in the race, grouped by team.">
+    <AppShell
+      raceName={formatGrandTourName(race.data)}
+      title="Rider directory"
+      subtitle="Every rider in the race, grouped by team."
+    >
       {loading ? <LoadingState /> : null}
       {error ? <ErrorState error={error} onRetry={riders.reload} /> : null}
 

@@ -6,11 +6,15 @@ const {
   buildOfficialTopTenRows,
   buildResultRowScoreBadges,
   buildScoreExplanationLines,
+  buildStageResultBadgesForTip,
   buildTopFiveRowDetails,
+  extractScoreTopFive,
+  jerseyMatchTypeToBadgeTone,
   sortStageRows,
   STAGE_SORT_OPTIONS,
   sumJerseyPoints,
-  sumTopFivePoints
+  sumTopFivePoints,
+  topFiveMatchTypeToBadgeTone
 } = require("../../../dist/mobile-tests/grandtourStageResultsExperience.js");
 
 function officialResultFixture() {
@@ -354,4 +358,75 @@ test("buildResultRowScoreBadges: no tip at all yields all-neutral badges", () =>
   });
   assert.equal(badges.length, 5);
   assert.ok(badges.every((badge) => badge.tone === "none" && badge.label === "–"));
+});
+
+test("extractScoreTopFive returns null for an unscored or non-existent tip, never a fabricated array", () => {
+  assert.equal(extractScoreTopFive(null), null);
+  assert.equal(extractScoreTopFive({ status: "submitted", score: null, selections: [] }), null);
+  assert.equal(extractScoreTopFive({ status: "scored", score: null, selections: [] }), null);
+});
+
+test("extractScoreTopFive reads the server-computed top_five off a scored tip's score_details", () => {
+  const rows = extractScoreTopFive({
+    status: "scored",
+    score: { score_details: { top_five: [{ predicted_position: 1, points: 10 }] } },
+    selections: []
+  });
+  assert.deepEqual(rows, [{ predicted_position: 1, points: 10 }]);
+});
+
+test("buildStageResultBadgesForTip returns null when the tip never counted (draft/missing)", () => {
+  assert.equal(buildStageResultBadgesForTip({ result: officialResultFixture(), isTtt: false, tip: null }), null);
+  assert.equal(
+    buildStageResultBadgesForTip({
+      result: officialResultFixture(),
+      isTtt: false,
+      tip: { status: "draft", score: null, selections: [] }
+    }),
+    null
+  );
+});
+
+test("buildStageResultBadgesForTip badges a submitted (not yet scored) tip's exact pick with a checkmark, not a fabricated number", () => {
+  const badges = buildStageResultBadgesForTip({
+    result: officialResultFixture(),
+    isTtt: false,
+    tip: {
+      status: "submitted",
+      score: null,
+      selections: [{ selection_type: "stage_top_5", rider_id: "r1", team_id: null, predicted_position: 1 }]
+    }
+  });
+  const exactRow = badges.find((badge) => badge.position === 1);
+  assert.equal(exactRow.tone, "exact");
+  assert.equal(exactRow.label, "✓");
+});
+
+test("buildStageResultBadgesForTip reads real points off a scored tip, never recomputing them", () => {
+  const badges = buildStageResultBadgesForTip({
+    result: officialResultFixture(),
+    isTtt: false,
+    tip: {
+      status: "scored",
+      score: { score_details: { top_five: [{ predicted_position: 1, points: 10 }] } },
+      selections: [{ selection_type: "stage_top_5", rider_id: "r1", team_id: null, predicted_position: 1 }]
+    }
+  });
+  const exactRow = badges.find((badge) => badge.position === 1);
+  assert.equal(exactRow.tone, "exact");
+  assert.equal(exactRow.label, "+10");
+});
+
+test("topFiveMatchTypeToBadgeTone maps onto the shared 3-tone system - blue for wrong position, never amber", () => {
+  assert.equal(topFiveMatchTypeToBadgeTone("exact"), "exact");
+  assert.equal(topFiveMatchTypeToBadgeTone("top5-wrong-position"), "partial");
+  assert.equal(topFiveMatchTypeToBadgeTone("miss"), "none");
+  assert.equal(topFiveMatchTypeToBadgeTone("not-picked"), "none");
+});
+
+test("jerseyMatchTypeToBadgeTone maps onto the shared tone system - neutral for a miss, never red", () => {
+  assert.equal(jerseyMatchTypeToBadgeTone("match"), "exact");
+  assert.equal(jerseyMatchTypeToBadgeTone("miss"), "none");
+  assert.equal(jerseyMatchTypeToBadgeTone("not-picked"), "none");
+  assert.equal(jerseyMatchTypeToBadgeTone("pending"), "pending");
 });

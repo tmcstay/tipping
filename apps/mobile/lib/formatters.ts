@@ -26,22 +26,6 @@ export function formatTime(value: string | null) {
   }).format(new Date(value));
 }
 
-export function formatDurationUntil(value: string | null) {
-  if (!value) return "Lock time TBC";
-  const diffMs = new Date(value).getTime() - Date.now();
-  if (Number.isNaN(diffMs)) return "Lock time TBC";
-  if (diffMs <= 0) return "Locked";
-
-  const totalMinutes = Math.ceil(diffMs / 60000);
-  const days = Math.floor(totalMinutes / 1440);
-  const hours = Math.floor((totalMinutes % 1440) / 60);
-  const minutes = totalMinutes % 60;
-
-  if (days > 0) return `${days}d ${hours}h remaining`;
-  if (hours > 0) return `${hours}h ${minutes}m remaining`;
-  return `${minutes}m remaining`;
-}
-
 export function formatStageType(value: string | null | undefined) {
   if (!value) return "Stage";
   return value
