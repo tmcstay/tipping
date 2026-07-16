@@ -52,6 +52,17 @@ export function classifyParticipant(input: {
   return { status: "pending" };
 }
 
-export function buildStageResultIdempotencyKey(stageId: string, userId: string): string {
-  return `stage-result:${stageId}:${userId}`;
+/**
+ * `generation` starts at 1 for a job's original send and is bumped by
+ * `grandtour_private.dispatch_stage_score_notifications` (see
+ * 20260716010000_grandtour_stage_score_notification_dispatch.sql) whenever a
+ * stage is rescored/corrected after already notifying - folding it into the
+ * key ensures Resend's own Idempotency-Key cache never dedupes a corrected
+ * email against the original send. Generation 1 omits the suffix so the
+ * original key format (and the DB-side default of `notification_generation
+ * = 1`) stay unchanged.
+ */
+export function buildStageResultIdempotencyKey(stageId: string, userId: string, generation = 1): string {
+  const base = `stage-result:${stageId}:${userId}`;
+  return generation <= 1 ? base : `${base}:g${generation}`;
 }

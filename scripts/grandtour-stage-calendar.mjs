@@ -49,7 +49,7 @@ export function resolveScheduledStage(calendarRows, asOfDateISO) {
   };
 }
 
-export const DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS = 8;
+export const DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS = 7.5;
 
 /**
  * Resolves the stage the automatic dry-run should check, sourced from live

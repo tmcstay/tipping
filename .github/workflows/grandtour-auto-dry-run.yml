@@ -34,16 +34,26 @@ name: GrandTour Automatic Results Collection (Dry Run)
 # whatever ref it's launched against (normally also main, but can be
 # pointed at another branch/tag deliberately from the "Run workflow" UI).
 #
-# Schedule: 17:17 UTC daily. To change the schedule, edit the single
-# `cron:` line below - GitHub Actions cron cannot be altered from
-# workflow_dispatch inputs at run time, so this is the only way to change
-# the recurring time. Ad hoc/one-off runs with different behaviour (a
-# specific stage, different retry settings, etc.) should use "Run workflow"
-# (workflow_dispatch) instead of editing this file.
+# Schedule: 19:30 UTC daily = every real stage's 12:00 UTC starts_at + the
+# 7.5h stage_availability_grace_hours default below. This is deliberate, not
+# a coincidence: the original 17:17 UTC schedule fired only ~5-6h after a
+# same-day stage's start - always short of the grace window - so the latest
+# stage was never actually eligible on the day it raced, and the auto
+# dry-run only ever picked it up on the FOLLOWING day's run (a full day of
+# lag, discovered when a run at 18:19 UTC on stage 11's own race day found
+# "no_eligible_stage"). Firing right at start+grace instead means a normal
+# day's stage is eligible the moment this run checks it - there should be no
+# routine day-late catch-up left to rely on. If `stage_availability_grace_hours`
+# below is ever changed, this cron time must move with it (both must stay
+# `starts_at time-of-day + grace hours`) - to change the recurring time,
+# edit the single `cron:` line below (GitHub Actions cron cannot be altered
+# from workflow_dispatch inputs at run time). Ad hoc/one-off runs with
+# different behaviour (a specific stage, different retry settings, etc.)
+# should use "Run workflow" (workflow_dispatch) instead of editing this file.
 on:
   schedule:
-    # 17:17 UTC daily. See the note above before changing this.
-    - cron: '17 17 * * *'
+    # 19:30 UTC daily = 12:00 UTC stage start + 7.5h grace. See the note above before changing this.
+    - cron: '30 19 * * *'
   workflow_dispatch:
     inputs:
       grand_tour_name:
@@ -86,7 +96,7 @@ on:
       stage_availability_grace_hours:
         description: 'Hours after a stage starts_at before it is considered eligible for automatic dry-run (only used when stage_number/from_stage/to_stage are blank)'
         required: false
-        default: '8'
+        default: '7.5'
       allow_rerun_completed:
         description: 'Allow auto-resolution to re-select a stage that is already finalised (only used when stage_number/from_stage/to_stage are blank) - normally left false so completed stages are never re-checked automatically'
         required: false
@@ -181,7 +191,7 @@ jobs:
             retry_interval_minutes='15'
             max_retries='8'
             no_retry='false'
-            stage_availability_grace_hours='8'
+            stage_availability_grace_hours='7.5'
             allow_rerun_completed='false'
           else
             # workflow_dispatch: use the supplied input, falling back to the
@@ -197,7 +207,7 @@ jobs:
             retry_interval_minutes="${IN_RETRY_INTERVAL_MINUTES:-15}"
             max_retries="${IN_MAX_RETRIES:-8}"
             no_retry="${IN_NO_RETRY:-false}"
-            stage_availability_grace_hours="${IN_STAGE_AVAILABILITY_GRACE_HOURS:-8}"
+            stage_availability_grace_hours="${IN_STAGE_AVAILABILITY_GRACE_HOURS:-7.5}"
             allow_rerun_completed="${IN_ALLOW_RERUN_COMPLETED:-false}"
           fi
 

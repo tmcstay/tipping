@@ -48,3 +48,12 @@ test("classifyParticipant: enabled + usable email is pending", () => {
 test("buildStageResultIdempotencyKey matches the documented format", () => {
   assert.equal(buildStageResultIdempotencyKey("stage-1", "user-2"), "stage-result:stage-1:user-2");
 });
+
+test("buildStageResultIdempotencyKey: generation 1 omits the suffix", () => {
+  assert.equal(buildStageResultIdempotencyKey("stage-1", "user-2", 1), "stage-result:stage-1:user-2");
+});
+
+test("buildStageResultIdempotencyKey: generation > 1 appends a distinct suffix so a rescore's email is never deduped against the original send", () => {
+  assert.equal(buildStageResultIdempotencyKey("stage-1", "user-2", 2), "stage-result:stage-1:user-2:g2");
+  assert.equal(buildStageResultIdempotencyKey("stage-1", "user-2", 3), "stage-result:stage-1:user-2:g3");
+});

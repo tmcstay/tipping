@@ -68,8 +68,8 @@ test("parisDateISO formats a fixed instant as a YYYY-MM-DD calendar date", () =>
   assert.equal(result, "2026-07-09");
 });
 
-test("resolveAutomaticStage: DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS is 8", () => {
-  assert.equal(DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS, 8);
+test("resolveAutomaticStage: DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS is 7.5", () => {
+  assert.equal(DEFAULT_STAGE_AVAILABILITY_GRACE_HOURS, 7.5);
 });
 
 test("resolveAutomaticStage picks a stage only once graceHours have elapsed since starts_at (UTC instant, not calendar date)", () => {

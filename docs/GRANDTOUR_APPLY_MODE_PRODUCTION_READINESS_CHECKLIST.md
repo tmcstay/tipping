@@ -1446,11 +1446,21 @@ for a one-off check of a specific stage without leaving the app.
 
 ### 17.1 Schedule
 
-Runs daily at **17:17 UTC** (`17 17 * * *`).
+Runs daily at **19:30 UTC** (`30 19 * * *`) — every real stage's `12:00 UTC`
+`starts_at` plus the `7.5`-hour `stage_availability_grace_hours` default
+(§17.2 below). These two numbers must always move together: the schedule
+exists specifically to fire right at `starts_at time-of-day + grace hours`,
+so a normal day's stage is eligible the moment this run checks it, rather
+than lagging a full day behind (the original `17:17 UTC` schedule fired
+only ~5-6h after a same-day stage's start — short of the old 8h grace
+window — so the day's own stage was never actually eligible until the
+*following* day's run; confirmed live when a run at 18:19 UTC on stage 11's
+own race day returned `finalStatus: "no_eligible_stage"`). See §17.2 for
+the grace-hours default itself.
 
 GitHub Actions' `schedule:` cron cannot be changed dynamically from
 workflow inputs — the only way to change the recurring time is to edit the
-single `cron: '17 17 * * *'` line in
+single `cron: '30 19 * * *'` line in
 `.github/workflows/grandtour-auto-dry-run.yml`. That line is documented
 in-place in the workflow file with the same note as here.
 
@@ -1490,15 +1500,19 @@ day, the *next* day's exact-date match would move past it and it would
 never be automatically retried). The current design instead compares
 `grandtour_stages.starts_at` to "now" as real UTC instants (never a
 timezone-dependent calendar-date string), considers a stage eligible once
-`--stage-availability-grace-hours` (default 12; `workflow_dispatch` input
-`stage_availability_grace_hours`) have elapsed since it started, skips any
-stage already finalised (`grandtour_stage_results.is_final = true`, read
-via a second anon-key-safe query in `fetchAllGrandTourStages`) unless
+`--stage-availability-grace-hours` (default 7.5; `workflow_dispatch` input
+`stage_availability_grace_hours` — kept in lockstep with the §17.1 schedule
+time, since both are `starts_at time-of-day + grace hours`) have elapsed
+since it started, skips any stage already finalised
+(`grandtour_stage_results.is_final = true`, read via a second
+anon-key-safe query in `fetchAllGrandTourStages`) unless
 `--allow-rerun-completed` (`workflow_dispatch` input
 `allow_rerun_completed`) is explicitly set, and always selects the
-**earliest** eligible stage — never "the most recent prior stage" — so a
-stalled/unprocessed stage self-heals on a later scheduled run instead of
-being silently skipped forever. If no stage row is currently eligible
+**latest** eligible stage (falling back to the latest unresolved straggler
+older than it, if the latest is already finalised) — never a hardcoded or
+"earliest" stage — so a stalled/unprocessed stage self-heals on a later
+scheduled run instead of being silently skipped forever. If no stage row is
+currently eligible
 (rest day, still within the grace window, the grand tour/stages aren't
 loaded yet, or every eligible stage is already finalised), the run exits
 cleanly (exit 0, `finalStatus: "no_eligible_stage"`, reason exactly

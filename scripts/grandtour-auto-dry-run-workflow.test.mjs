@@ -21,9 +21,9 @@ async function readWorkflow() {
   return fs.readFile(WORKFLOW_PATH, "utf8");
 }
 
-test("workflow cron is exactly '17 17 * * *'", async () => {
+test("workflow cron is exactly '30 19 * * *' (stage start 12:00 UTC + 7.5h grace)", async () => {
   const source = await readWorkflow();
-  assert.match(source, /cron:\s*'17 17 \* \* \*'/);
+  assert.match(source, /cron:\s*'30 19 \* \* \*'/);
 });
 
 test("workflow job timeout is sufficient for 1 initial + 8 retries * 15 minutes", async () => {
@@ -86,7 +86,7 @@ test("new stage-availability-grace-hours/allow-rerun-completed inputs are declar
   assert.match(source, /allow_rerun_completed:/);
   assert.match(source, /--stage-availability-grace-hours "\$STAGE_AVAILABILITY_GRACE_HOURS"/);
   assert.match(source, /--allow-rerun-completed/);
-  assert.match(source, /stage_availability_grace_hours='8'/);
+  assert.match(source, /stage_availability_grace_hours='7\.5'/);
   assert.match(source, /allow_rerun_completed='false'/);
 });
 
