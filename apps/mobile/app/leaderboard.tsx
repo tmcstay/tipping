@@ -1,4 +1,4 @@
-import { Link } from "expo-router";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { CyclingLeaderboardRow } from "@tipping-suite/supabase-client";
@@ -49,6 +49,7 @@ function matchesSearch(row: CyclingLeaderboardRow, query: string): boolean {
 
 export default function LeaderboardScreen() {
   const { user } = useAuth();
+  const router = useRouter();
   const [leaderboardType, setLeaderboardType] = useState<CyclingLeaderboardRow["leaderboard_type"]>("overall");
   const [competitionId, setCompetitionId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -160,47 +161,53 @@ export default function LeaderboardScreen() {
             return (
               // The whole row is the tap target (not just the name) - it
               // navigates to that participant's tip history/scoring detail
-              // page. Row-level flex layout lives on the inner rowInner
-              // View, never on this Link-wrapped Pressable's own style -
-              // per this app's own documented gotcha, a flexDirection set
-              // directly on a Link/Pressable's style collapses to a
-              // stacked layout on web once <Link asChild> clones it onto a
-              // real <a> element.
-              <Link asChild href={participantLink.href} key={item.row.id}>
-                <Pressable
-                  accessibilityHint={participantLink.accessibilityHint}
-                  accessibilityLabel={participantLink.accessibilityLabel}
-                  accessibilityRole="button"
-                  style={[styles.row, item.isCurrentUser && styles.rowCurrentUser, index === displayItems.length - 1 && styles.rowLast]}
-                >
-                  <View style={styles.rowInner}>
-                    <Text style={[styles.rankCell, styles.rankText]}>{item.row.rank}</Text>
-                    <View style={styles.playerCell}>
-                      <View style={styles.playerNameRow}>
-                        <Text numberOfLines={1} style={styles.playerName}>{item.row.display_name}</Text>
-                        {item.isCurrentUser ? (
-                          <View style={styles.youPill}>
-                            <Text style={styles.youPillText}>You</Text>
-                          </View>
-                        ) : null}
-                      </View>
-                      <Text style={styles.playerMeta}>{item.row.stages_tipped} stage{item.row.stages_tipped === 1 ? "" : "s"} tipped</Text>
+              // page. Uses Pressable + router.push (the same pattern the
+              // stage list already uses for a list of navigable rows), NOT
+              // <Link asChild> - a <Link asChild> wrapping a per-row
+              // Pressable with a per-row dynamic href, repeated inside
+              // .map(), was confirmed (via a real production error report
+              // plus a local bisected repro) to throw "Failed to set an
+              // indexed property [0] on 'CSSStyleDeclaration'" on web,
+              // crashing the whole page - a different, worse failure mode
+              // than this app's other documented Link/Pressable gotchas,
+              // and specific to this "many Links, one dynamic href each,
+              // in a loop" shape. No other screen in this app uses Link
+              // this way.
+              <Pressable
+                accessibilityHint={participantLink.accessibilityHint}
+                accessibilityLabel={participantLink.accessibilityLabel}
+                accessibilityRole="button"
+                key={item.row.id}
+                onPress={() => router.push(participantLink.href)}
+                style={[styles.row, item.isCurrentUser && styles.rowCurrentUser, index === displayItems.length - 1 && styles.rowLast]}
+              >
+                <View style={styles.rowInner}>
+                  <Text style={[styles.rankCell, styles.rankText]}>{item.row.rank}</Text>
+                  <View style={styles.playerCell}>
+                    <View style={styles.playerNameRow}>
+                      <Text numberOfLines={1} style={styles.playerName}>{item.row.display_name}</Text>
+                      {item.isCurrentUser ? (
+                        <View style={styles.youPill}>
+                          <Text style={styles.youPillText}>You</Text>
+                        </View>
+                      ) : null}
                     </View>
-                    <View style={styles.pointsCell}>
-                      <Text style={styles.pointsText}>{item.row.total_score}</Text>
-                    </View>
-                    <Text
-                      style={[
-                        styles.moveCell,
-                        { color: movementColors[getRankMovementTone(item.row.rank, item.row.previous_rank)] }
-                      ]}
-                    >
-                      {formatRankMovement(item.row.rank, item.row.previous_rank)}
-                    </Text>
-                    <Text style={styles.rowChevron}>›</Text>
+                    <Text style={styles.playerMeta}>{item.row.stages_tipped} stage{item.row.stages_tipped === 1 ? "" : "s"} tipped</Text>
                   </View>
-                </Pressable>
-              </Link>
+                  <View style={styles.pointsCell}>
+                    <Text style={styles.pointsText}>{item.row.total_score}</Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.moveCell,
+                      { color: movementColors[getRankMovementTone(item.row.rank, item.row.previous_rank)] }
+                    ]}
+                  >
+                    {formatRankMovement(item.row.rank, item.row.previous_rank)}
+                  </Text>
+                  <Text style={styles.rowChevron}>›</Text>
+                </View>
+              </Pressable>
             );
           })}
         </View>
