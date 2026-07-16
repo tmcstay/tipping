@@ -148,6 +148,8 @@ export default function LeaderboardScreen() {
             {/* Points/Move headers are centred, matching the centred values below them - not right-aligned. */}
             <Text style={[styles.headerCell, styles.headerCellCentered, styles.pointsHeaderCell]}>Points</Text>
             <Text style={[styles.headerCell, styles.headerCellCentered, styles.moveHeaderCell]}>Move</Text>
+            {/* Matches each row's own trailing chevron column below - without this spacer, Points/Move drift left of their headers by the chevron's width. */}
+            <View style={styles.chevronCell} />
           </View>
           {displayItems.map((item, index) => {
             if (item.type === "divider") {
@@ -205,7 +207,9 @@ export default function LeaderboardScreen() {
                   >
                     {formatRankMovement(item.row.rank, item.row.previous_rank)}
                   </Text>
-                  <Text style={styles.rowChevron}>›</Text>
+                  <View style={styles.chevronCell}>
+                    <Text style={styles.rowChevron}>›</Text>
+                  </View>
                 </View>
               </Pressable>
             );
@@ -221,6 +225,10 @@ export default function LeaderboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  chevronCell: {
+    alignItems: "center",
+    width: 20
+  },
   divider: {
     alignItems: "center",
     paddingVertical: 6
@@ -382,8 +390,7 @@ const styles = StyleSheet.create({
   rowChevron: {
     color: ui.colors.faint,
     fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 4
+    fontWeight: "600"
   },
   rowCurrentUser: {
     backgroundColor: ui.colors.accentSoft

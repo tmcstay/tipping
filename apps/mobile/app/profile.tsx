@@ -93,7 +93,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <AppShell title="Profile" subtitle="Your GrandTour Tips account.">
+    <AppShell cornerLabel={`v${process.env.EXPO_PUBLIC_GIT_SHA ?? "dev"}`} title="Profile" subtitle="Your GrandTour Tips account.">
       <InfoCard title="Account" meta={activeAppConfig.appName}>
         <Text style={styles.label}>First name</Text>
         <TextInput onChangeText={setFirstName} style={styles.input} value={firstName} />

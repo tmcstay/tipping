@@ -6,7 +6,8 @@
     "baseUrl": ".",
     "types": [
       "react",
-      "react-native"
+      "react-native",
+      "node"
     ],
     "paths": {
       "@tipping-suite/shared-types": [

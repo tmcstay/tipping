@@ -25,6 +25,13 @@ type AppShellProps = PropsWithChildren<{
    * requirement. See raceAccent.ts.
    */
   raceName?: string;
+  /**
+   * Small, muted label pinned to the top-right of the header, alongside
+   * the title/eyebrow block - e.g. the profile screen's build/version tag.
+   * Generic (not profile-specific) so any screen can use it; omit for
+   * every screen that doesn't need one.
+   */
+  cornerLabel?: string;
 }>;
 
 const navItems = [
@@ -35,7 +42,7 @@ const navItems = [
   { href: "/profile", icon: "•••", label: "More" }
 ] as const;
 
-export function AppShell({ children, raceName, subtitle, title }: AppShellProps) {
+export function AppShell({ children, cornerLabel, raceName, subtitle, title }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const theme = activeAppConfig.theme;
@@ -45,9 +52,14 @@ export function AppShell({ children, raceName, subtitle, title }: AppShellProps)
     <View style={[styles.page, { backgroundColor: theme.backgroundColor }]}>
       <View style={styles.header}>
         <View style={styles.headerInner}>
-          {raceName ? <Text style={styles.raceEyebrow}>{raceName}</Text> : null}
-          <Text style={styles.title}>{title}</Text>
-          {raceAccent ? <View style={[styles.raceUnderline, { backgroundColor: raceAccent }]} /> : null}
+          <View style={styles.headerRow}>
+            <View style={styles.headerMain}>
+              {raceName ? <Text style={styles.raceEyebrow}>{raceName}</Text> : null}
+              <Text style={styles.title}>{title}</Text>
+              {raceAccent ? <View style={[styles.raceUnderline, { backgroundColor: raceAccent }]} /> : null}
+            </View>
+            {cornerLabel ? <Text style={styles.cornerLabel}>{cornerLabel}</Text> : null}
+          </View>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
       </View>
@@ -85,6 +97,15 @@ const styles = StyleSheet.create({
     paddingBottom: 112
   },
   contentInner: { gap: 20, maxWidth: 720, width: "100%" },
+  cornerLabel: {
+    color: ui.colors.faint,
+    flexShrink: 0,
+    fontSize: 11,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "600",
+    marginLeft: 12,
+    marginTop: 2
+  },
   header: {
     backgroundColor: ui.colors.background,
     paddingHorizontal: 20,
@@ -92,6 +113,14 @@ const styles = StyleSheet.create({
     paddingBottom: 12
   },
   headerInner: { alignSelf: "center", maxWidth: 720, width: "100%" },
+  headerMain: {
+    flex: 1
+  },
+  headerRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
   nav: {
     alignSelf: "center",
     backgroundColor: ui.colors.surface,
