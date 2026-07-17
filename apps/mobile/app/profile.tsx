@@ -125,6 +125,14 @@ export default function ProfileScreen() {
             <Text style={styles.secondaryButtonText}>GrandTour stage review (admin)</Text>
           </Pressable>
         ) : null}
+        {adminAccess.data ? (
+          <Pressable
+            onPress={() => router.push("/admin/uci-rider-review")}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryButtonText}>UCI rider review (admin)</Text>
+          </Pressable>
+        ) : null}
       </InfoCard>
       <InfoCard title="Notifications">
         <View style={styles.toggleRow}>

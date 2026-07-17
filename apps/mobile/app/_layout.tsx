@@ -52,6 +52,7 @@ function RootNavigator() {
         <Stack.Screen name="races/index" />
         <Stack.Screen name="races/[raceId]" />
         <Stack.Screen name="admin/grandtour-stages" />
+        <Stack.Screen name="admin/uci-rider-review" />
       </Stack.Protected>
     </Stack>
   );

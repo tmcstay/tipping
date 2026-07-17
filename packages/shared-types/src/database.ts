@@ -966,6 +966,7 @@ export type Database = {
           grand_tour_id: string
           id: string
           is_active: boolean
+          master_rider_id: string | null
           nationality: string | null
           normalized_name: string
           rider_type: string | null
@@ -987,6 +988,7 @@ export type Database = {
           grand_tour_id: string
           id?: string
           is_active?: boolean
+          master_rider_id?: string | null
           nationality?: string | null
           normalized_name: string
           rider_type?: string | null
@@ -1008,6 +1010,7 @@ export type Database = {
           grand_tour_id?: string
           id?: string
           is_active?: boolean
+          master_rider_id?: string | null
           nationality?: string | null
           normalized_name?: string
           rider_type?: string | null
@@ -1025,6 +1028,13 @@ export type Database = {
             columns: ["grand_tour_id"]
             isOneToOne: false
             referencedRelation: "grand_tours"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grandtour_riders_master_rider_id_fkey"
+            columns: ["master_rider_id"]
+            isOneToOne: false
+            referencedRelation: "uci_riders"
             referencedColumns: ["id"]
           },
           {
@@ -1087,6 +1097,7 @@ export type Database = {
           idempotency_key: string
           last_error_code: string | null
           next_attempt_at: string
+          notification_generation: number
           notification_type: Database["public"]["Enums"]["grandtour_notification_type"]
           processing_started_at: string | null
           provider_message_id: string | null
@@ -1105,6 +1116,7 @@ export type Database = {
           idempotency_key: string
           last_error_code?: string | null
           next_attempt_at?: string
+          notification_generation?: number
           notification_type?: Database["public"]["Enums"]["grandtour_notification_type"]
           processing_started_at?: string | null
           provider_message_id?: string | null
@@ -1123,6 +1135,7 @@ export type Database = {
           idempotency_key?: string
           last_error_code?: string | null
           next_attempt_at?: string
+          notification_generation?: number
           notification_type?: Database["public"]["Enums"]["grandtour_notification_type"]
           processing_started_at?: string | null
           provider_message_id?: string | null
@@ -2088,6 +2101,373 @@ export type Database = {
           },
         ]
       }
+      uci_rider_aliases: {
+        Row: {
+          alias_text: string
+          alias_type: Database["public"]["Enums"]["uci_rider_alias_type"]
+          confidence: string
+          created_at: string
+          id: string
+          normalized_alias: string
+          rider_id: string
+          source: string | null
+        }
+        Insert: {
+          alias_text: string
+          alias_type: Database["public"]["Enums"]["uci_rider_alias_type"]
+          confidence?: string
+          created_at?: string
+          id?: string
+          normalized_alias: string
+          rider_id: string
+          source?: string | null
+        }
+        Update: {
+          alias_text?: string
+          alias_type?: Database["public"]["Enums"]["uci_rider_alias_type"]
+          confidence?: string
+          created_at?: string
+          id?: string
+          normalized_alias?: string
+          rider_id?: string
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uci_rider_aliases_rider_id_fkey"
+            columns: ["rider_id"]
+            isOneToOne: false
+            referencedRelation: "uci_riders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      uci_rider_review_queue: {
+        Row: {
+          candidate_payload: Json
+          created_at: string
+          grandtour_rider_id: string | null
+          id: string
+          queue_type: Database["public"]["Enums"]["uci_rider_review_queue_type"]
+          reason: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          rider_id: string | null
+          source: string
+          status: Database["public"]["Enums"]["uci_rider_review_queue_status"]
+          updated_at: string
+        }
+        Insert: {
+          candidate_payload?: Json
+          created_at?: string
+          grandtour_rider_id?: string | null
+          id?: string
+          queue_type: Database["public"]["Enums"]["uci_rider_review_queue_type"]
+          reason?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          rider_id?: string | null
+          source?: string
+          status?: Database["public"]["Enums"]["uci_rider_review_queue_status"]
+          updated_at?: string
+        }
+        Update: {
+          candidate_payload?: Json
+          created_at?: string
+          grandtour_rider_id?: string | null
+          id?: string
+          queue_type?: Database["public"]["Enums"]["uci_rider_review_queue_type"]
+          reason?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          rider_id?: string | null
+          source?: string
+          status?: Database["public"]["Enums"]["uci_rider_review_queue_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uci_rider_review_queue_grandtour_rider_id_fkey"
+            columns: ["grandtour_rider_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_riders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "uci_rider_review_queue_rider_id_fkey"
+            columns: ["rider_id"]
+            isOneToOne: false
+            referencedRelation: "uci_riders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      uci_rider_specialties: {
+        Row: {
+          confidence: string
+          created_at: string
+          evidence: Json
+          id: string
+          manually_reviewed: boolean
+          primary_specialty: string | null
+          reviewed_at: string | null
+          rider_id: string
+          season: number
+          secondary_specialty: string | null
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          confidence?: string
+          created_at?: string
+          evidence?: Json
+          id?: string
+          manually_reviewed?: boolean
+          primary_specialty?: string | null
+          reviewed_at?: string | null
+          rider_id: string
+          season: number
+          secondary_specialty?: string | null
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          confidence?: string
+          created_at?: string
+          evidence?: Json
+          id?: string
+          manually_reviewed?: boolean
+          primary_specialty?: string | null
+          reviewed_at?: string | null
+          rider_id?: string
+          season?: number
+          secondary_specialty?: string | null
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uci_rider_specialties_rider_id_fkey"
+            columns: ["rider_id"]
+            isOneToOne: false
+            referencedRelation: "uci_riders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      uci_rider_sync_runs: {
+        Row: {
+          circuit_breaker_activations: number
+          completed_at: string | null
+          conflicts_count: number
+          created_at: string
+          discipline: string
+          error_message: string | null
+          failed_records_count: number
+          id: string
+          inserted_count: number
+          mode: Database["public"]["Enums"]["uci_rider_sync_run_mode"]
+          pages_requested: number
+          provider: string
+          records_received: number
+          review_items_count: number
+          season_year: number
+          source_summary: Json
+          started_at: string
+          status: Database["public"]["Enums"]["uci_rider_sync_run_status"]
+          unchanged_count: number
+          unique_riders_received: number
+          updated_count: number
+        }
+        Insert: {
+          circuit_breaker_activations?: number
+          completed_at?: string | null
+          conflicts_count?: number
+          created_at?: string
+          discipline: string
+          error_message?: string | null
+          failed_records_count?: number
+          id?: string
+          inserted_count?: number
+          mode: Database["public"]["Enums"]["uci_rider_sync_run_mode"]
+          pages_requested?: number
+          provider?: string
+          records_received?: number
+          review_items_count?: number
+          season_year: number
+          source_summary?: Json
+          started_at?: string
+          status?: Database["public"]["Enums"]["uci_rider_sync_run_status"]
+          unchanged_count?: number
+          unique_riders_received?: number
+          updated_count?: number
+        }
+        Update: {
+          circuit_breaker_activations?: number
+          completed_at?: string | null
+          conflicts_count?: number
+          created_at?: string
+          discipline?: string
+          error_message?: string | null
+          failed_records_count?: number
+          id?: string
+          inserted_count?: number
+          mode?: Database["public"]["Enums"]["uci_rider_sync_run_mode"]
+          pages_requested?: number
+          provider?: string
+          records_received?: number
+          review_items_count?: number
+          season_year?: number
+          source_summary?: Json
+          started_at?: string
+          status?: Database["public"]["Enums"]["uci_rider_sync_run_status"]
+          unchanged_count?: number
+          unique_riders_received?: number
+          updated_count?: number
+        }
+        Relationships: []
+      }
+      uci_rider_team_history: {
+        Row: {
+          created_at: string
+          discipline: string
+          id: string
+          last_verified_at: string | null
+          rider_id: string
+          season_year: number | null
+          source: string
+          source_team_code: string | null
+          source_team_name: string
+          team_id: string | null
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          discipline?: string
+          id?: string
+          last_verified_at?: string | null
+          rider_id: string
+          season_year?: number | null
+          source?: string
+          source_team_code?: string | null
+          source_team_name: string
+          team_id?: string | null
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          discipline?: string
+          id?: string
+          last_verified_at?: string | null
+          rider_id?: string
+          season_year?: number | null
+          source?: string
+          source_team_code?: string | null
+          source_team_name?: string
+          team_id?: string | null
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uci_rider_team_history_rider_id_fkey"
+            columns: ["rider_id"]
+            isOneToOne: false
+            referencedRelation: "uci_riders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "uci_rider_team_history_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "grandtour_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      uci_riders: {
+        Row: {
+          consecutive_absences: number
+          created_at: string
+          current_team_code: string | null
+          current_team_name: string | null
+          data_confidence: string
+          date_of_birth: string | null
+          discipline: string
+          display_name: string
+          family_name: string | null
+          gender: string | null
+          given_name: string | null
+          id: string
+          is_active: boolean
+          last_seen_at: string | null
+          last_verified_at: string | null
+          manual_review_required: boolean
+          nationality: string | null
+          normalized_name: string
+          source_updated_at: string | null
+          uci_code: string | null
+          uci_profile_url: string | null
+          uci_rider_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          consecutive_absences?: number
+          created_at?: string
+          current_team_code?: string | null
+          current_team_name?: string | null
+          data_confidence?: string
+          date_of_birth?: string | null
+          discipline?: string
+          display_name: string
+          family_name?: string | null
+          gender?: string | null
+          given_name?: string | null
+          id?: string
+          is_active?: boolean
+          last_seen_at?: string | null
+          last_verified_at?: string | null
+          manual_review_required?: boolean
+          nationality?: string | null
+          normalized_name: string
+          source_updated_at?: string | null
+          uci_code?: string | null
+          uci_profile_url?: string | null
+          uci_rider_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          consecutive_absences?: number
+          created_at?: string
+          current_team_code?: string | null
+          current_team_name?: string | null
+          data_confidence?: string
+          date_of_birth?: string | null
+          discipline?: string
+          display_name?: string
+          family_name?: string | null
+          gender?: string | null
+          given_name?: string | null
+          id?: string
+          is_active?: boolean
+          last_seen_at?: string | null
+          last_verified_at?: string | null
+          manual_review_required?: boolean
+          nationality?: string | null
+          normalized_name?: string
+          source_updated_at?: string | null
+          uci_code?: string | null
+          uci_profile_url?: string | null
+          uci_rider_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_app_memberships: {
         Row: {
           app_id: string
@@ -2254,6 +2634,17 @@ export type Database = {
         Args: { p_reason?: string; p_request_id?: string; p_tip_id: string }
         Returns: boolean
       }
+      confirm_grandtour_rider_master_link: {
+        Args: {
+          p_confirmed_by: string
+          p_create_alias?: Json
+          p_grandtour_rider_id: string
+          p_note?: string
+          p_review_item_id?: string
+          p_uci_rider_id: string
+        }
+        Returns: Json
+      }
       correct_grandtour_stage_result_from_reviewed_report: {
         Args: {
           p_jersey_holders: Json
@@ -2324,6 +2715,16 @@ export type Database = {
       recalculate_grandtour_stage_scores: {
         Args: { p_reason?: string; p_request_id?: string; p_stage_id: string }
         Returns: number
+      }
+      resolve_uci_rider_review_item: {
+        Args: {
+          p_create_alias?: Json
+          p_item_id: string
+          p_note?: string
+          p_resolved_by: string
+          p_status: Database["public"]["Enums"]["uci_rider_review_queue_status"]
+        }
+        Returns: Json
       }
       retry_grandtour_stage_notification_job: {
         Args: { p_job_id: string; p_retried_by?: string }
@@ -2433,6 +2834,33 @@ export type Database = {
         | "missed"
         | "deleted"
       grandtour_ttt_timing_rule: "team_time" | "individual_time"
+      uci_rider_alias_type:
+        | "uci_canonical"
+        | "surname_first"
+        | "given_name_first"
+        | "accentless"
+        | "race_organiser"
+        | "abbreviated"
+        | "former_name"
+        | "manual"
+      uci_rider_review_queue_status:
+        | "pending"
+        | "matched"
+        | "new_rider_approved"
+        | "source_correction"
+        | "ignored"
+        | "resolved"
+      uci_rider_review_queue_type:
+        | "unmatched_startlist_rider"
+        | "ambiguous_candidate"
+        | "dob_conflict"
+        | "nationality_conflict"
+        | "team_mismatch"
+        | "duplicate_uci_identity"
+        | "suspected_duplicate_internal_rider"
+        | "low_confidence_alias_match"
+      uci_rider_sync_run_mode: "dry_run" | "apply"
+      uci_rider_sync_run_status: "running" | "completed" | "failed" | "partial"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2623,6 +3051,36 @@ export const Constants = {
         "deleted",
       ],
       grandtour_ttt_timing_rule: ["team_time", "individual_time"],
+      uci_rider_alias_type: [
+        "uci_canonical",
+        "surname_first",
+        "given_name_first",
+        "accentless",
+        "race_organiser",
+        "abbreviated",
+        "former_name",
+        "manual",
+      ],
+      uci_rider_review_queue_status: [
+        "pending",
+        "matched",
+        "new_rider_approved",
+        "source_correction",
+        "ignored",
+        "resolved",
+      ],
+      uci_rider_review_queue_type: [
+        "unmatched_startlist_rider",
+        "ambiguous_candidate",
+        "dob_conflict",
+        "nationality_conflict",
+        "team_mismatch",
+        "duplicate_uci_identity",
+        "suspected_duplicate_internal_rider",
+        "low_confidence_alias_match",
+      ],
+      uci_rider_sync_run_mode: ["dry_run", "apply"],
+      uci_rider_sync_run_status: ["running", "completed", "failed", "partial"],
     },
   },
 } as const

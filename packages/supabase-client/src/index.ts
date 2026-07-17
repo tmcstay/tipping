@@ -6,3 +6,4 @@ export * from "./grandtourAdmin";
 export * from "./grandtourFavourites";
 export * from "./grandtourNotificationPreferences";
 export * from "./queries";
+export * from "./uciRiderAdmin";

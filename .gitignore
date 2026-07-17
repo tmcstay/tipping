@@ -51,6 +51,27 @@ db-push-dry-run.txt
 # Automatic GrandTour dry-run collection reports (scripts/grandtour-auto-dry-run.mjs)
 /tmp/auto-dry-runs/
 
+# TDF 2026 rider importer's downloaded-page cache (scripts/tdf-2026-rider-importer.mjs)
+/tmp/tdf-2026-rider-importer-cache/
+
+# Master UCI rider registry sync (scripts/uci-rider-sync.mjs) outputs and page cache
+/tmp/uci-rider-sync-summary.json
+/tmp/uci-rider-sync-changes.csv
+/tmp/uci-rider-sync-review.csv
+/tmp/uci-rider-sync-unmatched-teams.csv
+/tmp/uci-rider-sync-cache/
+/tmp/uci-rider-sync-test-cache/
+
+# Roster-driven UCI registry seeding (scripts/uci-rider-sync.mjs --seed-from-roster)
+/tmp/uci-rider-roster-seed-summary.json
+/tmp/uci-rider-roster-seed-changes.csv
+/tmp/uci-rider-roster-seed-review.csv
+
+# Tour 2026 -> master registry match-coverage report (scripts/tdf-2026-registry-match-report.mjs)
+/tmp/tdf-2026-rider-match-summary.json
+/tmp/tdf-2026-rider-match-review.csv
+/tmp/tdf-2026-registry-match-report-test-cache/
+
 # Local authenticated E2E fixture with predictable test credentials
 supabase/seeds/grandtour_e2e.sql
 

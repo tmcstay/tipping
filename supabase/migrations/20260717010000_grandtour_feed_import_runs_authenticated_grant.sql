@@ -1,0 +1,32 @@
+-- 20260709020000_grandtour_apply_official_stage_result_rpc.sql closed a
+-- grant gap on grandtour_feed_import_runs/grandtour_feed_snapshots (they
+-- had zero SELECT/INSERT/UPDATE/DELETE grants for any role at all) but
+-- only granted to service_role. Both tables' own RLS policy (see
+-- 20260629080958_grandtour_mvp.sql: "Cycling admins manage GrandTour feed
+-- import runs"/"...feed snapshots", `for all to authenticated using
+-- (grandtour_private.is_cycling_admin())`) was written for `authenticated`
+-- cycling admins, but the table-level grant that policy depends on being
+-- present at all was never given to that role - so no signed-in admin
+-- (only a raw service-role key) could ever read either table.
+--
+-- Confirmed directly this session: a real authenticated cycling-admin
+-- session hit a genuine Postgres permission-denied (not an RLS-filtered
+-- empty result) loading /admin/grandtour-stages, because
+-- listGrandTourStageAdminSummaries (packages/supabase-client/src/
+-- grandtourAdmin.ts) reads grandtour_feed_import_runs directly to compute
+-- each stage's "last applied/imported" timestamp - the very first query
+-- that screen runs. This is the same grant-gap pattern already fixed
+-- twice before in this project (public.profiles,
+-- 20260715010000_grant_profiles_select_authenticated.sql; the new
+-- notification tables, 20260715070000_grandtour_notification_service_role_grants.sql)
+-- - a migration adding RLS is not enough on its own, the table-level grant
+-- has to be added explicitly too.
+--
+-- The existing RLS policies already correctly scope which *rows* are
+-- visible to `authenticated` (cycling admins only, via
+-- grandtour_private.is_cycling_admin()) - this migration only restores the
+-- missing table-level SELECT grant those policies depend on being present
+-- at all. INSERT/UPDATE/DELETE stay service_role-only, unchanged - the
+-- admin UI has never needed to write to either table directly, only read
+-- grandtour_feed_import_runs for that one summary field.
+grant select on public.grandtour_feed_import_runs, public.grandtour_feed_snapshots to authenticated;
