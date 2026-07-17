@@ -21,9 +21,11 @@ async function readWorkflow() {
   return fs.readFile(WORKFLOW_PATH, "utf8");
 }
 
-test("workflow cron is exactly '30 19 * * *' (stage start 12:00 UTC + 7.5h grace)", async () => {
+test("workflow no longer runs on a schedule - the daily 19:30 UTC slot is now owned by grandtour-auto-apply-and-score.yml", async () => {
   const source = await readWorkflow();
-  assert.match(source, /cron:\s*'30 19 \* \* \*'/);
+  assert.ok(!/^\s*schedule:/m.test(source), "this workflow must not declare a schedule: trigger");
+  assert.ok(!/cron:/.test(source), "this workflow must not declare a cron entry");
+  assert.match(source, /grandtour-auto-apply-and-score\.yml/, "the file must document where the schedule moved to");
 });
 
 test("workflow job timeout is sufficient for 1 initial + 8 retries * 15 minutes", async () => {
@@ -139,10 +141,9 @@ test("workflow uses Node-24-compatible action versions and Node 24 runtime", asy
   assert.match(source, /node-version:\s*'24'/);
 });
 
-test("workflow supports workflow_dispatch alongside the schedule", async () => {
+test("workflow supports workflow_dispatch only (manual, dry-run-only fallback - no schedule)", async () => {
   const source = await readWorkflow();
   assert.match(source, /workflow_dispatch:/);
-  assert.match(source, /schedule:/);
 });
 
 test("workflow builds and sends an admin notification email using SMTP secrets, never a hard-coded password", async () => {

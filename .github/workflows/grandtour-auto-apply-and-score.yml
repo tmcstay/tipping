@@ -1,0 +1,340 @@
+name: GrandTour Automatic Results Collection, Apply & Score
+
+# Automatic GrandTour write pipeline: runs the same dry-run + reconcile check
+# as grandtour-auto-dry-run.yml (unchanged - scripts/grandtour-auto-dry-run.mjs
+# is spawned by scripts/grandtour-auto-apply-and-score.mjs exactly as it
+# always was), and - ONLY when that dry run finishes with finalStatus
+# "success" (safe to apply, no blockers, no parser drift) - continues
+# straight through apply -> admin check -> finalise -> score, by spawning
+# the already-existing scripts/grandtour-feed-import.mjs --apply and
+# scripts/grandtour-admin-stage.mjs --check-finalise-score exactly as a
+# human operator would run them by hand. See
+# scripts/grandtour-auto-apply-and-score.mjs for the full write-pipeline
+# logic and docs/GRANDTOUR_APPLY_MODE_PRODUCTION_READINESS_CHECKLIST.md for
+# the operational runbook (including the four new secrets this workflow
+# requires and how to disable it).
+#
+# THIS WORKFLOW WRITES TO PRODUCTION AND EMAILS PARTICIPANTS, UNATTENDED,
+# WHEN A STAGE'S OFFICIAL RESULT PARSES CLEANLY. Any blocker (unmatched
+# rider, parser drift, low-confidence reconciliation, a TTT stage, or any
+# write-step failure) falls back to manual review instead - never retried
+# automatically, always emailed to the admin. See the "Automate the
+# GrandTour results workflow" plan / CLAUDE.md's GrandTour section for the
+# full design rationale.
+#
+# KILL SWITCH: this workflow requires four repository secrets beyond what
+# grandtour-auto-dry-run.yml already uses - SUPABASE_SERVICE_ROLE_KEY,
+# SUPABASE_ADMIN_EMAIL, SUPABASE_ADMIN_PASSWORD, ADMIN_USER_ID (the
+# dedicated service admin account's own auth.users id, NOT Tony's personal
+# account - see the production readiness checklist for how to provision
+# it). When any of these four is missing, scripts/grandtour-auto-apply-and-
+# score.mjs gracefully skips the write phase and behaves exactly like the
+# dry-run-only workflow - so removing those four secrets is a safe,
+# immediate way to disable automatic writes without touching this file, and
+# is the recommended way to pause the pipeline if something looks wrong.
+#
+# This workflow owns the daily 19:30 UTC schedule slot (12:00 UTC stage
+# start + 7.5h grace - see grandtour-auto-dry-run.yml's own comment for why
+# that specific time). grandtour-auto-dry-run.yml keeps its
+# workflow_dispatch trigger only, for ad hoc dry-run-only checks, but no
+# longer runs on a schedule - there is exactly one scheduled daily run for
+# this pipeline, not two.
+#
+# --confirm-production is always passed to the write-phase subprocesses
+# (apply / check-finalise-score) below - this is deliberate, not an
+# oversight: the entire point of this workflow, once its secrets are
+# configured, is to write to whatever environment SUPABASE_URL points at
+# without a human confirming each time (that authorisation already happened
+# when this workflow was built and its secrets were provisioned). The flag
+# is a no-op safety check against any *other* known-production URL than the
+# one this workflow is actually configured for - see
+# scripts/grandtour-apply.mjs's isProductionSupabaseUrl.
+on:
+  schedule:
+    # 19:30 UTC daily = 12:00 UTC stage start + 7.5h grace. Must stay in
+    # lockstep with grandtour-auto-dry-run.yml's own DEFAULT_STAGE_
+    # AVAILABILITY_GRACE_HOURS-derived schedule note - see that file.
+    - cron: '30 19 * * *'
+  workflow_dispatch:
+    inputs:
+      grand_tour_name:
+        description: 'Grand tour name (must match grand_tours.name)'
+        required: false
+        default: 'Tour de France'
+      grand_tour_year:
+        description: 'Grand tour year (must match grand_tours.year)'
+        required: false
+        default: '2026'
+      provider:
+        description: 'Feed provider name'
+        required: false
+        default: 'official-letour'
+      stage_number:
+        description: 'Optional: run a single stage number (takes priority over from/to_stage, and over auto-resolution)'
+        required: false
+      from_stage:
+        description: 'Optional: start stage number for a range (NOTE: a multi-stage range never enters the write phase - apply is one-stage-only. Use this only for a dry-run-only ad hoc check.)'
+        required: false
+      to_stage:
+        description: 'Optional: end stage number for a range (see from_stage note above)'
+        required: false
+      retry_interval_minutes:
+        description: 'Minutes to wait between dry-run retry attempts (transient failures only)'
+        required: false
+        default: '15'
+      max_retries:
+        description: 'Maximum number of dry-run retry attempts after the initial attempt'
+        required: false
+        default: '8'
+      no_retry:
+        description: 'Disable dry-run retries entirely - perform exactly one dry-run attempt regardless of the outcome'
+        required: false
+        default: 'false'
+      stage_availability_grace_hours:
+        description: 'Hours after a stage starts_at before it is considered eligible for automatic processing (only used when stage_number/from_stage/to_stage are blank)'
+        required: false
+        default: '7.5'
+      allow_rerun_completed:
+        description: 'Allow auto-resolution to re-select a stage that is already finalised (only used when stage_number/from_stage/to_stage are blank) - normally left false so completed stages are never re-processed automatically'
+        required: false
+        default: 'false'
+
+# One automatic-collection run per grand tour/year at a time, same
+# reasoning as grandtour-auto-dry-run.yml - but a DISTINCT concurrency
+# group name, so a manual dry-run-only dispatch on the other workflow is
+# never blocked by (or blocks) this one, and vice versa.
+concurrency:
+  group: grandtour-auto-apply-and-score-${{ github.event.inputs.grand_tour_name || 'Tour de France' }}-${{ github.event.inputs.grand_tour_year || '2026' }}
+  cancel-in-progress: false
+
+jobs:
+  auto-apply-and-score:
+    name: Automatic dry-run, apply, check, finalise & score
+    runs-on: ubuntu-latest
+    # Same budget reasoning as grandtour-auto-dry-run.yml's dry-run phase
+    # (up to 120 minutes of pure retry waiting), plus headroom for the
+    # write phase's own apply/check/finalise/score calls.
+    timeout-minutes: 180
+
+    env:
+      SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+      # Presence-only checks below (never printed) - these four gate the
+      # write phase inside scripts/grandtour-auto-apply-and-score.mjs
+      # itself; this job never fails just because they're missing.
+      HAS_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+      HAS_ADMIN_EMAIL: ${{ secrets.SUPABASE_ADMIN_EMAIL != '' }}
+      HAS_ADMIN_PASSWORD: ${{ secrets.SUPABASE_ADMIN_PASSWORD != '' }}
+      HAS_ADMIN_USER_ID: ${{ secrets.ADMIN_USER_ID != '' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Resolve effective parameters
+        id: params
+        # Same reasoning as grandtour-auto-dry-run.yml's own step of this
+        # name - github.event.inputs is entirely absent on a `schedule`
+        # event, so this branches explicitly rather than leaning on `||`
+        # fallbacks scattered elsewhere.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          IN_GRAND_TOUR_NAME: ${{ github.event.inputs.grand_tour_name }}
+          IN_GRAND_TOUR_YEAR: ${{ github.event.inputs.grand_tour_year }}
+          IN_PROVIDER: ${{ github.event.inputs.provider }}
+          IN_STAGE_NUMBER: ${{ github.event.inputs.stage_number }}
+          IN_FROM_STAGE: ${{ github.event.inputs.from_stage }}
+          IN_TO_STAGE: ${{ github.event.inputs.to_stage }}
+          IN_RETRY_INTERVAL_MINUTES: ${{ github.event.inputs.retry_interval_minutes }}
+          IN_MAX_RETRIES: ${{ github.event.inputs.max_retries }}
+          IN_NO_RETRY: ${{ github.event.inputs.no_retry }}
+          IN_STAGE_AVAILABILITY_GRACE_HOURS: ${{ github.event.inputs.stage_availability_grace_hours }}
+          IN_ALLOW_RERUN_COMPLETED: ${{ github.event.inputs.allow_rerun_completed }}
+        run: |
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            grand_tour_name='Tour de France'
+            grand_tour_year='2026'
+            provider='official-letour'
+            stage_number=''
+            from_stage=''
+            to_stage=''
+            retry_interval_minutes='15'
+            max_retries='8'
+            no_retry='false'
+            stage_availability_grace_hours='7.5'
+            allow_rerun_completed='false'
+          else
+            grand_tour_name="${IN_GRAND_TOUR_NAME:-Tour de France}"
+            grand_tour_year="${IN_GRAND_TOUR_YEAR:-2026}"
+            provider="${IN_PROVIDER:-official-letour}"
+            stage_number="$IN_STAGE_NUMBER"
+            from_stage="$IN_FROM_STAGE"
+            to_stage="$IN_TO_STAGE"
+            retry_interval_minutes="${IN_RETRY_INTERVAL_MINUTES:-15}"
+            max_retries="${IN_MAX_RETRIES:-8}"
+            no_retry="${IN_NO_RETRY:-false}"
+            stage_availability_grace_hours="${IN_STAGE_AVAILABILITY_GRACE_HOURS:-7.5}"
+            allow_rerun_completed="${IN_ALLOW_RERUN_COMPLETED:-false}"
+          fi
+
+          {
+            echo "grand_tour_name=$grand_tour_name"
+            echo "grand_tour_year=$grand_tour_year"
+            echo "provider=$provider"
+            echo "stage_number=$stage_number"
+            echo "from_stage=$from_stage"
+            echo "to_stage=$to_stage"
+            echo "retry_interval_minutes=$retry_interval_minutes"
+            echo "max_retries=$max_retries"
+            echo "no_retry=$no_retry"
+            echo "stage_availability_grace_hours=$stage_availability_grace_hours"
+            echo "allow_rerun_completed=$allow_rerun_completed"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Print trigger diagnostics
+        # Never prints secret values - only booleans (whether each
+        # write-phase credential is configured at all) and the already-
+        # public resolved parameters from the step above.
+        env:
+          RESOLVED_JSON: ${{ toJSON(steps.params.outputs) }}
+        run: |
+          echo "=== GrandTour auto apply & score: trigger diagnostics ==="
+          echo "Event: ${{ github.event_name }}"
+          echo "Git ref: ${{ github.ref }}"
+          echo "Default branch: ${{ github.event.repository.default_branch }}"
+          echo "Current UTC timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Effective provider: ${{ steps.params.outputs.provider }}"
+          echo "Effective grand tour: ${{ steps.params.outputs.grand_tour_name }} ${{ steps.params.outputs.grand_tour_year }}"
+          echo "Supplied stage number: ${{ steps.params.outputs.stage_number || '(none)' }}"
+          echo "Supplied stage range: ${{ steps.params.outputs.from_stage || '(none)' }}-${{ steps.params.outputs.to_stage || '(none)' }}"
+          echo "Stage availability grace hours: ${{ steps.params.outputs.stage_availability_grace_hours }}"
+          echo "Allow rerun completed: ${{ steps.params.outputs.allow_rerun_completed }}"
+          echo "Effective retry settings: interval=${{ steps.params.outputs.retry_interval_minutes }}m max_retries=${{ steps.params.outputs.max_retries }} no_retry=${{ steps.params.outputs.no_retry }}"
+          echo "Write-phase credentials configured: service_role_key=$HAS_SERVICE_ROLE_KEY admin_email=$HAS_ADMIN_EMAIL admin_password=$HAS_ADMIN_PASSWORD admin_user_id=$HAS_ADMIN_USER_ID"
+          if [ "$HAS_SERVICE_ROLE_KEY" != "true" ] || [ "$HAS_ADMIN_EMAIL" != "true" ] || [ "$HAS_ADMIN_PASSWORD" != "true" ] || [ "$HAS_ADMIN_USER_ID" != "true" ]; then
+            echo "::notice title=GrandTour write phase disabled::One or more of SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ADMIN_EMAIL/SUPABASE_ADMIN_PASSWORD/ADMIN_USER_ID is not configured as a repository secret - this run will only perform the read-only dry-run check, exactly like grandtour-auto-dry-run.yml."
+          fi
+          echo "Full resolved parameters (JSON): $RESOLVED_JSON"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run GrandTour automatic apply & score pipeline
+        id: auto_apply_and_score
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ADMIN_EMAIL: ${{ secrets.SUPABASE_ADMIN_EMAIL }}
+          SUPABASE_ADMIN_PASSWORD: ${{ secrets.SUPABASE_ADMIN_PASSWORD }}
+          ADMIN_USER_ID: ${{ secrets.ADMIN_USER_ID }}
+          GRAND_TOUR_NAME: ${{ steps.params.outputs.grand_tour_name }}
+          GRAND_TOUR_YEAR: ${{ steps.params.outputs.grand_tour_year }}
+          FEED_PROVIDER: ${{ steps.params.outputs.provider }}
+          STAGE_NUMBER: ${{ steps.params.outputs.stage_number }}
+          FROM_STAGE: ${{ steps.params.outputs.from_stage }}
+          TO_STAGE: ${{ steps.params.outputs.to_stage }}
+          RETRY_INTERVAL_MINUTES: ${{ steps.params.outputs.retry_interval_minutes }}
+          MAX_RETRIES: ${{ steps.params.outputs.max_retries }}
+          NO_RETRY: ${{ steps.params.outputs.no_retry }}
+          STAGE_AVAILABILITY_GRACE_HOURS: ${{ steps.params.outputs.stage_availability_grace_hours }}
+          ALLOW_RERUN_COMPLETED: ${{ steps.params.outputs.allow_rerun_completed }}
+        run: |
+          # --confirm-production is always passed - see the top-of-file
+          # comment for why this is deliberate, not an oversight.
+          args=(
+            --grand-tour-name "$GRAND_TOUR_NAME"
+            --grand-tour-year "$GRAND_TOUR_YEAR"
+            --provider "$FEED_PROVIDER"
+            --retry-interval-minutes "$RETRY_INTERVAL_MINUTES"
+            --max-retries "$MAX_RETRIES"
+            --stage-availability-grace-hours "$STAGE_AVAILABILITY_GRACE_HOURS"
+            --report-dir tmp/auto-dry-runs
+            --confirm-production
+          )
+          if [ -n "$STAGE_NUMBER" ]; then
+            args+=(--stage-number "$STAGE_NUMBER")
+          elif [ -n "$FROM_STAGE" ] && [ -n "$TO_STAGE" ]; then
+            args+=(--from-stage "$FROM_STAGE" --to-stage "$TO_STAGE")
+          fi
+          if [ "$NO_RETRY" = "true" ]; then
+            args+=(--no-retry)
+          fi
+          if [ "$ALLOW_RERUN_COMPLETED" = "true" ]; then
+            args+=(--allow-rerun-completed)
+          fi
+          node scripts/grandtour-auto-apply-and-score.mjs "${args[@]}"
+
+      - name: Print final summary
+        # Same "always runs" reasoning as grandtour-auto-dry-run.yml -
+        # looks for final-write-summary.json specifically (the richer
+        # superset scripts/grandtour-auto-apply-and-score.mjs writes),
+        # never the plain final-summary.json the inner dry-run call also
+        # leaves behind in the same run directory.
+        id: final_summary
+        if: always()
+        run: |
+          summary_file=$(find tmp/auto-dry-runs -maxdepth 2 -name final-write-summary.json 2>/dev/null | head -n 1)
+          if [ -n "$summary_file" ]; then
+            echo "=== final-write-summary.json ($summary_file) ==="
+            cat "$summary_file"
+            echo "summary_file=$summary_file" >> "$GITHUB_OUTPUT"
+          else
+            echo "No final-write-summary.json was produced (the run likely failed before a run directory was created - see the resolved parameters and trigger diagnostics above)."
+          fi
+
+      - name: Build admin notification email
+        id: notify
+        if: always() && steps.final_summary.outputs.summary_file != ''
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node scripts/grandtour-auto-dry-run-notify.mjs "${{ steps.final_summary.outputs.summary_file }}" --run-url "$RUN_URL" --out-dir tmp
+
+      - name: Send admin notification email
+        if: >
+          always() &&
+          steps.notify.outputs.should_send == 'true' &&
+          env.SMTP_SERVER != '' &&
+          env.SMTP_PORT != '' &&
+          env.SMTP_USERNAME != '' &&
+          env.SMTP_PASSWORD != '' &&
+          env.ADMIN_EMAIL != ''
+        uses: dawidd6/action-send-mail@v4
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: ${{ steps.notify.outputs.subject }}
+          body: file://${{ steps.notify.outputs.body_path }}
+          to: ${{ secrets.ADMIN_EMAIL }}
+          from: GrandTour Automation <${{ secrets.SMTP_USERNAME }}>
+
+      - name: Notify - SMTP not configured
+        if: >
+          always() &&
+          steps.notify.outputs.should_send == 'true' &&
+          (env.SMTP_SERVER == '' || env.SMTP_PORT == '' || env.SMTP_USERNAME == '' || env.SMTP_PASSWORD == '' || env.ADMIN_EMAIL == '')
+        run: |
+          echo "::notice title=GrandTour admin email skipped::This run's outcome would normally email the admin, but one or more of the SMTP_SERVER/SMTP_PORT/SMTP_USERNAME/SMTP_PASSWORD/ADMIN_EMAIL repository secrets are not configured, so the email step was skipped. This does not affect the job's pass/fail result."
+
+      - name: Upload auto apply & score report artifacts
+        # Distinct artifact name from grandtour-auto-dry-run.yml's own
+        # upload, so the two workflows' run histories never collide.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grandtour-auto-apply-and-score-report
+          path: tmp/auto-dry-runs/**
+          if-no-files-found: ignore

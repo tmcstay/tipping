@@ -1722,6 +1722,93 @@ email` step fails (the action itself errors on missing SMTP config) but
 this does not affect `finalStatus`/exit code of the run itself — the mail
 step is separate from, and runs after, the actual dry-run/reconcile work.
 
+### 17.10 Automatic apply, check, finalise & score (`.github/workflows/grandtour-auto-apply-and-score.yml`)
+
+A second, later workflow that runs the **exact same** dry-run + reconcile
+check as §17 above (by spawning `scripts/grandtour-auto-dry-run.mjs`,
+completely unchanged), and — only when that dry run finishes with
+`finalStatus: "success"` (safe to apply, no blockers, no parser drift) —
+continues straight through apply → admin check → finalise → score, by
+spawning the same already-existing CLIs a human operator would run by hand
+(`scripts/grandtour-feed-import.mjs --apply` and
+`scripts/grandtour-admin-stage.mjs --check-finalise-score`). No
+apply/check/finalise/score logic is reimplemented — see
+`scripts/grandtour-auto-apply-and-score.mjs` for the orchestration itself.
+
+**This workflow writes to production and emails participants, unattended,
+whenever a stage's official result parses cleanly.** Any blocker (unmatched
+rider, parser drift, low-confidence reconciliation, a TTT stage, or any
+write-step failure) falls back to manual review instead — never retried
+automatically, always emailed to the admin as one of three new outcomes:
+`applied_and_scored` (full success, includes the real participant count
+from the score RPC's own `tips_affected`), `review_incomplete_after_apply`
+(a draft was applied but check/finalise/score failed partway — finish it
+manually via `/admin/grandtour-stages`), `apply_failed` (the dry run was
+safe but apply itself failed — investigate before retrying).
+
+**Schedule ownership**: this workflow owns the daily 19:30 UTC slot (see
+§17.1) — the plain dry-run-only workflow (§17) lost its `schedule:` trigger
+and now only runs via manual `workflow_dispatch`, as a read-only fallback
+for an ad hoc check. There is exactly one scheduled daily run for this
+pipeline now.
+
+**Four new required repository secrets**, beyond the ones §17.9 already
+documents:
+
+| Secret | Purpose |
+|---|---|
+| `SUPABASE_SERVICE_ROLE_KEY` | Used for apply / mark-checked / finalise (same key the CLI's own `--apply`/`--mark-checked`/`--finalise` already require) |
+| `SUPABASE_ADMIN_EMAIL` | Sign-in email for the **dedicated service admin account** below — used only for the score RPC, which requires a real authenticated session, not a service-role key |
+| `SUPABASE_ADMIN_PASSWORD` | That account's password |
+| `ADMIN_USER_ID` | That same account's `auth.users.id` — recorded as `checked_by`/`finalized_by` in the audit trail |
+
+**Provisioning the dedicated service admin account** (do this once, in
+production, when ready to enable automatic writes — never reuse a real
+person's own login):
+
+1. Sign up a new account with a unique, purpose-built email (e.g.
+   `grandtour-automation@<your domain>`) through the app's normal sign-up
+   flow, or via the GoTrue admin API.
+2. Grant it `admin` role on the `cycling` app only:
+   ```sql
+   update public.user_app_memberships
+   set role = 'admin'
+   where user_id = '<the new user's id>'
+     and app_id = (select id from public.apps where code = 'cycling');
+   ```
+3. Record its `auth.users.id` as the `ADMIN_USER_ID` secret, and its
+   email/password as `SUPABASE_ADMIN_EMAIL`/`SUPABASE_ADMIN_PASSWORD`.
+4. This account should have no other privileges and no other purpose —
+   its blast radius if the secrets ever leak is limited to this one
+   pipeline's actions.
+
+**Kill switch**: when any of the four secrets above is missing,
+`scripts/grandtour-auto-apply-and-score.mjs` gracefully skips the write
+phase and behaves exactly like the dry-run-only workflow (a `::notice`
+annotation explains why). **Removing those four secrets is the fastest,
+safest way to pause automatic writes** without touching any workflow file
+or code — no redeploy needed. To pause more permanently, disable the
+workflow itself from the Actions tab (Settings → Actions → this workflow →
+Disable workflow), which also stops the schedule from firing at all.
+
+**`--confirm-production` is always passed** to the write-phase subprocesses
+in this workflow — deliberate, not an oversight. The entire point of this
+pipeline, once its secrets are configured, is to write without a human
+confirming each time; that authorisation already happened when the
+secrets were provisioned. The flag itself is just `scripts/grandtour-
+apply.mjs`'s existing `isProductionSupabaseUrl` safety check, satisfied
+unconditionally here rather than per-run.
+
+**Verification before enabling in production**: rehearse locally first
+(same convention as everywhere else in this pipeline) — `npx supabase db
+reset`, then `npm run grandtour:apply:local-smoke` and `npm run
+grandtour:admin-stage:local-smoke` (these exercise the exact real RPC
+chain the write phase drives), plus `node scripts/grandtour-auto-apply-
+and-score.mjs --stage-number <n> ...` against local Supabase with a local
+throwaway admin account and `SUPABASE_SERVICE_ROLE_KEY` set to the local
+`npx supabase status -o env` value. Never run any of this against a
+production URL without `--confirm-production` and full sign-off per §18.
+
 ## 18. Sign-off
 
 Before running §7's command in production, record (in whatever change-log

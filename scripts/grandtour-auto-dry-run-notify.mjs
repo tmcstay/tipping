@@ -1,16 +1,27 @@
 /**
- * Turns a scripts/grandtour-auto-dry-run.mjs final-summary.json into a
+ * Turns a scripts/grandtour-auto-dry-run.mjs final-summary.json (or the
+ * richer scripts/grandtour-auto-apply-and-score.mjs
+ * final-write-summary.json, a strict superset of the same shape) into a
  * plain-English admin notification email, and (as a CLI) prepares that
- * email for the "Send admin notification email" step in
- * .github/workflows/grandtour-auto-dry-run.yml.
+ * email for the "Send admin notification email" step in the relevant
+ * workflow.
  *
- * Only genuine terminal outcomes page the admin: a real success, or a real
- * final failure. "no_eligible_stage" is a routine daily outcome (nothing to
+ * buildNotificationEmail reads `pipelineStatus` when present (the write
+ * pipeline's own, more detailed status - applied_and_scored,
+ * review_incomplete_after_apply, apply_failed - or a pass-through of one
+ * of the dry-run-only statuses below when the write phase never started),
+ * falling back to `finalStatus` for a plain dry-run-only summary. This
+ * keeps one notify script/one email step for both workflows - no
+ * duplication, and a dry-run-only summary is handled identically to
+ * before.
+ *
+ * Only genuine terminal outcomes page the admin: a real success/failure of
+ * either kind. "no_eligible_stage" is a routine daily outcome (nothing to
  * check yet - rest day, still within the grace window, etc.) and never
  * sends an email, so the admin isn't paged every day for a non-event.
  *
- * Never reads or includes any secret - only fields already present in
- * final-summary.json, which itself never contains credentials.
+ * Never reads or includes any secret - only fields already present in the
+ * summary JSON, which itself never contains credentials.
  */
 
 import fs from "node:fs/promises";
@@ -53,6 +64,29 @@ const OUTCOME_COPY = {
     subjectLabel: "failed unexpectedly",
     outcomeLine: (stageDescription) =>
       `The automatic results check for ${stageDescription} failed with an error that doesn't match any known, expected failure type. This needs a developer to look at the run logs.`
+  },
+  applied_and_scored: {
+    emoji: "✅",
+    subjectLabel: "applied and scored automatically",
+    outcomeLine: (stageDescription, finalSummary) => {
+      const tipsAffected = finalSummary.writePhase?.tipsAffected;
+      const scoredLine = typeof tipsAffected === "number"
+        ? `${tipsAffected} participant tip${tipsAffected === 1 ? "" : "s"} scored`
+        : "scored (participant count unavailable)";
+      return `${stageDescription}'s official result was fetched, applied, admin-checked, finalised, and scored automatically - no human step was needed. ${scoredLine}. Participants have been emailed their results.`;
+    }
+  },
+  review_incomplete_after_apply: {
+    emoji: "⚠️",
+    subjectLabel: "applied automatically but needs a human to finish",
+    outcomeLine: (stageDescription) =>
+      `${stageDescription}'s official result was applied automatically (a draft now exists), but the automated admin-check/finalise/score step failed partway through. This stage needs a human to finish it via /admin/grandtour-stages before scores/emails go out.`
+  },
+  apply_failed: {
+    emoji: "🛑",
+    subjectLabel: "safe dry run, but automatic apply failed",
+    outcomeLine: (stageDescription) =>
+      `${stageDescription}'s dry run reported it was safe to apply, but the automatic apply step itself failed. Nothing was written for this stage. This needs investigation - see the run logs.`
   }
 };
 
@@ -68,12 +102,16 @@ function describeStage(finalSummary) {
  * final-summary.json, optionally extended with a `runUrl` field (not part
  * of final-summary.json itself) pointing at the GitHub Actions run.
  */
+const WRITE_PIPELINE_STATUSES = new Set(["applied_and_scored", "review_incomplete_after_apply", "apply_failed"]);
+
 export function buildNotificationEmail(finalSummary) {
-  const copy = OUTCOME_COPY[finalSummary.finalStatus];
+  const status = finalSummary.pipelineStatus ?? finalSummary.finalStatus;
+  const copy = OUTCOME_COPY[status];
   if (!copy) return null; // no_eligible_stage, or any future/unknown status - never page for these
 
   const tour = `${finalSummary.grandTourName} ${finalSummary.grandTourYear}`;
   const stageDescription = describeStage(finalSummary);
+  const isWritePipelineOutcome = WRITE_PIPELINE_STATUSES.has(status);
 
   const subject = `[GrandTour] ${copy.emoji} ${stageDescription} ${copy.subjectLabel} (${tour})`;
 
@@ -89,12 +127,15 @@ export function buildNotificationEmail(finalSummary) {
     lines.push("", "Blockers:");
     for (const blocker of finalSummary.blockers) lines.push(`  - ${blocker}`);
   }
+  if (finalSummary.writePhase?.message) lines.push("", `Write phase error: ${finalSummary.writePhase.message}`);
   if (finalSummary.finalError) lines.push("", `Error: ${finalSummary.finalError}`);
   lines.push("", `Run ID: ${finalSummary.runId}`);
   if (finalSummary.runUrl) lines.push(`View full run: ${finalSummary.runUrl}`);
   lines.push(
     "",
-    "This is an automated message from the GrandTour auto dry-run workflow. It never applies, finalises, or scores results - it only checks and reports."
+    isWritePipelineOutcome
+      ? "This is an automated message from the GrandTour automatic apply/score pipeline."
+      : "This is an automated message from the GrandTour auto dry-run workflow. It never applies, finalises, or scores results - it only checks and reports."
   );
 
   return { subject, body: lines.join("\n") };

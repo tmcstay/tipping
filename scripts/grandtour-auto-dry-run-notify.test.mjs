@@ -115,6 +115,69 @@ test("buildNotificationEmail describes a stage range when stageNumber is absent"
 });
 
 // ---------------------------------------------------------------------------
+// Write pipeline outcomes (scripts/grandtour-auto-apply-and-score.mjs's
+// final-write-summary.json) - buildNotificationEmail prefers pipelineStatus
+// over finalStatus when both are present, and falls back to finalStatus for
+// a plain dry-run-only summary (already covered by every test above, none
+// of which set pipelineStatus).
+// ---------------------------------------------------------------------------
+
+test("buildNotificationEmail: applied_and_scored reports the real participant count and never mentions dry-run-only language", () => {
+  const email = buildNotificationEmail(baseSummary({
+    pipelineStatus: "applied_and_scored",
+    writePhase: { phase: "check-finalise-score", ok: true, message: null, applyReportPath: "/tmp/apply-report.json", tipsAffected: 137 }
+  }));
+  assert.match(email.subject, /Stage 5/);
+  assert.match(email.subject, /applied and scored automatically/);
+  assert.match(email.body, /137 participant tips scored/);
+  assert.match(email.body, /Participants have been emailed their results/);
+  assert.doesNotMatch(email.body, /it only checks and reports/);
+});
+
+test("buildNotificationEmail: applied_and_scored degrades gracefully when tipsAffected could not be parsed", () => {
+  const email = buildNotificationEmail(baseSummary({
+    pipelineStatus: "applied_and_scored",
+    writePhase: { phase: "check-finalise-score", ok: true, message: null, applyReportPath: "/tmp/apply-report.json", tipsAffected: null }
+  }));
+  assert.match(email.body, /participant count unavailable/);
+});
+
+test("buildNotificationEmail: applied_and_scored uses singular wording for exactly 1 tip", () => {
+  const email = buildNotificationEmail(baseSummary({
+    pipelineStatus: "applied_and_scored",
+    writePhase: { phase: "check-finalise-score", ok: true, message: null, applyReportPath: "/tmp/apply-report.json", tipsAffected: 1 }
+  }));
+  assert.match(email.body, /1 participant tip scored/);
+});
+
+test("buildNotificationEmail: review_incomplete_after_apply always pages and points at the admin UI", () => {
+  const email = buildNotificationEmail(baseSummary({
+    pipelineStatus: "review_incomplete_after_apply",
+    writePhase: { phase: "check-finalise-score", ok: false, message: "mark_grandtour_stage_result_checked failed: boom", applyReportPath: "/tmp/apply-report.json", tipsAffected: null }
+  }));
+  assert.match(email.subject, /needs a human to finish/);
+  assert.match(email.body, /a draft now exists/);
+  assert.match(email.body, /\/admin\/grandtour-stages/);
+  assert.match(email.body, /Write phase error: mark_grandtour_stage_result_checked failed: boom/);
+});
+
+test("buildNotificationEmail: apply_failed always pages even though the dry run itself was safe", () => {
+  const email = buildNotificationEmail(baseSummary({
+    pipelineStatus: "apply_failed",
+    writePhase: { phase: "apply", ok: false, message: "apply_grandtour_official_stage_result failed: boom", applyReportPath: "/tmp/apply-report.json", tipsAffected: null }
+  }));
+  assert.match(email.subject, /automatic apply failed/);
+  assert.match(email.body, /Nothing was written for this stage/);
+  assert.match(email.body, /Write phase error: apply_grandtour_official_stage_result failed: boom/);
+});
+
+test("buildNotificationEmail: a dry-run-only summary with no pipelineStatus still falls back to finalStatus unchanged", () => {
+  const email = buildNotificationEmail(baseSummary());
+  assert.match(email.subject, /succeeded/);
+  assert.match(email.body, /it only checks and reports/);
+});
+
+// ---------------------------------------------------------------------------
 // CLI: prepares should_send/subject/body_path via $GITHUB_OUTPUT and writes
 // the body to a file, matching what the workflow step expects to read.
 // ---------------------------------------------------------------------------

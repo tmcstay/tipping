@@ -34,26 +34,34 @@ name: GrandTour Automatic Results Collection (Dry Run)
 # whatever ref it's launched against (normally also main, but can be
 # pointed at another branch/tag deliberately from the "Run workflow" UI).
 #
-# Schedule: 19:30 UTC daily = every real stage's 12:00 UTC starts_at + the
-# 7.5h stage_availability_grace_hours default below. This is deliberate, not
-# a coincidence: the original 17:17 UTC schedule fired only ~5-6h after a
-# same-day stage's start - always short of the grace window - so the latest
-# stage was never actually eligible on the day it raced, and the auto
-# dry-run only ever picked it up on the FOLLOWING day's run (a full day of
-# lag, discovered when a run at 18:19 UTC on stage 11's own race day found
-# "no_eligible_stage"). Firing right at start+grace instead means a normal
-# day's stage is eligible the moment this run checks it - there should be no
-# routine day-late catch-up left to rely on. If `stage_availability_grace_hours`
-# below is ever changed, this cron time must move with it (both must stay
-# `starts_at time-of-day + grace hours`) - to change the recurring time,
-# edit the single `cron:` line below (GitHub Actions cron cannot be altered
-# from workflow_dispatch inputs at run time). Ad hoc/one-off runs with
-# different behaviour (a specific stage, different retry settings, etc.)
-# should use "Run workflow" (workflow_dispatch) instead of editing this file.
+# SCHEDULE OWNERSHIP: this workflow no longer runs on a cron schedule. The
+# daily 19:30 UTC slot (12:00 UTC stage start + 7.5h grace - the original
+# reasoning for that specific time is preserved below) is now owned by
+# .github/workflows/grandtour-auto-apply-and-score.yml, which runs this
+# exact same dry-run + reconcile check (by spawning
+# scripts/grandtour-auto-dry-run.mjs, completely unchanged) and then, only
+# on a genuine safe "success", continues on to apply/check/finalise/score.
+# Running both workflows on the same schedule would double-fetch letour.fr
+# and double-email the admin on a review-required day, so there is exactly
+# one scheduled daily run for this pipeline now, on the other workflow.
+#
+# This workflow is kept, unmodified otherwise, as a manual-only, read-only
+# fallback: use "Run workflow" (workflow_dispatch) below for an ad hoc
+# dry-run-only check (a specific stage, different retry settings, a
+# multi-stage range, etc.) that should never touch any write path,
+# regardless of whether the write-capable workflow's secrets are
+# configured.
+#
+# Original schedule reasoning (now inherited by the other workflow's own
+# comment, kept here for history): the original 17:17 UTC schedule fired
+# only ~5-6h after a same-day stage's start - always short of the grace
+# window - so the latest stage was never actually eligible on the day it
+# raced, and the auto dry-run only ever picked it up on the FOLLOWING day's
+# run (a full day of lag, discovered when a run at 18:19 UTC on stage 11's
+# own race day found "no_eligible_stage"). Firing right at start+grace
+# instead means a normal day's stage is eligible the moment a run checks
+# it.
 on:
-  schedule:
-    # 19:30 UTC daily = 12:00 UTC stage start + 7.5h grace. See the note above before changing this.
-    - cron: '30 19 * * *'
   workflow_dispatch:
     inputs:
       grand_tour_name:
