@@ -100,3 +100,18 @@ aspirational. Each entry states the decision, why, and where it's enforced.
     its own documentation more than once — always re-verify directly
     (`supabase migration list --linked`, a direct grant/RLS query) rather than
     trusting a prior session's note, including notes in this file.
+
+13. **The manual `/admin/grandtour-stages` apply/check/finalise/score flow
+    stays fully in place as the fallback path, even though
+    `grandtour-auto-apply-and-score.yml` has now run cleanly in production for
+    four consecutive days (confirmed 2026-07-21).** *Why*: the automation only
+    proceeds past a clean dry run; any blocker still falls back to manual
+    review, so the manual flow must remain available and is not being
+    de-emphasized. The four deprecated design/session docs
+    (`GRANDTOUR_APP_SCOPE.md`, `docs/product-scope.md`,
+    `docs/grandtour-working-copy.md`, `docs/tdf-2026-data.md`) stay as
+    pointer-marked-deprecated rather than being deleted — no change from the
+    2026-07-17 reconciliation session's judgment. A retry-from-admin-UI action
+    for the write-phase failure emails (`review_incomplete_after_apply`/
+    `apply_failed`) is still not being built — revisit once real failure
+    patterns are known.
