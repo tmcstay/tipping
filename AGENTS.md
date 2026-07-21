@@ -1,211 +1,113 @@
-# GrandTour — Repository Instructions
+# AGENTS.md
 
-## Product Direction
+Entry point for Codex working in this repository. **Shared project
+documentation under `docs/` is authoritative for both Codex and Claude
+Code** — `CLAUDE.md` points to the same files. Do not maintain a separate or
+conflicting set of project rules here.
 
-The active product is **GrandTour**, a cycling tipping app for grand tour stage racing fans.
+## Project summary
 
-Do not continue the former F1Tips product direction. Remove, rename, or generalize F1-specific configuration, sample data, markets, query type names, routes, UI wording, documentation, and build naming when the relevant implementation work is requested.
+`tipping-suite` is an npm-workspaces monorepo containing **GrandTour**, a
+cycling stage-tipping app for the Tour de France, built on Expo (React
+Native, web+iOS+Android) and Supabase (Postgres/Auth/RLS/Edge Functions).
+GrandTour is independent — never use official Tour de France branding,
+protected logos, or wording implying endorsement/affiliation.
 
-GrandTour is independent. Avoid official Tour de France branding, protected logos, and wording that implies endorsement or official affiliation. Safe wording:
+## Read before editing anything
 
-> GrandTour is a cycling tipping app for grand tour stage racing fans.
+| Need | Read |
+|---|---|
+| Product purpose, confirmed rules | [docs/project/PRODUCT.md](docs/project/PRODUCT.md) |
+| System architecture | [docs/project/ARCHITECTURE.md](docs/project/ARCHITECTURE.md) |
+| What's actually implemented | [docs/project/CURRENT_STATE.md](docs/project/CURRENT_STATE.md) |
+| Planned/proposed/deferred work | [docs/project/ROADMAP.md](docs/project/ROADMAP.md) |
+| Why things are built this way | [docs/project/DECISIONS.md](docs/project/DECISIONS.md) |
+| Domain terms | [docs/project/GLOSSARY.md](docs/project/GLOSSARY.md) |
+| Day-to-day workflow, coding standards | [docs/development/WORKFLOW.md](docs/development/WORKFLOW.md) |
+| Test commands | [docs/development/TESTING.md](docs/development/TESTING.md) |
+| Deploy targets | [docs/development/DEPLOYMENT.md](docs/development/DEPLOYMENT.md) |
+| Migration rules, recurring Postgres/RLS gotchas | [docs/development/DATABASE.md](docs/development/DATABASE.md) |
+| The three data-import pipelines | [docs/development/DATA_IMPORTS.md](docs/development/DATA_IMPORTS.md) |
+| Known bugs and fixes | [docs/development/TROUBLESHOOTING.md](docs/development/TROUBLESHOOTING.md) |
+| A specific feature | `docs/features/*.md` |
+| What's actively being worked on | [docs/handovers/ACTIVE_TASK.md](docs/handovers/ACTIVE_TASK.md) |
 
-The canonical product specification is [`GRANDTOUR_APP_SCOPE.md`](./GRANDTOUR_APP_SCOPE.md). Read it before making product, schema, scoring, locking, result, or leaderboard changes.
+`GRANDTOUR_APP_SCOPE.md` (repo root) and `docs/product-scope.md` are
+**superseded** original design documents, kept only for historical context.
+Where they conflict with `docs/` or the actual code, `docs/` and the code
+win.
 
-## Technology and Architecture
+## Before changing code
 
-Use the existing stack unless a change is explicitly approved:
+1. Read [docs/project/CURRENT_STATE.md](docs/project/CURRENT_STATE.md) — do
+   not assume a feature is complete because a plan, session note, or older
+   doc says so; verify against code and tests.
+2. Read [docs/handovers/ACTIVE_TASK.md](docs/handovers/ACTIVE_TASK.md) — if
+   Claude Code (or a prior Codex session) has active or very recent work in
+   the area you're about to touch, read it first. **Do not start a
+   parallel or duplicate implementation of something already in progress or
+   already done** — extend or fix it instead.
+3. Read the relevant `docs/features/*.md` file.
+4. Identify the smallest safe change; state assumptions that materially
+   affect the design; implement one coherent feature at a time.
 
-- Expo React Native for iOS, Android, and web
-- TypeScript
-- Expo Router
-- Supabase for Postgres, authentication, RLS, and backend capabilities
-- npm workspaces and shared packages
+## Technology and architecture
 
-Keep one reusable platform and one shared tipping engine. Sport-specific behavior belongs in configuration and market/rule definitions, not duplicated screens or hard-coded branching.
+Expo Router (iOS/Android/web), TypeScript, Supabase, npm workspaces. One
+reusable platform, one shared tipping engine — sport-specific behavior
+belongs in configuration/rule definitions, not duplicated screens. Keep
+business logic out of screens: scoring/locking/validation live only in
+`packages/tipping-core`; typed Supabase access lives in
+`packages/supabase-client`. Full detail:
+[docs/project/ARCHITECTURE.md](docs/project/ARCHITECTURE.md).
 
-The generic hierarchy is:
+## Coding standards
 
-```text
-app -> competition -> season/tour -> event/stage -> market -> tip -> result -> score -> leaderboard
-```
+Strict TypeScript, generic domain names (stage/rider/entry — not F1
+terminology), small reviewable changes, no unexplained major dependencies,
+never commit secrets, comment only where behavior is genuinely non-obvious.
+Full list: [docs/development/WORKFLOW.md](docs/development/WORKFLOW.md).
 
-For GrandTour:
+## Testing requirements
 
-- Events are stages.
-- Competitors are riders, linked to cycling teams.
-- User-entered modes are `daily` and `preselection`.
-- `overall` is derived from the two score sets and is never a tip-entry mode.
+Run the most relevant package tests and `npm run typecheck` after every
+change. Exact commands: [docs/development/TESTING.md](docs/development/TESTING.md).
+For schema work, also verify constraints/grants/RLS locally before
+considering it done — see [docs/development/DATABASE.md](docs/development/DATABASE.md).
 
-## MVP Boundaries
+## Database and security rules
 
-Build only the core GrandTour game:
+Migrations are immutable once applied — add a new one, never rewrite an
+applied one. Every table exposed via the Data API needs both RLS **and** an
+explicit grant (RLS alone is not enough — see
+[docs/development/DATABASE.md](docs/development/DATABASE.md) for a list of
+bugs this exact gap has caused, more than once). Never expose a service-role
+or secret key in client code. Every write-capable script/RPC defaults to
+dry-run and requires explicit confirmation before touching production.
 
-- Auth and profile basics
-- Tour, stage, team, and rider data
-- Ordered stage top-five tips
-- Yellow, green, KOM/polka-dot, and white jersey tips
-- Daily and Preselection locking
-- Shared scoring
-- Results and score breakdowns
-- Daily, Preselection, and Overall leaderboards
-- Simple Expo screens
-- Minimal protected administration and result entry
+## At completion — required documentation update
 
-Do not build ads, subscriptions, chat, prizes, push notifications, or dummy activity into the MVP UI. Keep flags for ads, subscriptions, chat, prizes, and dummy activity disabled.
+Before reporting a task done:
 
-## Competition Rules
+1. Update [docs/project/CURRENT_STATE.md](docs/project/CURRENT_STATE.md) and
+   the relevant `docs/features/*.md` file if what's implemented changed.
+2. Move your work from `docs/handovers/ACTIVE_TASK.md` into
+   `docs/handovers/COMPLETED_WORK.md`, and add one line to
+   `docs/handovers/SESSION_LOG.md`.
+3. Report changed files, verification performed, and remaining risks —
+   don't claim a UI change works without an actual browser/app check.
 
-### Preselection
+Do not rewrite the whole project unless explicitly asked. Preserve unrelated
+changes already present in a dirty working tree — they may be another
+session's (Claude Code's or Codex's) in-progress work.
 
-- The user tips every stage before the tour begins.
-- All entries lock at the tour/season-level Preselection lock before Stage 1.
+## Execution authority
 
-### Daily
-
-- The user tips one stage at a time.
-- Each entry locks at that stage's lock time.
-
-Both modes use the same stage form, validation, results, and scoring logic. Only lock resolution differs.
-
-### Stage Entry
-
-Each entry contains:
-
-- Five distinct riders in predicted finishing order
-- Yellow jersey holder after the stage
-- Green jersey holder after the stage
-- KOM/polka-dot jersey holder after the stage
-- White jersey holder after the stage
-
-A rider may be selected for multiple jersey categories and may also appear in the top five. Duplicate riders within the five finishing slots are invalid.
-
-## Scoring Rules
-
-For each predicted top-five rider:
-
-- Exact positions 1 through 5: 10, 8, 6, 4, and 2 points respectively
-- Actual top five but wrong position: 1 point
-- Outside actual top five: 0 points
-
-There are no additional stage bonuses. Each correct active yellow, green, KOM, or white jersey holder after a stage is worth 5 points. Each correct final jersey winner is worth 25 points.
-
-Maximum:
-
-```text
-Top five:        30
-Daily jerseys:   20
-Stage:           50
-Overall jerseys: 100
-```
-
-Implement scoring as deterministic pure logic in `packages/tipping-core`. Return a breakdown as well as the total. Daily and Preselection must call the same function. Overall equals Daily plus Preselection.
-
-## Locking and Security
-
-- Preselection resolves to the tour/season lock.
-- Daily resolves to the individual stage lock.
-- Database enforcement is authoritative; client checks are only UX support.
-- Reject inserts, updates, and deletes at or after lock.
-- Missing or invalid lock data fails closed.
-- Manual lock status overrides timestamps.
-- Use database/server time, not a device clock, for enforcement.
-- Users may only write their own entries.
-- Do not use user-editable metadata for authorization.
-- Never expose Supabase service-role or secret keys in client code.
-- Enable RLS on all tables exposed through the Supabase Data API.
-- UPDATE policies require ownership checks in both `USING` and `WITH CHECK` and an applicable SELECT policy.
-- Prefer security-invoker behavior. Treat any security-definer function as a sensitive, explicitly reviewed API.
-
-Before implementing Supabase work, verify current official documentation and the installed CLI. Inspect local and remote migration state before deciding whether to alter, replace, or add to existing schema. Do not casually rewrite an applied migration.
-
-## Data Model Direction
-
-The current one-selection constraint `unique(user_id, market_id)` is insufficient. The GrandTour model must support:
-
-- Teams and rider/team relationships
-- Stage ordering and route metadata
-- Tour-level Preselection lock
-- Stage-level Daily lock
-- Entry mode (`daily` or `preselection`)
-- Ordered top-five selection slots 1 through 5
-- Four jersey categories
-- Matching official result data
-- Atomic stage-entry saves
-- Daily and Preselection score sets
-- Derived Overall standings
-
-Use database constraints to prevent duplicate top-five riders and invalid modes. Ensure selected riders belong to the relevant roster.
-
-## Repository Responsibilities
-
-- `apps/mobile`: Expo routes, screens, hooks, app config, and mobile composition
-- `packages/tipping-core`: pure scoring, locking, validation, and leaderboard logic
-- `packages/shared-types`: shared application and generated database types
-- `packages/supabase-client`: client creation, auth helpers, and typed queries
-- `packages/ui`: reusable presentation components
-- `supabase/migrations`: reviewed schema, constraints, grants, RLS, functions, and indexes
-- `supabase/seed.sql`: clearly identified development/sample data
-- `docs`: supporting product, schema, deployment, and operating documentation
-
-Keep business logic out of screens. Do not duplicate the stage form or scoring implementation between modes.
-
-## Coding Standards
-
-- Use strict TypeScript and clear domain names.
-- Prefer generic names such as stage, rider, event, competitor, entry, and selection over inherited F1 terminology.
-- Keep changes small and reviewable.
-- Avoid broad refactors unless requested or required for correctness.
-- Do not introduce major dependencies without explaining the need.
-- Do not remove unrelated behavior.
-- Never commit secrets; use environment variables for public client configuration and secure server configuration for privileged credentials.
-- Add comments where locking, scoring, authorization, or recalculation behavior is non-obvious.
-- Generate Supabase types rather than maintaining an empty or speculative database type by hand.
-
-## Testing Requirements
-
-Add or update tests with every relevant feature. Coverage must include:
-
-- Exact and wrong-position top-five scoring
-- All four jersey categories
-- Maximum stage score of 50
-- Maximum overall jersey score of 100
-- Duplicate-rider validation
-- Daily locking before, at, and after stage lock
-- Preselection locking before, at, and after tour lock
-- Identical scoring across Daily and Preselection
-- Atomic tip creation and update
-- RLS ownership and post-lock rejection
-- Result correction and idempotent recalculation
-- Daily and Preselection standings
-- Overall equals Daily plus Preselection
-
-Run the most relevant package tests and TypeScript typecheck after changes. For schema work, also verify constraints, grants, RLS behavior, migrations, and database advisors where available.
-
-## Codex Operating Instructions
-
-Before changing code:
-
-1. Inspect the existing structure and working tree.
-2. Read the canonical GrandTour scope.
-3. Identify the smallest safe change.
-4. State assumptions that materially affect the design.
-5. Implement one coherent feature at a time.
-6. Add or update tests.
-7. Run proportionate verification.
-8. Report changed files, verification results, and remaining risks.
-
-Do not rewrite the whole project unless explicitly asked. Preserve unrelated user changes in a dirty worktree.
-
-## Current Build Priority
-
-1. GrandTour documentation and configuration
-2. Supabase model, constraints, RLS, and representative cycling seed data
-3. Shared GrandTour types
-4. Scoring, validation, and mode-aware locking with tests
-5. Authentication and profile flow
-6. Tour and stage browsing
-7. Shared stage tipping form
-8. Preselection completion flow
-9. Result entry and score breakdown
-10. Daily, Preselection, and Overall leaderboards
+Routine local execution (reading/editing files, running tests/typecheck/
+builds/linters, local Supabase, local git inspection, local browser
+automation for verification) is pre-authorised for the assigned task. It does
+**not** extend to production database/auth/config changes, hosted
+deployments, git history rewrites or force-pushes, secret exposure, or
+weakening any safety/auth/RLS gate — those always require explicit
+authorization in the task itself. Full detail, identical to Claude Code's own
+copy of this boundary, in root `CLAUDE.md`'s "Execution authority" section.

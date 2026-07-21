@@ -1,8 +1,11 @@
 # GrandTour MVP Product Scope
 
+> **Deprecated / historical.** Superseded by [docs/project/PRODUCT.md](project/PRODUCT.md).
+> Kept for historical context only.
+
 GrandTour is a cycling tipping app for grand tour stage racing fans. It is an independent product and must not use official Tour de France branding or imply official affiliation.
 
-The canonical detailed scope is [`GRANDTOUR_APP_SCOPE.md`](../GRANDTOUR_APP_SCOPE.md).
+The canonical detailed scope is [`GRANDTOUR_APP_SCOPE.md`](../GRANDTOUR_APP_SCOPE.md) (itself also deprecated/historical — see [docs/project/PRODUCT.md](project/PRODUCT.md)).
 
 The audited 2026 cycling dataset, import workflow, provisional-startlist rules,
 and refresh procedure are documented in

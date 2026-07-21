@@ -1,5 +1,12 @@
 # GrandTour Active Working Copy
 
+> **Deprecated / historical.** This file's "Session history" section predates
+> and has been superseded by [docs/handovers/SESSION_LOG.md](handovers/SESSION_LOG.md)
+> and [docs/handovers/COMPLETED_WORK.md](handovers/COMPLETED_WORK.md); its
+> product/status claims are superseded by
+> [docs/project/CURRENT_STATE.md](project/CURRENT_STATE.md). Kept for
+> historical context only — do not treat it as current.
+
 GrandTour Tips is the active mobile app experience. It is a cycling tipping app
 for grand tour stage-racing fans and does not claim official affiliation with a
 race organiser.

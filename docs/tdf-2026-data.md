@@ -1,5 +1,11 @@
 # 2026 Cycling Dataset Integration
 
+> **Deprecated / historical.** Superseded by
+> [docs/features/official-data-import.md](features/official-data-import.md)
+> and [docs/development/DATA_IMPORTS.md](development/DATA_IMPORTS.md), which
+> describe the current (UCI-sourced) importer. This file documents an earlier
+> stage of that pipeline. Kept for historical context only.
+
 GrandTour is a cycling tipping app for grand tour stage racing fans. The factual
 2026 race dataset is retained for data provenance; the app must not imply that
 GrandTour is official, endorsed, or affiliated with the race organiser.

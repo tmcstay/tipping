@@ -1,5 +1,15 @@
 # GrandTour App Scope
 
+> **Deprecated / historical.** This is the original MVP design brief and
+> predates most of the implementation in this repository. It is kept for
+> historical context only — it is **not** current documentation and should
+> not be treated as authoritative. For current product rules, see
+> [docs/project/PRODUCT.md](docs/project/PRODUCT.md); for what's actually
+> implemented, see [docs/project/CURRENT_STATE.md](docs/project/CURRENT_STATE.md);
+> for the decisions this brief drove, see
+> [docs/project/DECISIONS.md](docs/project/DECISIONS.md). Where this file
+> conflicts with those, they win.
+
 ## 1. Product Summary
 
 GrandTour is a cycling tipping app for grand tour stage racing fans.

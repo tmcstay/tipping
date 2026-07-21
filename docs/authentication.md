@@ -1,5 +1,11 @@
 # Authentication and authorization
 
+> **Still accurate and referenced from
+> [docs/features/authentication.md](features/authentication.md)**, which adds
+> the later auth-callback-routing fixes and production incident history.
+> Read that file first; this one remains the detailed reference for the
+> original client setup and authorization model below.
+
 GrandTour uses Supabase email/password authentication. Expo clients receive only
 the project URL and publishable key; no service-role or secret key belongs in a
 mobile/web environment file.
